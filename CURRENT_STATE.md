@@ -1,43 +1,59 @@
 # CURRENT STATE
 
-**As of:** Phase 0 foundation session (July 2026).
-**Phase:** PHASE 0 — Foundation.
-**Status:** Foundation complete. Safe to pause.
+**As of:** OBSIDIAN RIDES MVP — M1 (Foundation) session (July 2026).
+**Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
+**Current sub-phase:** M1 — Foundation.
+**Status:** M1 code complete; runtime boot verification pending on the owner's machine (see note below).
 
 ## What exists right now
 
-**Documentation (13 files):**
-`README.md`, `AI_HANDOFF.md`, `CURRENT_STATE.md`, `RETURN_CHECKLIST.md` at the repo root; `VISION.md`, `ARCHITECTURE.md`, `PRODUCT_STRATEGY.md`, `ROADMAP.md`, `DATA_MODEL.md`, `SECURITY.md`, `SAAS_MODEL.md`, `VERTICALS.md`, `DECISIONS.md` in `docs/`.
+**Documentation:** the Phase-0 doc set (`README`, `AI_HANDOFF`, `CURRENT_STATE`, `RETURN_CHECKLIST` at root; `VISION`, `ARCHITECTURE`, `PRODUCT_STRATEGY`, `ROADMAP`, `DATA_MODEL`, `SECURITY`, `SAAS_MODEL`, `VERTICALS`, `DECISIONS` in `docs/`), plus `CUSTOMER_ZERO_FEEDBACK.md` (empty log, ready for the field test).
 
-**Folder scaffold (empty modules, README stubs + `.gitkeep`):**
+**Application (M1) — `apps/web`, a single Next.js app:**
 ```
-apps/web
-packages/{core,ai,database,auth,billing,analytics,notifications}
-verticals/{rides,towing,beauty}
-integrations/{stripe,elevenlabs,messaging,calendar}
-docs/
+apps/web/
+  package.json, tsconfig.json (strict), next.config.mjs,
+  tailwind.config.ts, postcss.config.mjs, .eslintrc.json,
+  .env.local.example, next-env.d.ts, README.md
+  src/
+    app/        layout.tsx, page.tsx (dashboard shell), globals.css
+    components/ dashboard.tsx (pure UI: StatCard, Panel, QuickAction, …)
+    lib/
+      db/       env.ts, supabase-client.ts, supabase-server.ts
+      types/    index.ts (MVP domain types: Org, User, Membership, Customer, Vehicle, Trip, Expense)
 ```
 
-**Config:** `.gitignore`, `.env.example` (template only — no secrets, no real values).
+**Folder scaffold (still placeholders for later extraction):** `packages/*`, `verticals/*`, `integrations/*` — documentation of future module boundaries; not wired as a monorepo (ADR-010).
 
-## What does NOT exist
+## What works / what does NOT yet
 
-No application code. No installed dependencies (`node_modules` absent by design). No `package.json` manifests. No database, schema, or migrations. No auth. No AI orchestrator or tools. No UI beyond the concept. No tests. No CI. No deployment.
+- **Works (by design, static):** the app renders a styled OBSIDIAN dashboard **shell** — greeting, This-Month stat cards (placeholder "—"), Customer Insights / Recent Activity empty states, Quick Actions (disabled), a disabled Ask-OBSIDIAN input. Dark graphite/platinum theme, mobile-first.
+- **Does NOT exist yet:** auth, database/tables, migrations, RLS, real data, business calculations, the AI chat, natural-language entry. Those are M2–M9.
 
-This is intentional — Phase 0 is documentation and architecture only.
+## ⚠️ Verification note (important)
+
+M1 code was written and **statically type-checked** (all type-checker errors were confirmed to be missing-dependency artifacts only). It was **NOT** possible to run `npm install` / `npm run dev` in the cloud build session because that sandbox had **no access to the npm registry** (all installs returned HTTP 403). The runtime "STOP AND VERIFY — app boots" step must therefore be completed on the owner's machine:
+
+```
+cd apps/web
+npm install
+cp .env.local.example .env.local   # boots even if blank
+npm run dev                        # expect a clean boot at http://localhost:3000
+npm run build                      # expect a successful production build
+```
+
+If any error appears, capture it — it's the first thing to fix before M2.
 
 ## Decisions locked in
 
-Modular monolith (ADR-001); AI calls tools not tables (ADR-002); answers from structured data (ADR-003); one Transaction table for money (ADR-004); background-job runner deferred (ADR-005); tenancy via PostgreSQL RLS (ADR-006); sibling projects stay separate (ADR-007); web-first + PWA (ADR-008); pricing is data (ADR-009). Full text in `docs/DECISIONS.md`.
-
-## Blocked on / waiting for
-
-OBSIDIAN build is intentionally paused while the founder completes two sibling projects first: the **AI Trading Scanner** and the **AI Towing/Dispatch MVP**. Neither is merged here; both have documented future integration paths (`docs/VERTICALS.md`, `docs/PRODUCT_STRATEGY.md`).
+ADR-001…009 (see `docs/DECISIONS.md`), plus:
+- **ADR-010** — RIDES MVP is the first build; CORE built *through* RIDES; single Next.js app, not a monorepo yet.
+- **ADR-011** — MVP uses the lean 6-entity data model; audit logging returns with Level-3 actions.
 
 ## Next action
 
-Phase 1 — OBSIDIAN CORE MVP, milestone 1: scaffold `apps/web` (Next.js + TS + Tailwind) and Supabase auth with `User`/`Organization`/`Membership` + roles + **RLS** + a cross-tenant isolation test. Details in `AI_HANDOFF.md` and `docs/ROADMAP.md`.
+**M2 — Auth + Organization** (only after M1 boots clean on the owner's machine): Supabase Auth signup/login/logout, Organization creation, protected dashboard, with RLS groundwork. Do **one sub-phase at a time**; stop and verify. Details in `AI_HANDOFF.md` and `docs/ROADMAP.md`.
 
 ## Git
 
-Initialize a repository and make the first commit ("Phase 0: OBSIDIAN foundation") if not already done. Keep commits per build rule #10.
+Repository initialized. Commits: Phase 0 foundation; RIDES-MVP planning (roadmap + ADR-010/011); **M1 foundation**.

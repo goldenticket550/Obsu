@@ -13,8 +13,8 @@ The long-term concept: **one intelligent AI core, multiple specialized business 
 
 ## Phase status
 
-> **Current phase: PHASE 0 — Foundation.**
-> This repository currently contains **documentation, architecture, and folder scaffolding only**. There is no application code, and no dependencies are installed. This is intentional. Two sibling projects (an AI Trading Scanner and an AI Towing/Dispatch system) are being completed first and may later integrate as OBSIDIAN modules. **Do not begin building the full product from this repo yet.** See [`CURRENT_STATE.md`](./CURRENT_STATE.md) and [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+> **Active track: OBSIDIAN RIDES MVP — sub-phase M1 (Foundation) complete.**
+> The first product build is underway: a single Next.js app in [`apps/web`](./apps/web) that boots the OBSIDIAN dashboard shell. Customer Zero is **Midnight Rydes**. Build proceeds **one sub-phase at a time** (M1→M10) — see [`docs/ROADMAP.md`](./docs/ROADMAP.md). M1 code is written and type-checked but its runtime boot must be verified with `npm install` + `npm run dev` on a machine with npm access (see [`apps/web/README.md`](./apps/web/README.md)). For exact state and the next step, read [`CURRENT_STATE.md`](./CURRENT_STATE.md) and [`AI_HANDOFF.md`](./AI_HANDOFF.md).
 
 ## Ecosystem at a glance
 

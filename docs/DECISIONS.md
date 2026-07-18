@@ -51,6 +51,16 @@ This file records **Architecture Decision Records (ADRs)** and the **architectur
 **Why:** Pricing will change; the architecture must not need surgery when it does. (See `SAAS_MODEL.md`.)
 **Status:** Accepted.
 
+### ADR-010 — RIDES MVP is the first build; collapse CORE + RIDES into one focused app
+**Decision:** The first thing built is the **OBSIDIAN RIDES MVP** for Midnight Rydes (Customer Zero), not a separate abstract "CORE MVP." CORE capabilities (auth, tenancy, tools, dashboard, AI chat) are built *through* RIDES. The app is a **single self-contained Next.js application** (in `apps/web`) with internal module folders for business logic (`src/lib/business`, `src/lib/db`, `src/lib/ai`, …), **not** a multi-package monorepo (no pnpm/turbo workspaces) yet. The `packages/*` and `verticals/*` scaffold from Phase 0 remains as documentation of the eventual extraction boundaries.
+**Why:** Fastest path to something genuinely useful to a real business; avoids over-engineering a monorepo before there's a second consumer; keeps the codebase understandable for a beginner developer (MVP rule #6). Module boundaries are preserved as folders now and can be extracted into packages later when a second vertical actually needs them.
+**Status:** Accepted. (Revisit when BEAUTY or TOWING is built — that's when real package extraction earns its cost.)
+
+### ADR-011 — MVP uses a lean data-model subset
+**Decision:** The MVP implements only **Users, Organizations, Customers, Trips, Expenses, Vehicles**. The fuller shared model in `DATA_MODEL.md` (Leads, Bookings, Appointments, Services, Messages, Tasks, Notes, Documents, Alerts, AIInsight, Event, AuditLog) is deferred. `last_booking_date` and `lifetime_revenue` on Customer are computed by the business-engine services, not trusted as raw stored truth (may be cached later).
+**Why:** Build the smallest model that answers the Customer-Zero questions; add entities only when a validated need appears. Avoids schema bloat and premature abstraction.
+**Status:** Accepted. Audit logging (from the fuller model) is **not** dropped in principle — it's simply not needed for the read/prepare-only MVP, which sends nothing and moves no money. Reintroduce with Level-3 actions (Phase 5 / auto-send), per `SECURITY.md`.
+
 ---
 
 ## Architectural risks & recommended corrections

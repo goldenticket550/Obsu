@@ -22,19 +22,21 @@ Modular monolith. One deployable app (`apps/web`), internal modules in `packages
 
 ## Current phase & milestone
 
-- **Phase:** PHASE 0 — Foundation.
-- **Milestone:** Foundation complete. Documentation, architecture, folder scaffold, data model, roadmap, and decisions are written.
+- **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`). This supersedes the old abstract "Phase 1 CORE MVP" — CORE is built *through* RIDES (ADR-010).
+- **Current sub-phase:** **M1 — Foundation. Code complete; runtime boot to be verified on the owner's machine** (the cloud build session had no npm registry access — see "How to run").
 
 ## Completed work
 
-- 13 documentation files written and coherent (list in `README.md`).
-- Modular-monolith folder scaffold created (`apps/`, `packages/*`, `verticals/*`, `integrations/*`) with README stubs + `.gitkeep`.
-- `.gitignore` and `.env.example` (template only, no secrets).
-- Shared data model, layer definitions, phased roadmap, security model, SaaS model, ADRs, and architecture risks documented.
+- Phase 0 foundation: 13 docs + modular-monolith folder scaffold + `.gitignore`/`.env.example`.
+- RIDES-MVP planning: `docs/ROADMAP.md` updated (10 sub-phases M1–M10); ADR-010 (RIDES-first, single app not monorepo) and ADR-011 (lean 6-entity model) added.
+- **M1 — Foundation:** a single Next.js 14 (App Router) + TypeScript (strict) + Tailwind app in `apps/web`. Renders the OBSIDIAN dashboard **shell** (placeholders). Supabase client/server modules configured (not yet live). Core domain types defined. `.env.local.example` template. See `apps/web/README.md`.
+- Statically type-checked (all remaining type errors confirmed to be missing-dependency artifacts).
 
 ## Incomplete / not started
 
-**Everything executable.** There is **no application code**, no installed dependencies, no database, no migrations, no auth, no AI wiring, no UI. This is intentional for Phase 0.
+- **M1 runtime verification** — `npm install` + `npm run dev`/`build` must be run on a machine with npm access (not done in the cloud sandbox; it returned HTTP 403 for all packages).
+- **M2 onward:** auth, database + migrations + RLS, CRUD, business-engine calc services + tests, live dashboard, Ask OBSIDIAN (Claude API + tools), natural-language trip entry, customer intelligence, field test. None started.
+- Excluded from the whole MVP (do NOT build without explicit approval): voice/ElevenLabs, auto-SMS, social automation, trading/towing/beauty, native apps, complex fleet, accounting/banking, multi-agent.
 
 ## Important constraints (build rules — follow all)
 
@@ -48,16 +50,26 @@ Next.js + TypeScript + Tailwind (frontend); Supabase + PostgreSQL (data + auth +
 
 ## How to run the system
 
-Nothing to run yet — Phase 0 is documentation only. The first executable milestone is **Phase 1 (CORE MVP)**.
+```
+cd apps/web
+npm install
+cp .env.local.example .env.local   # M1 boots even if left blank
+npm run dev                        # http://localhost:3000  — expect a clean boot
+npm run build                      # expect a successful production build
+```
+
+Requires Node 18.17+ (developed on Node 22). M1 needs no live Supabase/AI keys. **This has not been run yet** — the cloud build session could not reach the npm registry (HTTP 403 on all packages), so the first person with npm access should run the above to complete M1's "STOP AND VERIFY."
 
 ## Known bugs
 
-None (no code yet).
+None known. M1 was type-checked but not yet executed; treat any first-run error as the top priority before M2.
 
 ## EXACT next recommended task
 
-**Do not start until the founder's two sibling projects (AI Trading Scanner and AI Towing/Dispatch MVP) are far enough along that OBSIDIAN work should begin.** When it's time, the first task is **Phase 1 — OBSIDIAN CORE MVP, milestone 1:**
+**First:** run the commands above and confirm M1 boots + builds cleanly. Fix any first-run issue before proceeding.
 
-> Scaffold the `apps/web` Next.js + TypeScript + Tailwind application and stand up Supabase auth with the `User` / `Organization` / `Membership` tables and roles, **including Row-Level Security policies and a negative cross-tenant isolation test.** Nothing else. Get it running and committed before moving to the AI chat + tool framework milestone.
+**Then — M2 (Auth + Organization):**
 
-Do the smallest runnable slice, verify it runs, commit, update `CURRENT_STATE.md` and this file, then proceed. See `docs/ROADMAP.md` Phase 1 for scope and `RETURN_CHECKLIST.md` for how to resume safely.
+> Add Supabase Auth (signup / login / logout), Organization creation, and a protected dashboard route. Introduce the `User` / `Organization` / `Membership` tables with roles and **Row-Level Security**, plus a negative cross-tenant isolation check. Keep to this sub-phase only; stop and verify before M3 (the rest of the database).
+
+Do the smallest runnable slice, verify it runs, commit, update `CURRENT_STATE.md` and this file, then proceed. One sub-phase at a time (build rule #1/#4). See `docs/ROADMAP.md` (RIDES MVP track) and `RETURN_CHECKLIST.md`.
