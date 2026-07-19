@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import {
   EmptyState,
   Panel,
@@ -5,16 +6,42 @@ import {
   SectionLabel,
   StatCard,
 } from "@/components/dashboard";
+import { createSupabaseServerClient } from "@/lib/db/supabase-server";
+import { signOut } from "./login/actions";
 
 /**
- * OBSIDIAN RIDES — dashboard shell (M1, Foundation).
+ * OBSIDIAN RIDES — dashboard (M2).
  *
- * This is a static preview. It renders the intended layout with placeholder
- * values so the app boots and the design is visible. No database, no auth,
- * and no real numbers yet — those arrive in later phases (auth M2, data M3,
- * business engine M5, live dashboard M6, Ask OBSIDIAN M7).
+ * Now protected: requires a signed-in user (middleware also guards this) and a
+ * business (Organization). New users with no org are sent to /onboarding.
+ * The stat cards are still placeholders — real trip/expense data arrives in
+ * M3–M6. This phase proves auth + tenancy + the personalized shell.
  */
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = createSupabaseServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Find the user's business. RLS ensures they only ever see their own.
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("organization_id, role")
+    .limit(1);
+
+  const membership = memberships?.[0];
+  if (!membership) redirect("/onboarding");
+
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("name")
+    .eq("id", membership.organization_id)
+    .single();
+
+  const businessName: string = org?.name ?? "Your business";
+
   return (
     <main className="mx-auto w-full max-w-3xl px-5 pb-16 pt-6">
       {/* Top bar */}
@@ -27,10 +54,17 @@ export default function DashboardPage() {
             Rides
           </span>
         </div>
-        <span className="flex items-center gap-2 text-xs text-obsidian-muted">
-          <span className="h-1.5 w-1.5 rounded-full bg-obsidian-cyan" />
-          Preview shell
-        </span>
+        <form action={signOut} className="flex items-center gap-3">
+          <span className="hidden text-xs text-obsidian-muted sm:inline">
+            {user.email}
+          </span>
+          <button
+            type="submit"
+            className="rounded-lg border border-obsidian-line px-3 py-1.5 text-xs text-obsidian-silver transition-colors hover:border-obsidian-cyan hover:text-obsidian-platinum"
+          >
+            Sign out
+          </button>
+        </form>
       </header>
 
       {/* Greeting */}
@@ -39,8 +73,8 @@ export default function DashboardPage() {
           Good morning.
         </h1>
         <p className="mt-1 text-sm text-obsidian-silver">
-          Midnight Rydes at a glance. Your live numbers appear here once your
-          data is connected.
+          {businessName} at a glance. Your live numbers appear here once you
+          start logging trips.
         </p>
       </section>
 
@@ -120,7 +154,7 @@ export default function DashboardPage() {
       </section>
 
       <footer className="mt-12 border-t border-obsidian-line pt-5 text-center text-xs text-obsidian-muted">
-        OBSIDIAN · Your Business. Our A.I. · M1 Foundation preview
+        OBSIDIAN · Your Business. Our A.I. · M2 — signed in as {user.email}
       </footer>
     </main>
   );
