@@ -2,12 +2,12 @@
  * OBSIDIAN RIDES — core domain types (MVP subset).
  *
  * These mirror the lean data model (ADR-011): Users, Organizations, Customers,
- * Trips, Expenses, Vehicles. They document the shape of the data now and give
- * later phases strong typing to build against. The actual database tables +
- * migrations land in M3; generated Supabase types will complement these then.
+ * Trips, Expenses, Vehicles. As of M3 the Customers/Vehicles/Trips/Expenses
+ * tables exist (supabase/migrations/0002_business_tables.sql); these row types
+ * match those columns exactly.
  *
- * Money is represented in whole cents (integers) to avoid floating-point drift.
- * Timestamps are ISO-8601 UTC strings.
+ * Money is represented in whole cents (integers) to avoid floating-point drift;
+ * cents columns/fields are suffixed `_cents`. Timestamps are ISO-8601 UTC strings.
  */
 
 export type UUID = string;
@@ -67,6 +67,11 @@ export interface Membership {
   created_at: ISODate;
 }
 
+/**
+ * A stored customer row (public.customers). Note: `last_booking_date` and
+ * `lifetime_revenue` are intentionally NOT here — they are derived by the
+ * business engine in M5 (ADR-011), never stored on the row.
+ */
 export interface Customer {
   id: UUID;
   organization_id: UUID;
@@ -75,9 +80,6 @@ export interface Customer {
   email?: string | null;
   notes?: string | null;
   created_at: ISODate;
-  // Derived by the business engine (M5), not trusted as raw stored truth:
-  last_booking_date?: ISODate | null;
-  lifetime_revenue?: Cents | null;
 }
 
 export interface Vehicle {
@@ -102,8 +104,8 @@ export interface Trip {
   start_time?: ISODate | null;
   end_time?: ISODate | null;
   hours?: number | null;
-  hourly_rate?: Cents | null;
-  revenue: Cents;
+  hourly_rate_cents?: Cents | null;
+  revenue_cents: Cents; // source-of-truth total charged (required; defaults to 0)
   payment_method?: PaymentMethod | null;
   mileage?: number | null;
   notes?: string | null;
@@ -117,7 +119,7 @@ export interface Expense {
   trip_id?: UUID | null; // linked expenses count toward estimated trip profit
   expense_date: ISODate;
   category: ExpenseCategory;
-  amount: Cents;
+  amount_cents: Cents;
   description?: string | null;
   created_at: ISODate;
 }

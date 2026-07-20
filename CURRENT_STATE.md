@@ -1,9 +1,9 @@
 # CURRENT STATE
 
-**As of:** OBSIDIAN RIDES MVP — M2 (Auth + Organization) **verified running** (2026-07-19).
+**As of:** OBSIDIAN RIDES MVP — M3 (Database layer) **complete and verified** (2026-07-19).
 **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
-**Current sub-phase:** M2 — Auth + Organization. ✅ **Complete and verified end-to-end on the owner's machine.**
-**Next sub-phase:** M3 — Database (do NOT start until the owner says go).
+**Current sub-phase:** M3 — Database. ✅ **Complete and verified against live Supabase.**
+**Next sub-phase:** M4 — Basic CRUD (do NOT start until the owner says go).
 
 ## What exists right now
 
@@ -24,9 +24,12 @@ apps/web/
     components/ dashboard.tsx           # pure UI
     lib/
       db/  env.ts, supabase-client.ts, supabase-server.ts, supabase-middleware.ts
-      types/ index.ts                   # MVP domain types
+      types/ index.ts                   # MVP domain types — M3: aligned to the 0002 columns (cents)
 supabase/
-  migrations/0001_organizations.sql     # M2: organizations + memberships + RLS + create_organization()
+  migrations/
+    0001_organizations.sql              # M2: organizations + memberships + RLS + create_organization()
+    0002_business_tables.sql            # M3: customers, vehicles, trips, expenses + RLS (is_member_of)
+  seed_dev.sql                          # M3: OPTIONAL removable dev seed — NOT run
 ```
 
 **Folder scaffold (placeholders for later extraction):** `packages/*`, `verticals/*`, `integrations/*` (ADR-010).
@@ -34,34 +37,36 @@ supabase/
 ## What works / what does NOT yet
 
 - **M1 (verified):** app boots; styled dashboard shell renders; Next.js 14.2.35.
-- **M2 (verified running):** email/password auth (Supabase), first-run business creation, protected dashboard greeting the user by business name + email, sign out. Tenant isolation via RLS on organizations/memberships; org creation via SECURITY DEFINER `create_organization()` RPC.
-  - **Confirmed end-to-end on the owner's machine (2026-07-19):** sign in → create the business **"Midnight Rydes"** → land on the protected dashboard (greeting "Midnight Rydes at a glance", owner email shown). Route protection verified: unauthenticated `/` and `/onboarding` → 307 `/login`; `/login` → 200.
-- **Not yet:** customers/trips/expenses tables + CRUD (M3–M4), business calc services + tests (M5), live dashboard numbers (M6), Ask OBSIDIAN (M7), NL trip entry (M8), customer intelligence (M9). No voice/SMS/other excluded features.
+- **M2 (verified running):** email/password auth, first-run business creation, protected personalized dashboard, sign out. RLS on organizations/memberships; org creation via SECURITY DEFINER `create_organization()` RPC. Confirmed end-to-end on the owner's machine: sign in → create "Midnight Rydes" → dashboard.
+- **M3 (verified):** the business data model — `customers`, `vehicles`, `trips`, `expenses` (migration `0002_business_tables.sql`). Money is integer **cents** (`revenue_cents`, `hourly_rate_cents`, `amount_cents`); timestamps UTC; trips support both flat and hourly pricing (`revenue_cents` is the source-of-truth total; `hours`+`hourly_rate_cents` optional). All four tables have RLS `for all` policies scoped via the existing `public.is_member_of(organization_id)` (reused from M2, not redefined). `src/lib/types/index.ts` matches the columns exactly; derived `last_booking_date`/`lifetime_revenue` are intentionally NOT stored on `Customer` (computed in M5, ADR-011). `tsc --noEmit` clean; app boots on 3001.
+  - **Verified against live Supabase (2026-07-19):** an authenticated Midnight Rydes member can insert + read a row in each of the four tables (RLS self-test, rolled back — no residue); an anonymous/anon-key read of each table returns empty (`200 []`). RLS working.
+- **Not yet:** CRUD UI (M4), business calc services + tests (M5), live dashboard numbers (M6), Ask OBSIDIAN (M7), NL trip entry (M8), customer intelligence (M9). No voice/SMS/other excluded features.
 
 ## Environment / setup notes (owner's machine)
 
-- **Runs on port 3001** (`npm run dev -- -p 3001` from `apps/web`) — port 3000 is taken by the owner's separate Trading Scanner.
+- **Runs on port 3001** (`npm run dev -- -p 3001` from `apps/web`) — port 3000 is the owner's Trading Scanner.
 - Node 24.x, npm 11.x, Next.js 14.2.35.
-- **Supabase project `hspfhyundcytxginsovh` is intentionally SHARED with the Trading Scanner** (owner's explicit decision). The RIDES `organizations`/`memberships` tables + RLS live in that same database alongside the trader's tables. Keys come from `apps/web/.env.local` only (git-ignored; sourced from the owner's `.env5.txt`). This is a deliberate exception to project separation for Customer-Zero convenience — revisit before any real multi-tenant launch.
-- `supabase/migrations/0001_organizations.sql` was already applied in that project (verified via REST: `organizations`/`memberships` exist with expected columns; `create_organization()` rejects unauthenticated calls). Safe to re-run.
-- **Auth gotcha:** sign-in only succeeds for a **confirmed** user. If sign-in fails with "Email not confirmed", confirm the user in Supabase → Authentication → Users (or turn OFF Providers → Email → "Confirm email" for dev). Use the **Sign in** button (the user was pre-created), not "Create account".
+- **Supabase project `hspfhyundcytxginsovh` (labeled "Obsidian Rides") is intentionally SHARED with the Trading Scanner** (owner's explicit decision). RIDES tables + RLS live in that DB. Keys come from `apps/web/.env.local` only (git-ignored). Deliberate Customer-Zero convenience; revisit before any real multi-tenant launch.
+- **DDL is applied by hand in the Supabase SQL Editor** — the owner's `.env5.txt` has empty `DATABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`, and there's no local `psql`/`pg`, so migrations can't be applied programmatically from here. Both `0001` and `0002` are applied. Migrations are idempotent/safe to re-run.
+- **Auth gotcha:** sign-in only succeeds for a **confirmed** user; if it fails with "Email not confirmed", confirm the user (Authentication → Users) or turn off Providers → Email → "Confirm email". Use **Sign in** (user pre-created).
 
-## Fixes made this session
+## Fixes / changes made in the M2–M3 sessions
 
-- Typed the Supabase `setAll` cookie callbacks in `lib/db/supabase-server.ts` and `lib/db/supabase-middleware.ts` (7 implicit-`any` errors under strict TS). `npm run typecheck` (`tsc --noEmit`) is clean.
+- M2: typed the Supabase `setAll` cookie callbacks in `lib/db/supabase-server.ts` and `lib/db/supabase-middleware.ts` (strict TS).
+- M3: renamed money fields to `*_cents` in `types/index.ts` and removed derived fields from the base `Customer` type. No code referenced the old names. `tsc --noEmit` clean.
 
-## Outstanding for M2 (recommended before M3)
+## Outstanding (recommended before M4)
 
-- **Negative tenant-isolation test:** confirm a *second* user cannot see Midnight Rydes. Structurally enforced (RLS on, `is_member_of()` policies, anon reads return empty), but a live second-user check is the last box to tick. Needs a second login (owner to run).
+- **Negative tenant-isolation test:** confirm a *second* user (in a second org) cannot see Midnight Rydes' rows in `organizations/memberships` **and** in the new `customers/vehicles/trips/expenses`. Structurally enforced (RLS on, `is_member_of()` policies, anon reads empty), but a live second-user check is still owed. Needs a second login — owner to run.
 
 ## Decisions locked in
 
-ADR-001…011 (see `docs/DECISIONS.md`). Key: modular monolith; AI calls tools not tables; answers from structured data; tenancy via RLS; RIDES-first single app (ADR-010); lean data model (ADR-011).
+ADR-001…011 (see `docs/DECISIONS.md`). Key: modular monolith; AI calls tools not tables; answers from structured data; tenancy via RLS; RIDES-first single app (ADR-010); lean data model (ADR-011); one Transaction concept but MVP splits trips/expenses per the pasted M3 schema.
 
 ## Next action
 
-**M3 — Database (rest of the model):** Customers, Trips, Expenses, Vehicles tables + migrations + RLS + optional seed data. **Only after the owner confirms M2 and says go.** One sub-phase at a time; stop and verify. See `docs/ROADMAP.md`.
+**M4 — Basic CRUD:** add/view/edit for Customers, Trips, Expenses (and Vehicles), tested with real Midnight Rydes data. **Only after the owner confirms M3 and says go.** One sub-phase at a time; stop and verify. See `docs/ROADMAP.md`.
 
 ## Git
 
-Repository initialized. Commits: Phase 0 foundation; RIDES-MVP planning; M1 foundation; Next.js 14.2.35 security patch; **M2 auth + organization (verified)**.
+Repository initialized. Commits: Phase 0 foundation; RIDES-MVP planning; M1 foundation; Next.js 14.2.35 security patch; M2 auth + organization (verified); **M3 database layer (verified)**.
