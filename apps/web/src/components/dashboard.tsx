@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 /**
  * Presentational building blocks for the OBSIDIAN dashboard shell.
@@ -59,8 +60,19 @@ export function StatCard({
   );
 }
 
-export function QuickAction({ label }: { label: string }) {
-  // Non-functional in M1 — wiring comes with the CRUD (M4) and Ask OBSIDIAN (M7) phases.
+export function QuickAction({ label, href }: { label: string; href?: string }) {
+  // With an href (M4 CRUD) it links; without one it stays disabled (e.g. Ask
+  // OBSIDIAN, wired in M7).
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="rounded-lg border border-obsidian-line bg-obsidian-slate px-4 py-3 text-center text-sm font-medium text-obsidian-platinum transition-colors hover:border-obsidian-cyan"
+      >
+        {label}
+      </Link>
+    );
+  }
   return (
     <button
       type="button"

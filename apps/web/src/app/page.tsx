@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   EmptyState,
@@ -7,6 +8,10 @@ import {
   StatCard,
 } from "@/components/dashboard";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
+import { listRecentTrips } from "@/lib/db/trips";
+import { listRecentExpenses } from "@/lib/db/expenses";
+import { centsToDollars } from "@/lib/money";
+import { labelize } from "@/lib/enums";
 import { signOut } from "./login/actions";
 
 /**
@@ -42,6 +47,47 @@ export default async function DashboardPage() {
 
   const businessName: string = org?.name ?? "Your business";
 
+  // Recent Activity — latest raw trips/expenses merged newest-first (no math; M6 adds numbers).
+  const [recentTrips, recentExpenses] = await Promise.all([
+    listRecentTrips(5),
+    listRecentExpenses(5),
+  ]);
+  type Activity = {
+    id: string;
+    created_at: string;
+    kind: "Trip" | "Expense";
+    primary: string;
+    amount_cents: number;
+    meta: string;
+    href: string;
+  };
+  const activity: Activity[] = [
+    ...recentTrips.map(
+      (t): Activity => ({
+        id: `t-${t.id}`,
+        created_at: t.created_at,
+        kind: "Trip",
+        primary: t.customer?.name ?? "Trip",
+        amount_cents: t.revenue_cents,
+        meta: `${t.trip_date} · ${t.pickup_location ?? "?"} → ${t.dropoff_location ?? "?"}`,
+        href: `/trips/${t.id}/edit`,
+      }),
+    ),
+    ...recentExpenses.map(
+      (e): Activity => ({
+        id: `e-${e.id}`,
+        created_at: e.created_at,
+        kind: "Expense",
+        primary: labelize(e.category),
+        amount_cents: e.amount_cents,
+        meta: `${e.expense_date}${e.description ? ` · ${e.description}` : ""}`,
+        href: `/expenses/${e.id}/edit`,
+      }),
+    ),
+  ]
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+    .slice(0, 6);
+
   return (
     <main className="mx-auto w-full max-w-3xl px-5 pb-16 pt-6">
       {/* Top bar */}
@@ -76,6 +122,26 @@ export default async function DashboardPage() {
           {businessName} at a glance. Your live numbers appear here once you
           start logging trips.
         </p>
+        <nav className="mt-4 flex flex-wrap gap-4 text-sm">
+          <Link
+            href="/customers"
+            className="text-obsidian-silver transition-colors hover:text-obsidian-platinum"
+          >
+            Customers
+          </Link>
+          <Link
+            href="/trips"
+            className="text-obsidian-silver transition-colors hover:text-obsidian-platinum"
+          >
+            Trips
+          </Link>
+          <Link
+            href="/expenses"
+            className="text-obsidian-silver transition-colors hover:text-obsidian-platinum"
+          >
+            Expenses
+          </Link>
+        </nav>
       </section>
 
       {/* This month */}
@@ -113,18 +179,46 @@ export default async function DashboardPage() {
       {/* Recent activity */}
       <section className="mt-8">
         <SectionLabel>Recent Activity</SectionLabel>
-        <Panel>
-          <EmptyState>No trips or expenses recorded yet.</EmptyState>
-        </Panel>
+        {activity.length === 0 ? (
+          <Panel>
+            <EmptyState>No trips or expenses recorded yet.</EmptyState>
+          </Panel>
+        ) : (
+          <Panel className="p-0">
+            <ul className="divide-y divide-obsidian-line">
+              {activity.map((a) => (
+                <li key={a.id}>
+                  <Link
+                    href={a.href}
+                    className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-obsidian-slate/50"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-obsidian-platinum">
+                        <span className="text-obsidian-muted">{a.kind}</span>{" "}
+                        {a.primary}
+                      </p>
+                      <p className="truncate text-xs text-obsidian-muted">
+                        {a.meta}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold tabular-nums text-obsidian-platinum">
+                      ${centsToDollars(a.amount_cents)}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
       </section>
 
       {/* Quick actions */}
       <section className="mt-8">
         <SectionLabel>Quick Actions</SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <QuickAction label="Log Trip" />
-          <QuickAction label="Add Expense" />
-          <QuickAction label="Add Customer" />
+          <QuickAction label="Log Trip" href="/trips/new" />
+          <QuickAction label="Add Expense" href="/expenses/new" />
+          <QuickAction label="Add Customer" href="/customers/new" />
           <QuickAction label="Ask OBSIDIAN" />
         </div>
       </section>

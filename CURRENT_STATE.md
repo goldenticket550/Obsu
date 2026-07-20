@@ -1,9 +1,9 @@
 # CURRENT STATE
 
-**As of:** OBSIDIAN RIDES MVP — M3 (Database layer) **complete and verified** (2026-07-19).
+**As of:** OBSIDIAN RIDES MVP — M4 (Basic CRUD) **code complete + statically verified** (2026-07-19).
 **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
-**Current sub-phase:** M3 — Database. ✅ **Complete and verified against live Supabase.**
-**Next sub-phase:** M4 — Basic CRUD (do NOT start until the owner says go).
+**Current sub-phase:** M4 — Basic CRUD. ✅ **Built & statically verified; owner to confirm real-data round-trips.**
+**Next sub-phase:** M5 — Business engine (do NOT start until the owner says go).
 
 ## What exists right now
 
@@ -12,63 +12,65 @@
 **Application — `apps/web`, a single Next.js 14 app:**
 ```
 apps/web/
-  config: package.json, tsconfig (strict), next/tailwind/postcss/eslint, .env.local.example
   .env.local                            # LOCAL ONLY, git-ignored — real Supabase keys
   src/
     middleware.ts                       # M2: session refresh + route protection
     app/
       layout.tsx, globals.css
-      page.tsx                          # dashboard — M2: protected + personalized w/ business name
-      login/    page.tsx, actions.ts    # M2: sign in / sign up / sign out
-      onboarding/ page.tsx, actions.ts  # M2: create your business (org)
-    components/ dashboard.tsx           # pure UI
+      page.tsx                          # dashboard — M2 protected; M4 wires Quick Actions,
+                                        #   nav, and a Recent Activity feed (raw rows, no math)
+      login/    page.tsx, actions.ts    # M2
+      onboarding/ page.tsx, actions.ts  # M2
+      customers/  page.tsx, actions.ts, new/page.tsx, [id]/edit/page.tsx   # M4
+      trips/      page.tsx, actions.ts, new/page.tsx, [id]/edit/page.tsx   # M4
+      expenses/   page.tsx, actions.ts, new/page.tsx, [id]/edit/page.tsx   # M4
+    components/
+      dashboard.tsx                     # pure UI (QuickAction now supports an href)
+      form.tsx                          # M4: form + page-chrome primitives (Field, Select, TopBar…)
+      customer-form.tsx, trip-form.tsx, expense-form.tsx                    # M4 forms
     lib/
-      db/  env.ts, supabase-client.ts, supabase-server.ts, supabase-middleware.ts
-      types/ index.ts                   # MVP domain types — M3: aligned to the 0002 columns (cents)
+      money.ts                          # M4: dollarsToCents / centsToDollars / optionalDollarsToCents
+      enums.ts                          # M4: enum option lists + labelize()
+      form.ts                           # M4: FormData parse/validate helpers
+      db/  env.ts, supabase-client.ts, supabase-server.ts, supabase-middleware.ts,
+           org.ts (getCurrentOrgId), customers.ts, trips.ts, expenses.ts    # M4 data access
+      types/ index.ts                   # domain types (cents)
 supabase/
-  migrations/
-    0001_organizations.sql              # M2: organizations + memberships + RLS + create_organization()
-    0002_business_tables.sql            # M3: customers, vehicles, trips, expenses + RLS (is_member_of)
-  seed_dev.sql                          # M3: OPTIONAL removable dev seed — NOT run
+  migrations/ 0001_organizations.sql, 0002_business_tables.sql
+  seed_dev.sql                          # OPTIONAL — NOT run
 ```
 
-**Folder scaffold (placeholders for later extraction):** `packages/*`, `verticals/*`, `integrations/*` (ADR-010).
+**Folder scaffold (placeholders):** `packages/*`, `verticals/*`, `integrations/*` (ADR-010).
 
 ## What works / what does NOT yet
 
-- **M1 (verified):** app boots; styled dashboard shell renders; Next.js 14.2.35.
-- **M2 (verified running):** email/password auth, first-run business creation, protected personalized dashboard, sign out. RLS on organizations/memberships; org creation via SECURITY DEFINER `create_organization()` RPC. Confirmed end-to-end on the owner's machine: sign in → create "Midnight Rydes" → dashboard.
-- **M3 (verified):** the business data model — `customers`, `vehicles`, `trips`, `expenses` (migration `0002_business_tables.sql`). Money is integer **cents** (`revenue_cents`, `hourly_rate_cents`, `amount_cents`); timestamps UTC; trips support both flat and hourly pricing (`revenue_cents` is the source-of-truth total; `hours`+`hourly_rate_cents` optional). All four tables have RLS `for all` policies scoped via the existing `public.is_member_of(organization_id)` (reused from M2, not redefined). `src/lib/types/index.ts` matches the columns exactly; derived `last_booking_date`/`lifetime_revenue` are intentionally NOT stored on `Customer` (computed in M5, ADR-011). `tsc --noEmit` clean; app boots on 3001.
-  - **Verified against live Supabase (2026-07-19):** an authenticated Midnight Rydes member can insert + read a row in each of the four tables (RLS self-test, rolled back — no residue); an anonymous/anon-key read of each table returns empty (`200 []`). RLS working.
-- **Not yet:** CRUD UI (M4), business calc services + tests (M5), live dashboard numbers (M6), Ask OBSIDIAN (M7), NL trip entry (M8), customer intelligence (M9). No voice/SMS/other excluded features.
-
-## Environment / setup notes (owner's machine)
-
-- **Runs on port 3001** (`npm run dev -- -p 3001` from `apps/web`) — port 3000 is the owner's Trading Scanner.
-- Node 24.x, npm 11.x, Next.js 14.2.35.
-- **Supabase project `hspfhyundcytxginsovh` (labeled "Obsidian Rides") is intentionally SHARED with the Trading Scanner** (owner's explicit decision). RIDES tables + RLS live in that DB. Keys come from `apps/web/.env.local` only (git-ignored). Deliberate Customer-Zero convenience; revisit before any real multi-tenant launch.
-- **DDL is applied by hand in the Supabase SQL Editor** — the owner's `.env5.txt` has empty `DATABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`, and there's no local `psql`/`pg`, so migrations can't be applied programmatically from here. Both `0001` and `0002` are applied. Migrations are idempotent/safe to re-run.
-- **Auth gotcha:** sign-in only succeeds for a **confirmed** user; if it fails with "Email not confirmed", confirm the user (Authentication → Users) or turn off Providers → Email → "Confirm email". Use **Sign in** (user pre-created).
-
-## Fixes / changes made in the M2–M3 sessions
-
-- M2: typed the Supabase `setAll` cookie callbacks in `lib/db/supabase-server.ts` and `lib/db/supabase-middleware.ts` (strict TS).
-- M3: renamed money fields to `*_cents` in `types/index.ts` and removed derived fields from the base `Customer` type. No code referenced the old names. `tsc --noEmit` clean.
+- **M1–M3 (verified):** boot + styled shell (M1); auth + org + protected dashboard (M2); customers/vehicles/trips/expenses tables + RLS (M3).
+- **M4 (built + statically verified):** CRUD **screens** for Customers, Trips, Expenses (add / view / edit — **no delete, no vehicle screen, no analytics** this phase, by scope).
+  - **Money boundary:** forms take dollars, store integer cents via `src/lib/money.ts`; displayed back as `$x.xx`. Negatives/invalid rejected.
+  - **Org stamping:** every insert/update sets `organization_id` from `getCurrentOrgId()` (read from memberships via RLS) so `WITH CHECK (is_member_of(...))` passes. Client-supplied org ids are never trusted.
+  - **Trips:** one easy `/trips/new` form — customer by name (**find-or-create**, case-insensitive, per org), route/type/payment/status, revenue ($, source of truth), optional hours + hourly rate, mileage, notes, and **inline costs** (gas/tolls/other → linked expense rows for amounts > $0). Edit form omits inline costs (linked expenses are edited on the Expenses screens).
+  - **Reads in server components, writes in server actions**, all via the RLS-enforced Supabase server client. Business logic in `src/lib`, not components.
+  - **Dashboard:** Quick Actions link to the new pages; a nav (Customers/Trips/Expenses) added; Recent Activity shows the latest trips/expenses (raw rows). This-Month stat cards stay `—` (M6); Ask OBSIDIAN stays disabled (M7).
+  - **Verified:** `tsc --noEmit` clean; `next build` compiles all 12 routes; dev boots on 3001; protected routes redirect to `/login`; money/validation logic unit-tested (17/17). **Owner-pending:** the signed-in functional round-trips (add customer, log trip w/ inline costs, reuse existing customer, edit) — the assistant can't enter the owner's password; owner will test with real Midnight Rydes data.
+- **Not yet:** business calc services + tests (M5), live dashboard numbers (M6), Ask OBSIDIAN (M7), NL trip entry (M8), customer intelligence (M9).
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)
 
-- **Negative second-user tenant-isolation test.** Confirm a *second* user (in a second org) cannot see Midnight Rydes' rows in `organizations/memberships` **and** in `customers/vehicles/trips/expenses`. Structurally enforced today (RLS on, `is_member_of()` policies, anon reads return empty), but a **live second-user check has not been run**. It needs a second login (owner to run).
-- **This is intentionally paused** until the MVP works end-to-end for the single Customer-Zero user (Midnight Rydes) — it is not a blocker for M4–M9 single-tenant work.
-- **HARD GATE:** do **NOT** onboard any second real user or business until this test passes. First real multi-user/multi-tenant step is blocked on it.
+- **Negative second-user tenant-isolation test.** A second user (second org) must see **none** of Midnight Rydes' rows in `organizations/memberships` **and** `customers/vehicles/trips/expenses`. Structurally enforced (RLS on, `is_member_of()` policies, anon reads empty), but **not yet run live**. Needs a second login (owner).
+- **Intentionally paused** until the MVP works end-to-end for the single Customer-Zero user; not a blocker for single-tenant M5–M9.
+- **HARD GATE:** do **NOT** onboard any second real user/business until this test passes.
 
-## Decisions locked in
+## Environment / setup notes (owner's machine)
 
-ADR-001…011 (see `docs/DECISIONS.md`). Key: modular monolith; AI calls tools not tables; answers from structured data; tenancy via RLS; RIDES-first single app (ADR-010); lean data model (ADR-011); one Transaction concept but MVP splits trips/expenses per the pasted M3 schema.
+- **Runs on port 3001** (`npm run dev -- -p 3001` from `apps/web`) — port 3000 is the Trading Scanner.
+- Node 24.x, npm 11.x, Next.js 14.2.35. Supabase project `hspfhyundcytxginsovh` ("Obsidian Rides") is intentionally **shared** with the Trading Scanner (owner's decision). Keys in `apps/web/.env.local` (git-ignored).
+- **DDL applied by hand in the Supabase SQL Editor** (empty `DATABASE_URL`/service-role in `.env5.txt`; no local `psql`/`pg`). Migrations 0001 + 0002 applied.
+- **Auth gotcha:** sign-in needs a **confirmed** user; else "Email not confirmed" → confirm in Authentication → Users. Use **Sign in** (user pre-created).
 
 ## Next action
 
-**M4 — Basic CRUD:** add/view/edit for Customers, Trips, Expenses (and Vehicles), tested with real Midnight Rydes data. **Only after the owner confirms M3 and says go.** One sub-phase at a time; stop and verify. See `docs/ROADMAP.md`.
+**M5 — Business engine:** deterministic calc services (revenue, expenses, est. profit, trip/customer stats, date ranges) **+ unit tests**, in `src/lib` (business logic separate from UI). Money stays in cents. **Only after the owner confirms M4 with real data and says go.** One sub-phase at a time; stop and verify.
 
 ## Git
 
-Repository initialized. Commits: Phase 0 foundation; RIDES-MVP planning; M1 foundation; Next.js 14.2.35 security patch; M2 auth + organization (verified); **M3 database layer (verified)**.
+Commits: Phase 0; RIDES-MVP planning; M1 foundation; Next.js 14.2.35 patch; M2 auth + organization (verified); M3 database layer (verified); multi-user HARD GATE doc; **M4 basic CRUD**.
