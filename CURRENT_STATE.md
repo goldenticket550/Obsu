@@ -1,9 +1,9 @@
 # CURRENT STATE
 
-**As of:** OBSIDIAN RIDES MVP — M4 (Basic CRUD) **complete and verified** (2026-07-20).
+**As of:** OBSIDIAN RIDES MVP — M5 (Business engine) **complete** (2026-07-20).
 **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
-**Current sub-phase:** M4 — Basic CRUD. ✅ **Complete and verified (owner confirmed with real Midnight Rydes data, 2026-07-20).**
-**Next sub-phase:** M5 — Business engine (do NOT start until the owner says go).
+**Current sub-phase:** M5 — Business engine. ✅ **Complete: pure calc functions + unit tests (30 passing).**
+**Next sub-phase:** M6 — Dashboard (wire these calcs into real numbers). Do NOT start until the owner says go.
 
 ## What exists right now
 
@@ -12,65 +12,54 @@
 **Application — `apps/web`, a single Next.js 14 app:**
 ```
 apps/web/
-  .env.local                            # LOCAL ONLY, git-ignored — real Supabase keys
+  vitest.config.ts                      # M5: test config (@ alias -> ./src)
+  .env.local                            # LOCAL ONLY, git-ignored
   src/
-    middleware.ts                       # M2: session refresh + route protection
-    app/
-      layout.tsx, globals.css
-      page.tsx                          # dashboard — M2 protected; M4 wires Quick Actions,
-                                        #   nav, and a Recent Activity feed (raw rows, no math)
-      login/    page.tsx, actions.ts    # M2
-      onboarding/ page.tsx, actions.ts  # M2
-      customers/  page.tsx, actions.ts, new/page.tsx, [id]/edit/page.tsx   # M4
-      trips/      page.tsx, actions.ts, new/page.tsx, [id]/edit/page.tsx   # M4
-      expenses/   page.tsx, actions.ts, new/page.tsx, [id]/edit/page.tsx   # M4
-    components/
-      dashboard.tsx                     # pure UI (QuickAction now supports an href)
-      form.tsx                          # M4: form + page-chrome primitives (Field, Select, TopBar…)
-      customer-form.tsx, trip-form.tsx, expense-form.tsx                    # M4 forms
+    middleware.ts                       # M2 route protection
+    app/  layout, globals, page.tsx (dashboard), login/, onboarding/,
+          customers/, trips/, expenses/  (M2 + M4)
+    components/ dashboard.tsx, form.tsx, {customer,trip,expense}-form.tsx
     lib/
-      money.ts                          # M4: dollarsToCents / centsToDollars / optionalDollarsToCents
-      enums.ts                          # M4: enum option lists + labelize()
-      form.ts                           # M4: FormData parse/validate helpers
-      db/  env.ts, supabase-client.ts, supabase-server.ts, supabase-middleware.ts,
-           org.ts (getCurrentOrgId), customers.ts, trips.ts, expenses.ts    # M4 data access
-      types/ index.ts                   # domain types (cents)
-supabase/
-  migrations/ 0001_organizations.sql, 0002_business_tables.sql
-  seed_dev.sql                          # OPTIONAL — NOT run
+      money.ts, enums.ts, form.ts
+      business/                         # M5 — PURE calc engine (no DB, no clock inside calcs)
+        revenue.ts       totalRevenueCents / tripCount / averageTripValueCents
+        expenses.ts      totalExpensesCents / expensesByCategoryCents
+        profit.ts        estimatedTripProfitCents / estimatedOperatingProfitCents
+        trip-rates.ts    revenuePerHourCents / revenuePerMileCents
+        customers.ts     customerLifetimeRevenueCents / customerTripCount / topCustomers
+        date-range.ts    filterByDateRange (pure) + currentMonthRange (thin, clock-aware)
+        index.ts         re-exports
+        __factories.ts   test-only row builders
+        *.test.ts        vitest unit tests (30 cases)
+      db/  env, supabase-client, supabase-server, supabase-middleware, org, customers, trips, expenses
+      types/ index.ts
+supabase/ migrations/0001, 0002 ; seed_dev.sql (NOT run)
 ```
 
 **Folder scaffold (placeholders):** `packages/*`, `verticals/*`, `integrations/*` (ADR-010).
 
 ## What works / what does NOT yet
 
-- **M1–M3 (verified):** boot + styled shell (M1); auth + org + protected dashboard (M2); customers/vehicles/trips/expenses tables + RLS (M3).
-- **M4 (built + statically verified):** CRUD **screens** for Customers, Trips, Expenses (add / view / edit — **no delete, no vehicle screen, no analytics** this phase, by scope).
-  - **Money boundary:** forms take dollars, store integer cents via `src/lib/money.ts`; displayed back as `$x.xx`. Negatives/invalid rejected.
-  - **Org stamping:** every insert/update sets `organization_id` from `getCurrentOrgId()` (read from memberships via RLS) so `WITH CHECK (is_member_of(...))` passes. Client-supplied org ids are never trusted.
-  - **Trips:** one easy `/trips/new` form — customer by name (**find-or-create**, case-insensitive, per org), route/type/payment/status, revenue ($, source of truth), optional hours + hourly rate, mileage, notes, and **inline costs** (gas/tolls/other → linked expense rows for amounts > $0). Edit form omits inline costs (linked expenses are edited on the Expenses screens).
-  - **Reads in server components, writes in server actions**, all via the RLS-enforced Supabase server client. Business logic in `src/lib`, not components.
-  - **Dashboard:** Quick Actions link to the new pages; a nav (Customers/Trips/Expenses) added; Recent Activity shows the latest trips/expenses (raw rows). This-Month stat cards stay `—` (M6); Ask OBSIDIAN stays disabled (M7).
-  - **Verified:** `tsc --noEmit` clean; `next build` compiles all 12 routes; dev boots on 3001; protected routes redirect to `/login`; money/validation logic unit-tested (17/17). **Owner-confirmed (2026-07-20):** signed in and created a customer, a trip, and an expense against live Supabase — all three creates succeeded (303 → list, no errors), confirming the create → org-stamp → RLS-insert flow end-to-end.
-- **Not yet:** business calc services + tests (M5), live dashboard numbers (M6), Ask OBSIDIAN (M7), NL trip entry (M8), customer intelligence (M9).
+- **M1–M4 (verified):** boot + shell; auth + org + protected dashboard; DB tables + RLS; CRUD screens for Customers/Trips/Expenses (owner-confirmed with real data).
+- **M5 (complete):** deterministic business-calc engine in `src/lib/business`, all **pure** (inputs = already-fetched arrays + explicit date bounds; outputs = integer cents / counts / null). Definitions (owner-confirmed): revenue counts **completed** trips only; estimated trip profit = `revenue_cents − sum(linked expenses)`; estimated operating profit = completed revenue − **all** expenses in scope (incl. overhead). Averages/ratios use `Math.round`; per-hour/mile return `null` when the divisor is missing. The only clock-aware piece, `currentMonthRange` (America/New_York), is isolated for M6 callers to pass into the pure calcs.
+  - **Verified:** `tsc --noEmit` clean; **`npm test` → 30/30 pass** (empty inputs, canceled excluded, linked-expense subtraction, non-round amounts like a $7.50 toll, rounding, null per-hour/mile, operating profit incl. standalone overhead, NY month boundary); `next build` OK; dev boots on 3001. **No UI/dashboard wiring** (that is M6) — nothing added to components.
+- **Not yet:** live dashboard numbers (M6 — wire M5 calcs into the widgets), Ask OBSIDIAN (M7), NL trip entry (M8), customer intelligence (M9).
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)
 
-- **Negative second-user tenant-isolation test.** A second user (second org) must see **none** of Midnight Rydes' rows in `organizations/memberships` **and** `customers/vehicles/trips/expenses`. Structurally enforced (RLS on, `is_member_of()` policies, anon reads empty), but **not yet run live**. Needs a second login (owner).
-- **Intentionally paused** until the MVP works end-to-end for the single Customer-Zero user; not a blocker for single-tenant M5–M9.
-- **HARD GATE:** do **NOT** onboard any second real user/business until this test passes.
+- **Negative second-user tenant-isolation test.** A second user (second org) must see **none** of Midnight Rydes' rows in any table. Structurally enforced (RLS + `is_member_of()`, anon reads empty) but **not yet run live**. Needs a second login (owner). Intentionally paused until the MVP works end-to-end; not a blocker for single-tenant M6–M9. **HARD GATE:** do NOT onboard a second real user/business until it passes.
 
 ## Environment / setup notes (owner's machine)
 
-- **Runs on port 3001** (`npm run dev -- -p 3001` from `apps/web`) — port 3000 is the Trading Scanner.
-- Node 24.x, npm 11.x, Next.js 14.2.35. Supabase project `hspfhyundcytxginsovh` ("Obsidian Rides") is intentionally **shared** with the Trading Scanner (owner's decision). Keys in `apps/web/.env.local` (git-ignored).
-- **DDL applied by hand in the Supabase SQL Editor** (empty `DATABASE_URL`/service-role in `.env5.txt`; no local `psql`/`pg`). Migrations 0001 + 0002 applied.
-- **Auth gotcha:** sign-in needs a **confirmed** user; else "Email not confirmed" → confirm in Authentication → Users. Use **Sign in** (user pre-created).
+- **Port 3001** (`npm run dev -- -p 3001` from `apps/web`); port 3000 is the Trading Scanner. Node 24, npm 11, Next 14.2.35.
+- **Tests:** `npm test` (vitest, added M5). Supabase project `hspfhyundcytxginsovh` shared with the Trading Scanner (owner's decision); keys in `apps/web/.env.local` (git-ignored).
+- **DDL applied by hand in the Supabase SQL Editor** (empty `DATABASE_URL`/service-role; no local `psql`/`pg`). Migrations 0001 + 0002 applied.
+- **Auth gotcha:** sign-in needs a **confirmed** user; use **Sign in** (user pre-created).
 
 ## Next action
 
-**M5 — Business engine:** deterministic calc services (revenue, expenses, est. profit, trip/customer stats, date ranges) **+ unit tests**, in `src/lib` (business logic separate from UI). Money stays in cents. **Only after the owner confirms M4 with real data and says go.** One sub-phase at a time; stop and verify.
+**M6 — Dashboard:** wire the M5 calc engine into the dashboard widgets (This-Month revenue/expenses/est. profit/trips, recent trips, customer insights) using real org-scoped data + `currentMonthRange`. Keep calcs in `src/lib/business` (pure); the dashboard only fetches + formats. Money formatted to dollars at the view layer. **Only after the owner says go.** One sub-phase at a time; stop and verify.
 
 ## Git
 
-Commits: Phase 0; RIDES-MVP planning; M1 foundation; Next.js 14.2.35 patch; M2 auth + organization (verified); M3 database layer (verified); multi-user HARD GATE doc; **M4 basic CRUD**.
+Commits: Phase 0; RIDES-MVP planning; M1; Next.js 14.2.35 patch; M2 (verified); M3 (verified); multi-user HARD GATE doc; M4 CRUD; M4 verified; **M5 business engine**.
