@@ -36,9 +36,17 @@ Modular monolith. One deployable app (`apps/web`), internal modules in `src/lib/
 
 ## Incomplete / not started
 
-- **Residual (recommended before/with M4):** live negative **tenant-isolation** test with a *second* user — a second user in a second org must see none of Midnight Rydes' rows in organizations/memberships **and** in the new customers/vehicles/trips/expenses. RLS structurally enforces it (policies + anon reads empty); a live second-user check is still owed. Needs a second login — owner to run.
+- **Residual — negative second-user tenant-isolation test:** intentionally deferred (single-tenant MVP), but a **HARD GATE before multi-user** — see the "⛔ Deferred — must-do before going multi-user" section below.
 - **M4 onward:** CRUD UI, business-engine calc services + tests, live dashboard, Ask OBSIDIAN (Claude API + tools), natural-language trip entry, customer intelligence, field test. None started.
 - Excluded from the whole MVP (do NOT build without explicit approval): voice/ElevenLabs, auto-SMS, social automation, trading/towing/beauty, native apps, complex fleet, accounting/banking, multi-agent.
+
+## ⛔ Deferred — must-do before going multi-user (HARD GATE)
+
+The **negative second-user tenant-isolation test** is intentionally **paused** until the RIDES MVP works end-to-end for the single Customer-Zero user (Midnight Rydes). It is *not* a blocker for the single-tenant M4–M9 work.
+
+**The test:** a second user in a second organization must be able to see **none** of Midnight Rydes' rows — in `organizations`/`memberships` **and** in `customers`/`vehicles`/`trips`/`expenses`. RLS structurally enforces this today (policies via `is_member_of()`, anon reads return empty), but it has **not** been exercised with a live second user. Needs a second login — owner to run.
+
+**HARD GATE:** do **NOT** onboard any second real user or business — i.e. do not take OBSIDIAN multi-user/multi-tenant in any real capacity — until this test passes. Any coding agent reaching the multi-user step must stop and get this run first.
 
 ## Important constraints (build rules — follow all)
 

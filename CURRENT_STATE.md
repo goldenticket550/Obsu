@@ -55,9 +55,11 @@ supabase/
 - M2: typed the Supabase `setAll` cookie callbacks in `lib/db/supabase-server.ts` and `lib/db/supabase-middleware.ts` (strict TS).
 - M3: renamed money fields to `*_cents` in `types/index.ts` and removed derived fields from the base `Customer` type. No code referenced the old names. `tsc --noEmit` clean.
 
-## Outstanding (recommended before M4)
+## ⛔ Deferred — must-do before going multi-user (HARD GATE)
 
-- **Negative tenant-isolation test:** confirm a *second* user (in a second org) cannot see Midnight Rydes' rows in `organizations/memberships` **and** in the new `customers/vehicles/trips/expenses`. Structurally enforced (RLS on, `is_member_of()` policies, anon reads empty), but a live second-user check is still owed. Needs a second login — owner to run.
+- **Negative second-user tenant-isolation test.** Confirm a *second* user (in a second org) cannot see Midnight Rydes' rows in `organizations/memberships` **and** in `customers/vehicles/trips/expenses`. Structurally enforced today (RLS on, `is_member_of()` policies, anon reads return empty), but a **live second-user check has not been run**. It needs a second login (owner to run).
+- **This is intentionally paused** until the MVP works end-to-end for the single Customer-Zero user (Midnight Rydes) — it is not a blocker for M4–M9 single-tenant work.
+- **HARD GATE:** do **NOT** onboard any second real user or business until this test passes. First real multi-user/multi-tenant step is blocked on it.
 
 ## Decisions locked in
 
