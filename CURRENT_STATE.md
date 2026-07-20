@@ -1,8 +1,8 @@
 # CURRENT STATE
 
-**As of:** OBSIDIAN RIDES MVP — M4 (Basic CRUD) **code complete + statically verified** (2026-07-19).
+**As of:** OBSIDIAN RIDES MVP — M4 (Basic CRUD) **complete and verified** (2026-07-20).
 **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
-**Current sub-phase:** M4 — Basic CRUD. ✅ **Built & statically verified; owner to confirm real-data round-trips.**
+**Current sub-phase:** M4 — Basic CRUD. ✅ **Complete and verified (owner confirmed with real Midnight Rydes data, 2026-07-20).**
 **Next sub-phase:** M5 — Business engine (do NOT start until the owner says go).
 
 ## What exists right now
@@ -51,7 +51,7 @@ supabase/
   - **Trips:** one easy `/trips/new` form — customer by name (**find-or-create**, case-insensitive, per org), route/type/payment/status, revenue ($, source of truth), optional hours + hourly rate, mileage, notes, and **inline costs** (gas/tolls/other → linked expense rows for amounts > $0). Edit form omits inline costs (linked expenses are edited on the Expenses screens).
   - **Reads in server components, writes in server actions**, all via the RLS-enforced Supabase server client. Business logic in `src/lib`, not components.
   - **Dashboard:** Quick Actions link to the new pages; a nav (Customers/Trips/Expenses) added; Recent Activity shows the latest trips/expenses (raw rows). This-Month stat cards stay `—` (M6); Ask OBSIDIAN stays disabled (M7).
-  - **Verified:** `tsc --noEmit` clean; `next build` compiles all 12 routes; dev boots on 3001; protected routes redirect to `/login`; money/validation logic unit-tested (17/17). **Owner-pending:** the signed-in functional round-trips (add customer, log trip w/ inline costs, reuse existing customer, edit) — the assistant can't enter the owner's password; owner will test with real Midnight Rydes data.
+  - **Verified:** `tsc --noEmit` clean; `next build` compiles all 12 routes; dev boots on 3001; protected routes redirect to `/login`; money/validation logic unit-tested (17/17). **Owner-confirmed (2026-07-20):** signed in and created a customer, a trip, and an expense against live Supabase — all three creates succeeded (303 → list, no errors), confirming the create → org-stamp → RLS-insert flow end-to-end.
 - **Not yet:** business calc services + tests (M5), live dashboard numbers (M6), Ask OBSIDIAN (M7), NL trip entry (M8), customer intelligence (M9).
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)
