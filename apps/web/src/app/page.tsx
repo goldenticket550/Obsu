@@ -8,19 +8,31 @@ import {
   StatCard,
 } from "@/components/dashboard";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
-import { listRecentTrips } from "@/lib/db/trips";
-import { listRecentExpenses } from "@/lib/db/expenses";
-import { centsToDollars } from "@/lib/money";
+import { listTrips } from "@/lib/db/trips";
+import { listExpenses } from "@/lib/db/expenses";
+import { listCustomers } from "@/lib/db/customers";
+import {
+  averageTripValueCents,
+  currentMonthRange,
+  estimatedOperatingProfitCents,
+  filterByDateRange,
+  topCustomers,
+  totalExpensesCents,
+  totalRevenueCents,
+  tripCount,
+} from "@/lib/business";
+import { formatUsd } from "@/lib/money";
 import { labelize } from "@/lib/enums";
 import { signOut } from "./login/actions";
 
 /**
- * OBSIDIAN RIDES — dashboard (M2).
+ * OBSIDIAN RIDES — dashboard (M6).
  *
- * Now protected: requires a signed-in user (middleware also guards this) and a
- * business (Organization). New users with no org are sent to /onboarding.
- * The stat cards are still placeholders — real trip/expense data arrives in
- * M3–M6. This phase proves auth + tenancy + the personalized shell.
+ * Protected (middleware + this component). Fetches the org's trips / expenses /
+ * customers (RLS-scoped), then calls the PURE calc functions in
+ * src/lib/business to fill the This-Month numbers, the average-trip line, and
+ * top-customer insights. This component only fetches and formats — no math
+ * lives here (build rule #6).
  */
 export default async function DashboardPage() {
   const supabase = createSupabaseServerClient();
@@ -47,11 +59,35 @@ export default async function DashboardPage() {
 
   const businessName: string = org?.name ?? "Your business";
 
-  // Recent Activity — latest raw trips/expenses merged newest-first (no math; M6 adds numbers).
-  const [recentTrips, recentExpenses] = await Promise.all([
-    listRecentTrips(5),
-    listRecentExpenses(5),
+  // Fetch everything for this org (RLS-scoped). Small dataset — the M5 pure
+  // functions filter/aggregate in memory, which is exactly what they're for.
+  const [allTrips, allExpenses, customers] = await Promise.all([
+    listTrips(),
+    listExpenses(),
+    listCustomers(),
   ]);
+
+  // This-month window in America/New_York (M5), then the pure calcs.
+  const { start, end } = currentMonthRange();
+  const monthTrips = filterByDateRange(allTrips, "trip_date", start, end);
+  const monthExpenses = filterByDateRange(
+    allExpenses,
+    "expense_date",
+    start,
+    end,
+  );
+
+  const revenueCents = totalRevenueCents(monthTrips);
+  const expensesCents = totalExpensesCents(monthExpenses);
+  const profitCents = estimatedOperatingProfitCents(monthTrips, monthExpenses);
+  const completedTrips = tripCount(monthTrips);
+  const avgTripCents = averageTripValueCents(monthTrips);
+
+  const topRanked = topCustomers(allTrips, customers, 3).filter(
+    (r) => r.revenueCents > 0,
+  );
+
+  // Recent Activity (unchanged from M4) — latest raw trips/expenses, newest-first.
   type Activity = {
     id: string;
     created_at: string;
@@ -62,7 +98,7 @@ export default async function DashboardPage() {
     href: string;
   };
   const activity: Activity[] = [
-    ...recentTrips.map(
+    ...allTrips.map(
       (t): Activity => ({
         id: `t-${t.id}`,
         created_at: t.created_at,
@@ -73,7 +109,7 @@ export default async function DashboardPage() {
         href: `/trips/${t.id}/edit`,
       }),
     ),
-    ...recentExpenses.map(
+    ...allExpenses.map(
       (e): Activity => ({
         id: `e-${e.id}`,
         created_at: e.created_at,
@@ -119,8 +155,7 @@ export default async function DashboardPage() {
           Good morning.
         </h1>
         <p className="mt-1 text-sm text-obsidian-silver">
-          {businessName} at a glance. Your live numbers appear here once you
-          start logging trips.
+          {businessName} at a glance.
         </p>
         <nav className="mt-4 flex flex-wrap gap-4 text-sm">
           <Link
@@ -148,32 +183,65 @@ export default async function DashboardPage() {
       <section className="mt-8">
         <SectionLabel>This Month</SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Revenue" value="—" hint="Awaiting data" />
-          <StatCard label="Recorded Expenses" value="—" hint="Awaiting data" />
+          <StatCard label="Revenue" value={formatUsd(revenueCents)} />
+          <StatCard
+            label="Recorded Expenses"
+            value={formatUsd(expensesCents)}
+          />
           <StatCard
             label="Est. Operating Profit"
-            value="—"
+            value={formatUsd(profitCents)}
             hint="Estimated"
             accent
           />
-          <StatCard label="Trips" value="—" hint="Awaiting data" />
+          <StatCard label="Trips" value={String(completedTrips)} />
         </div>
         <p className="mt-2 text-xs text-obsidian-muted">
-          Average trip value will be shown here. Profit is an{" "}
-          <span className="text-obsidian-silver">estimate</span> based on
-          trip-linked expenses — not audited net income.
+          Average trip value{" "}
+          <span className="text-obsidian-silver">
+            {formatUsd(avgTripCents)}
+          </span>
+          . Operating profit is an{" "}
+          <span className="text-obsidian-silver">estimate</span> — this
+          month&apos;s completed-trip revenue minus all recorded expenses, not
+          audited net income.
         </p>
       </section>
 
       {/* Customer insights */}
       <section className="mt-8">
         <SectionLabel>Customer Insights</SectionLabel>
-        <Panel>
-          <EmptyState>
-            Follow-up opportunities — repeat customers who have gone quiet —
-            will surface here once trips are being logged.
-          </EmptyState>
-        </Panel>
+        {topRanked.length === 0 ? (
+          <Panel>
+            <EmptyState>
+              Your top customers by revenue will appear here once trips are
+              logged.
+            </EmptyState>
+          </Panel>
+        ) : (
+          <Panel className="p-0">
+            <ul className="divide-y divide-obsidian-line">
+              {topRanked.map((r) => (
+                <li
+                  key={r.customer.id}
+                  className="flex items-center justify-between gap-3 px-5 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-obsidian-platinum">
+                      {r.customer.name}
+                    </p>
+                    <p className="text-xs text-obsidian-muted">
+                      {r.tripCount} {r.tripCount === 1 ? "trip" : "trips"}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold tabular-nums text-obsidian-platinum">
+                    {formatUsd(r.revenueCents)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
       </section>
 
       {/* Recent activity */}
@@ -202,7 +270,7 @@ export default async function DashboardPage() {
                       </p>
                     </div>
                     <p className="shrink-0 text-sm font-semibold tabular-nums text-obsidian-platinum">
-                      ${centsToDollars(a.amount_cents)}
+                      {formatUsd(a.amount_cents)}
                     </p>
                   </Link>
                 </li>
@@ -248,7 +316,7 @@ export default async function DashboardPage() {
       </section>
 
       <footer className="mt-12 border-t border-obsidian-line pt-5 text-center text-xs text-obsidian-muted">
-        OBSIDIAN · Your Business. Our A.I. · M2 — signed in as {user.email}
+        OBSIDIAN · Your Business. Our A.I. · signed in as {user.email}
       </footer>
     </main>
   );

@@ -23,12 +23,25 @@ export function dollarsToCents(input: string | number): number {
 }
 
 /**
- * Format integer cents as a plain 2-decimal dollar string (no currency
- * symbol), e.g. 24000 -> "240.00".
+ * Format integer cents as a 2-decimal dollar string with thousands separators
+ * and no currency symbol, e.g. 124050 -> "1,240.50", 750 -> "7.50".
  */
 export function centsToDollars(cents: number): string {
   const n = Number.isFinite(cents) ? cents : 0;
-  return (n / 100).toFixed(2);
+  return (n / 100).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+/**
+ * Display helper: integer cents -> "$1,240.00" (negatives as "-$5.00").
+ * Built on centsToDollars so all money formatting shares one boundary.
+ */
+export function formatUsd(cents: number): string {
+  const value = Number.isFinite(cents) ? cents : 0;
+  const sign = value < 0 ? "-" : "";
+  return `${sign}$${centsToDollars(Math.abs(value))}`;
 }
 
 /** Like dollarsToCents, but blank/whitespace -> null (for optional amounts). */

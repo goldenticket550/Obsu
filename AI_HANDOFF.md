@@ -23,8 +23,8 @@ Modular monolith. One deployable app (`apps/web`), internal modules in `src/lib/
 ## Current phase & milestone
 
 - **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`). This supersedes the old abstract "Phase 1 CORE MVP" — CORE is built *through* RIDES (ADR-010).
-- **Current sub-phase:** **M5 — Business engine. ✅ COMPLETE — pure calc functions in `src/lib/business` + 30 passing unit tests (2026-07-20).**
-- **Next sub-phase:** **M6 — Dashboard. NOT STARTED. Do not begin until the owner explicitly says go.**
+- **Current sub-phase:** **M6 — Dashboard wiring. ✅ BUILT & statically verified (tsc + M5 tests + money format + next build + boot, 2026-07-20); owner to confirm the live This-Month numbers with real data.**
+- **Next sub-phase:** **M7 — Ask OBSIDIAN. NOT STARTED. Do not begin until the owner explicitly says go.**
 
 ## Completed work
 
@@ -35,11 +35,12 @@ Modular monolith. One deployable app (`apps/web`), internal modules in `src/lib/
 - **M3 — Database layer (verified):** `customers`, `vehicles`, `trips`, `expenses` in `supabase/migrations/0002_business_tables.sql`, each `organization_id`-scoped with an RLS `for all` policy reusing the existing `public.is_member_of(organization_id)` (NOT redefined). Money is integer cents (`revenue_cents`/`hourly_rate_cents`/`amount_cents`); trips carry both flat (`revenue_cents`, source of truth) and optional hourly (`hours`+`hourly_rate_cents`) pricing; timestamps UTC. `src/lib/types/index.ts` matches the columns exactly; derived `last_booking_date`/`lifetime_revenue` stay OUT of the `Customer` row type (computed in M5, ADR-011). Optional `supabase/seed_dev.sql` exists but is NOT run. Verified against live Supabase: authenticated member insert+read in all four tables (RLS self-test, rolled back), anon read of each returns empty.
 - **M4 — Basic CRUD (built, static-verified):** add/view/edit screens for Customers, Trips, Expenses (`src/app/{customers,trips,expenses}` — list + `new` + `[id]/edit`, server actions in each `actions.ts`). **No delete, no vehicle screen, no analytics** this phase (scope). Money boundary in `src/lib/money.ts` (dollars in UI ↔ integer cents in DB); org stamping via `src/lib/db/org.ts` `getCurrentOrgId()` on every write; trip form does **find-or-create customer by name** + optional **inline costs** → linked expense rows. Reads in server components, writes in server actions, all via the RLS-enforced server client; enum lists + `labelize` in `src/lib/enums.ts`; shared form UI in `src/components/form.tsx` + entity forms. Dashboard Quick Actions/nav wired; Recent Activity shows raw latest trips/expenses. Verified: `tsc --noEmit` clean, `next build` (12 routes) OK, dev boots on 3001, protected routes → `/login`, money/validation unit tests 17/17. **Owner-confirmed (2026-07-20):** created a customer, trip, and expense against live Supabase (all succeeded).
 - **M5 — Business engine (complete):** deterministic **pure** calc functions in `src/lib/business/*` (revenue, expenses/by-category, estimated trip & operating profit, per-hour/mile rates, customer lifetime revenue/trip-count/top-customers, `filterByDateRange`), plus a thin clock-aware `currentMonthRange` (America/New_York) kept separate. All money in integer cents; `Math.round` on averages/ratios; per-hour/mile `null` when the divisor is missing. Confirmed definitions: revenue = completed trips only; trip profit = revenue − linked expenses; operating profit = completed revenue − all in-scope expenses (incl. overhead). **Vitest** added (`npm test`); 30 unit tests pass. `tsc --noEmit` clean; `next build` OK; dev boots. **No UI/dashboard wiring** — that is M6.
+- **M6 — Dashboard wiring (built, static-verified):** `src/app/page.tsx` now fetches the org's trips/expenses/customers (RLS-scoped) and calls the M5 pure calcs to fill the This-Month cards (Revenue / Recorded Expenses / Est. Operating Profit [accent, "Estimated"] / Trips), the average-trip line, and Customer Insights (`topCustomers(allTrips, customers, 3)`, zero-revenue filtered). Current month from `currentMonthRange()` + `filterByDateRange()`. Money via `formatUsd` (grouped, `$7.50`, `-$5.00`); empty month → `$0.00`/`0`. All math stays in `src/lib/business`; the component only fetches + formats. Verified: `tsc` clean, M5 tests 30/30, money-format checked, `next build` (12 routes) OK, boots on 3001. **Owner-pending:** confirm live This-Month numbers vs real data.
 
 ## Incomplete / not started
 
 - **Residual — negative second-user tenant-isolation test:** intentionally deferred (single-tenant MVP), but a **HARD GATE before multi-user** — see the "⛔ Deferred — must-do before going multi-user" section below.
-- **M6 onward:** live dashboard numbers (wire the M5 calcs), Ask OBSIDIAN (Claude API + tools), natural-language trip entry, customer intelligence, field test. None started.
+- **M7 onward:** Ask OBSIDIAN (Claude API + tools), natural-language trip entry, customer intelligence, field test. None started.
 - Excluded from the whole MVP (do NOT build without explicit approval): voice/ElevenLabs, auto-SMS, social automation, trading/towing/beauty, native apps, complex fleet, accounting/banking, multi-agent.
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)
@@ -88,10 +89,10 @@ Requires Node 18.17+ (developed on Node 22–24). From M2 onward a live Supabase
 
 ## EXACT next recommended task
 
-M5 is complete (pure calc engine + 30 passing unit tests). The engine is NOT wired into any UI yet.
+M6 is built (dashboard wired to the M5 calcs); owner to confirm the live This-Month numbers with real data.
 
-**M6 (Dashboard):**
+**M7 (Ask OBSIDIAN):**
 
-> Wire the M5 `src/lib/business` calcs into the dashboard: fetch the org's trips/expenses/customers (server components, RLS-scoped), compute the current month via `currentMonthRange` + `filterByDateRange`, and fill the This-Month cards (revenue, recorded expenses, estimated operating profit — labeled "Estimated", trips), plus recent trips and customer insights (top customers / lifetime value). The dashboard only fetches + formats (dollars at the view layer); all math stays in `src/lib/business` (pure). Keep to this sub-phase only; stop and verify before M7 (Ask OBSIDIAN).
+> Add a Claude-API chat that answers ONLY through a safe, schema-typed tool layer (getRevenueSummary, getExpenseSummary, getTopCustomers, getCustomerHistory, getTripSummary, getInactiveCustomers, getBusinessPerformance). Tools fetch org-scoped data (RLS) and compute via the M5 `src/lib/business` calcs — the model never fabricates numbers (ADR-002/003). Read the `claude-api` skill for model id/SDK. Keep an API key in `.env.local` (ANTHROPIC_API_KEY), never committed. Keep to this sub-phase only; stop and verify before M8.
 
-Do the smallest runnable slice, verify it runs, commit, update `CURRENT_STATE.md` and this file, then proceed. One sub-phase at a time (build rule #1/#4). **Do not start M6 until the owner confirms M5 and says go.** See `docs/ROADMAP.md` (RIDES MVP track) and `RETURN_CHECKLIST.md`.
+Do the smallest runnable slice, verify it runs, commit, update `CURRENT_STATE.md` and this file, then proceed. One sub-phase at a time (build rule #1/#4). **Do not start M7 until the owner confirms M6 and says go.** See `docs/ROADMAP.md` (RIDES MVP track) and `RETURN_CHECKLIST.md`.
