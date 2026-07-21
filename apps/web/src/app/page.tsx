@@ -287,31 +287,27 @@ export default async function DashboardPage() {
           <QuickAction label="Log Trip" href="/trips/new" />
           <QuickAction label="Add Expense" href="/expenses/new" />
           <QuickAction label="Add Customer" href="/customers/new" />
-          <QuickAction label="Ask OBSIDIAN" />
+          <QuickAction label="Ask OBSIDIAN" href="/ask" />
         </div>
       </section>
 
       {/* Ask OBSIDIAN */}
       <section className="mt-8">
         <SectionLabel>Ask OBSIDIAN</SectionLabel>
-        <div className="flex items-center gap-2 rounded-xl border border-obsidian-line bg-obsidian-graphite p-2 shadow-panel">
-          <input
-            type="text"
-            disabled
-            placeholder="Ask anything about your business…"
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-obsidian-platinum placeholder:text-obsidian-muted focus:outline-none"
-          />
-          <span
-            aria-hidden
-            className="select-none rounded-lg border border-obsidian-line px-3 py-2 text-obsidian-muted"
-            title="Voice input is out of MVP scope"
-          >
-            🎙
+        <Link
+          href="/ask"
+          className="flex items-center justify-between gap-2 rounded-xl border border-obsidian-line bg-obsidian-graphite p-3 shadow-panel transition-colors hover:border-obsidian-cyan"
+        >
+          <span className="px-1 text-sm text-obsidian-muted">
+            Ask anything about your business…
           </span>
-        </div>
+          <span className="rounded-lg bg-obsidian-platinum px-3 py-1.5 text-xs font-semibold text-obsidian-black">
+            Ask →
+          </span>
+        </Link>
         <p className="mt-2 text-xs text-obsidian-muted">
           The assistant answers from your verified business data — never
-          guessed numbers. Enabled in a later phase.
+          guessed numbers.
         </p>
       </section>
 

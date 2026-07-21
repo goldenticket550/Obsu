@@ -1,9 +1,9 @@
 # CURRENT STATE
 
-**As of:** OBSIDIAN RIDES MVP — M6 (Dashboard wiring) **built + statically verified** (2026-07-20).
+**As of:** OBSIDIAN RIDES MVP — M7 (Ask OBSIDIAN) **built + statically verified** (2026-07-20).
 **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
-**Current sub-phase:** M6 — Dashboard. ✅ **Built & statically verified; owner to confirm the live This-Month numbers with real data.**
-**Next sub-phase:** M7 — Ask OBSIDIAN (do NOT start until the owner says go).
+**Current sub-phase:** M7 — Ask OBSIDIAN. ✅ **Built & statically verified; owner to test with an ANTHROPIC_API_KEY set.**
+**Next sub-phase:** M8 — Natural-language trip entry (do NOT start until the owner says go).
 
 ## What exists right now
 
@@ -16,45 +16,49 @@ apps/web/
   src/
     middleware.ts
     app/
-      page.tsx          # dashboard — M6: live This-Month numbers, avg trip, top customers
-      login/, onboarding/, customers/, trips/, expenses/    (M2 + M4)
-    components/ dashboard.tsx, form.tsx, {customer,trip,expense}-form.tsx
+      page.tsx          # dashboard (M6 live numbers) — Ask box + Quick Action now link to /ask
+      ask/  page.tsx, actions.ts        # M7: Ask OBSIDIAN page + server action
+      login/, onboarding/, customers/, trips/, expenses/
+    components/ dashboard.tsx, form.tsx, ask-obsidian.tsx (client), {customer,trip,expense}-form.tsx
     lib/
-      money.ts          # centsToDollars (now grouped) + formatUsd (M6)
-      enums.ts, form.ts
-      business/         # M5 pure calc engine (used by the dashboard in M6) + tests
-      db/  env, supabase-client, supabase-server, supabase-middleware, org,
-           customers, trips, expenses
+      ai/               # M7 — Claude tool-use chat (server-only)
+        config.ts       ASK_MODEL (claude-haiku-4-5), MAX_TOOL_ITERATIONS, ASK_SYSTEM_PROMPT
+        tools.ts        6 read-only tools + executors (org-scoped, compute via M5)
+        ask.ts          tool-use loop (call model → run tool → feed back → repeat)
+      money.ts, enums.ts, form.ts
+      business/         # M5 pure calc engine + tests (used by M6 dashboard AND M7 tools)
+      db/  env, supabase-client, supabase-server, supabase-middleware, org, customers, trips, expenses
       types/ index.ts
 supabase/ migrations/0001, 0002 ; seed_dev.sql (NOT run)
 ```
 
 ## What works / what does NOT yet
 
-- **M1–M5 (verified):** boot/shell; auth+org+protected dashboard; DB tables+RLS; CRUD screens (owner-confirmed); pure business-calc engine + 30 unit tests.
-- **M6 (built + statically verified):** the dashboard now shows **real numbers**. The server component fetches this org's trips/expenses/customers (RLS-scoped), computes the current month via `currentMonthRange()` (America/New_York) + `filterByDateRange()`, and calls the M5 pure calcs:
-  - **This Month cards:** Revenue = `totalRevenueCents(monthTrips)`; Recorded Expenses = `totalExpensesCents(monthExpenses)`; Est. Operating Profit (accent, "Estimated" label) = `estimatedOperatingProfitCents(monthTrips, monthExpenses)`; Trips = `tripCount(monthTrips)`.
-  - **Average trip value line** = `averageTripValueCents(monthTrips)`; kept the "estimate … not audited net income" note.
-  - **Customer Insights:** `topCustomers(allTrips, customers, 3)` (name, lifetime revenue, trip count; zero-revenue filtered out). No retention/inactive detection (that's M9).
-  - **Recent Activity:** unchanged from M4 (latest raw trips/expenses).
-  - Money formatted via `formatUsd` (thousands separators, `$7.50` for 750¢, `-$5.00` for negatives). Empty month → `$0.00` / `0` gracefully. **All math stays in `src/lib/business`; the dashboard only fetches + formats.**
-  - **Verified:** `tsc --noEmit` clean; M5 tests 30/30; money formatting checked; `next build` (12 routes) OK; dev boots on 3001; routes protected. **Owner-pending:** confirm the live This-Month numbers are correct against real Midnight Rydes data (assistant can't drive the signed-in dashboard).
-- **Not yet:** Ask OBSIDIAN (M7 — Claude API + safe tools), NL trip entry (M8), customer intelligence (M9), field test (M10).
+- **M1–M6 (verified):** boot/shell; auth + org + protected dashboard; DB tables + RLS; CRUD screens (owner-confirmed); pure business-calc engine + 30 unit tests; dashboard wired to live numbers (owner-confirmed).
+- **M7 (built + statically verified):** **Ask OBSIDIAN** — a Claude-powered chat that answers business questions **only through schema-typed, read-only (Level 1) tools** backed by the M5 calcs. Architecture: user question → Claude (tool-use) → tool runs **server-side, org-scoped (RLS)**, fetches data + computes via `src/lib/business` → verified numbers returned → Claude phrases the answer. No writes/actions this phase.
+  - **Tools:** `get_business_performance`, `get_revenue_summary`, `get_expense_summary` (optional per-category), `get_trip_summary`, `get_top_customers`, `get_customer_history` (case-insensitive). Periods `this_month`/`last_month`/`all_time` via `currentMonthRange()`+`filterByDateRange()`.
+  - **No fabricated numbers:** the system prompt forbids inventing/estimating/calculating figures. Each tool returns money as **both** integer cents **and** a pre-formatted USD string (`formatUsd`); Claude is instructed to present the pre-formatted dollar string verbatim and never do arithmetic — so a figure matches the dashboard exactly and can't drift.
+  - **Model:** `claude-haiku-4-5` (low cost), a single config constant (`ASK_MODEL`) — swap to `claude-sonnet-5` if answers need more reasoning.
+  - **UI:** `/ask` page with a chat island (`components/ask-obsidian.tsx`), example-question chips, graceful errors (missing key → friendly message, not a crash). Dashboard "Ask OBSIDIAN" box + Quick Action link to `/ask`.
+  - **Secrets:** `ANTHROPIC_API_KEY` is read server-side only (never `NEXT_PUBLIC`, never committed); the SDK + AI code stay server-side. Verified: the built client static bundle contains no key/SDK/prompt.
+  - **Verified:** `tsc --noEmit` clean; M5 tests 30/30; `next build` (13 routes) OK; dev boots on 3001; `/ask` is auth-protected. **Owner-pending:** functional test with a real `ANTHROPIC_API_KEY` — "How much did I make this month?" should match the dashboard; "Who's my top customer?" correct; "How much on gas?" correct; an unsupported question should decline rather than invent a number.
+- **Not yet:** natural-language trip entry (M8), customer intelligence / inactive detection (M9), field test (M10).
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)
 
-- **Negative second-user tenant-isolation test.** A second user (second org) must see **none** of Midnight Rydes' rows in any table. Structurally enforced (RLS + `is_member_of()`, anon reads empty) but **not yet run live**; needs a second login (owner). Intentionally paused until the MVP works end-to-end; not a blocker for single-tenant M7–M9. **HARD GATE:** do NOT onboard a second real user/business until it passes.
+- **Negative second-user tenant-isolation test.** A second user (second org) must see **none** of Midnight Rydes' rows in any table (and get no cross-org answers from Ask OBSIDIAN — the tools are RLS-scoped, so this holds structurally). Not yet run live; needs a second login (owner). Intentionally paused until the MVP works end-to-end; not a blocker for single-tenant M8–M9. **HARD GATE:** do NOT onboard a second real user/business until it passes.
 
 ## Environment / setup notes (owner's machine)
 
 - **Port 3001** (`npm run dev -- -p 3001` from `apps/web`); 3000 is the Trading Scanner. Node 24, npm 11, Next 14.2.35. `npm test` = vitest.
-- Supabase project `hspfhyundcytxginsovh` shared with the Trading Scanner (owner's decision); keys in `apps/web/.env.local` (git-ignored). DDL applied by hand in the SQL Editor; migrations 0001 + 0002 applied.
+- **`apps/web/.env.local` now needs a third value for M7:** `ANTHROPIC_API_KEY=sk-ant-...` (server-only). Without it, `/ask` shows a friendly "not configured" message instead of crashing.
+- Supabase project `hspfhyundcytxginsovh` shared with the Trading Scanner (owner's decision); keys in `.env.local` (git-ignored). DDL applied by hand in the SQL Editor; migrations 0001 + 0002 applied.
 - **Auth gotcha:** sign-in needs a **confirmed** user; use **Sign in** (user pre-created).
 
 ## Next action
 
-**M7 — Ask OBSIDIAN:** Claude API + a safe, schema-typed tool layer (getRevenueSummary, getExpenseSummary, getTopCustomers, getCustomerHistory, getTripSummary, getInactiveCustomers, getBusinessPerformance) so the assistant answers from **structured data via tools, never fabricated numbers** (ADR-002/003). Reuse the M5 calcs behind the tools. **Only after the owner confirms M6 and says go.** One sub-phase at a time; stop and verify.
+**M8 — Natural-language trip entry:** parse free text ("log a $320 ride from Brooklyn to JFK for Ashley, $40 gas") → a structured trip proposal → owner confirms/edits/cancels → save only on confirm (reuse the M4 create path + find-or-create customer + inline costs). Claude proposes; nothing is written without confirmation. **Only after the owner confirms M7 and says go.** One sub-phase at a time; stop and verify.
 
 ## Git
 
-Commits: Phase 0; planning; M1; Next 14.2.35 patch; M2; M3; HARD GATE doc; M4; M4 verified; M5 business engine; **M6 dashboard wiring**.
+Commits: Phase 0; planning; M1; Next 14.2.35 patch; M2; M3; HARD GATE doc; M4; M4 verified; M5 business engine; M6 dashboard wiring; **M7 Ask OBSIDIAN**.
