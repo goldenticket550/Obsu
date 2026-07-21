@@ -3,6 +3,7 @@ import { listTrips } from "@/lib/db/trips";
 import { listExpenses } from "@/lib/db/expenses";
 import { listCustomers } from "@/lib/db/customers";
 import {
+  INACTIVE_THRESHOLD_DAYS,
   averageTripValueCents,
   currentMonthRange,
   customerLifetimeRevenueCents,
@@ -10,6 +11,8 @@ import {
   estimatedOperatingProfitCents,
   expensesByCategoryCents,
   filterByDateRange,
+  inactiveCustomers,
+  todayInNewYork,
   topCustomers,
   totalExpensesCents,
   totalRevenueCents,
@@ -139,6 +142,21 @@ export const TOOL_DEFS: Anthropic.Tool[] = [
       required: ["name"],
     },
   },
+  {
+    name: "get_inactive_customers",
+    description:
+      "Repeat customers (2+ completed trips) who haven't ridden recently — answers 'who hasn't booked recently?'. Returns name, days since last trip, trip count, and lifetime revenue.",
+    input_schema: {
+      type: "object",
+      properties: {
+        days: {
+          type: "integer",
+          description: "Inactivity threshold in days (default 30).",
+        },
+      },
+      required: [],
+    },
+  },
 ];
 
 // --- Executors -------------------------------------------------------------
@@ -252,6 +270,34 @@ export async function executeTool(
         lifetime_revenue: money(customerLifetimeRevenueCents(trips, customer.id)),
         completed_trip_count: customerTripCount(trips, customer.id),
         recent_trips: theirs,
+      };
+    }
+
+    case "get_inactive_customers": {
+      const rawDays = Number(args.days);
+      const days =
+        Number.isFinite(rawDays) && rawDays > 0
+          ? Math.trunc(rawDays)
+          : INACTIVE_THRESHOLD_DAYS;
+      const [trips, customers] = await Promise.all([
+        listTrips(),
+        listCustomers(),
+      ]);
+      const flagged = inactiveCustomers(
+        trips,
+        customers,
+        days,
+        todayInNewYork(),
+      );
+      return {
+        threshold_days: days,
+        inactive_customers: flagged.map((c) => ({
+          name: c.name,
+          days_since_last_trip: c.daysSinceLastTrip,
+          last_trip_date: c.lastTripDate,
+          trip_count: c.tripCount,
+          lifetime_revenue: money(c.lifetimeRevenueCents),
+        })),
       };
     }
 

@@ -12,10 +12,13 @@ import { listTrips } from "@/lib/db/trips";
 import { listExpenses } from "@/lib/db/expenses";
 import { listCustomers } from "@/lib/db/customers";
 import {
+  INACTIVE_THRESHOLD_DAYS,
   averageTripValueCents,
   currentMonthRange,
   estimatedOperatingProfitCents,
   filterByDateRange,
+  inactiveCustomers,
+  todayInNewYork,
   topCustomers,
   totalExpensesCents,
   totalRevenueCents,
@@ -23,6 +26,7 @@ import {
 } from "@/lib/business";
 import { formatUsd } from "@/lib/money";
 import { labelize } from "@/lib/enums";
+import { FollowUpDrafts } from "@/components/follow-up-drafts";
 import { signOut } from "./login/actions";
 
 /**
@@ -86,6 +90,20 @@ export default async function DashboardPage() {
   const topRanked = topCustomers(allTrips, customers, 3).filter(
     (r) => r.revenueCents > 0,
   );
+
+  // Follow-up intelligence (M9): repeat customers who've gone quiet.
+  const inactive = inactiveCustomers(
+    allTrips,
+    customers,
+    INACTIVE_THRESHOLD_DAYS,
+    todayInNewYork(),
+  );
+  const followUpRows = inactive.map((c) => ({
+    id: c.customer.id,
+    name: c.name,
+    daysSinceLastTrip: c.daysSinceLastTrip,
+    lifetimeUsd: formatUsd(c.lifetimeRevenueCents),
+  }));
 
   // Recent Activity (unchanged from M4) — latest raw trips/expenses, newest-first.
   type Activity = {
@@ -211,37 +229,62 @@ export default async function DashboardPage() {
       {/* Customer insights */}
       <section className="mt-8">
         <SectionLabel>Customer Insights</SectionLabel>
-        {topRanked.length === 0 ? (
-          <Panel>
-            <EmptyState>
-              Your top customers by revenue will appear here once trips are
-              logged.
-            </EmptyState>
+
+        {/* Follow-ups — repeat customers who've gone quiet */}
+        {followUpRows.length > 0 ? (
+          <Panel className="p-0">
+            <div className="border-b border-obsidian-line px-5 py-3">
+              <p className="text-sm font-medium text-obsidian-platinum">
+                {followUpRows.length} repeat customer
+                {followUpRows.length === 1 ? "" : "s"} due for follow-up
+              </p>
+              <p className="mt-0.5 text-xs text-obsidian-muted">
+                Haven&apos;t ridden in {INACTIVE_THRESHOLD_DAYS}+ days. Draft a
+                note to check in — you send it yourself.
+              </p>
+            </div>
+            <FollowUpDrafts customers={followUpRows} />
           </Panel>
         ) : (
-          <Panel className="p-0">
-            <ul className="divide-y divide-obsidian-line">
-              {topRanked.map((r) => (
-                <li
-                  key={r.customer.id}
-                  className="flex items-center justify-between gap-3 px-5 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-obsidian-platinum">
-                      {r.customer.name}
-                    </p>
-                    <p className="text-xs text-obsidian-muted">
-                      {r.tripCount} {r.tripCount === 1 ? "trip" : "trips"}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-sm font-semibold tabular-nums text-obsidian-platinum">
-                    {formatUsd(r.revenueCents)}
-                  </p>
-                </li>
-              ))}
-            </ul>
+          <Panel>
+            <EmptyState>
+              No repeat customers are overdue — everyone has ridden within the
+              last {INACTIVE_THRESHOLD_DAYS} days. Follow-up suggestions appear
+              here when someone goes quiet.
+            </EmptyState>
           </Panel>
         )}
+
+        {/* Top customers by revenue */}
+        {topRanked.length > 0 ? (
+          <div className="mt-3">
+            <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-obsidian-silver">
+              Top customers
+            </p>
+            <Panel className="p-0">
+              <ul className="divide-y divide-obsidian-line">
+                {topRanked.map((r) => (
+                  <li
+                    key={r.customer.id}
+                    className="flex items-center justify-between gap-3 px-5 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-obsidian-platinum">
+                        {r.customer.name}
+                      </p>
+                      <p className="text-xs text-obsidian-muted">
+                        {r.tripCount} {r.tripCount === 1 ? "trip" : "trips"}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold tabular-nums text-obsidian-platinum">
+                      {formatUsd(r.revenueCents)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          </div>
+        ) : null}
       </section>
 
       {/* Recent activity */}

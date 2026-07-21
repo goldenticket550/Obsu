@@ -48,3 +48,17 @@ export function currentMonthRange(now: Date = new Date()): {
     end: `${year}-${mm}-${String(lastDay).padStart(2, "0")}`,
   };
 }
+
+/**
+ * Today's date as "YYYY-MM-DD" in America/New_York. NOT pure (reads the clock)
+ * — pass `now` to make it deterministic in tests. Callers feed this into the
+ * pure calcs (e.g. inactiveCustomers' asOfDate).
+ */
+export function todayInNewYork(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}

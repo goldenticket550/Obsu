@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { currentMonthRange, filterByDateRange } from "./date-range";
+import {
+  currentMonthRange,
+  filterByDateRange,
+  todayInNewYork,
+} from "./date-range";
 
 describe("filterByDateRange", () => {
   const rows = [
@@ -46,5 +50,16 @@ describe("currentMonthRange (America/New_York)", () => {
     // 2026-08-01T03:00Z is 2026-07-31 23:00 in New York (EDT) -> still July.
     const r = currentMonthRange(new Date("2026-08-01T03:00:00Z"));
     expect(r).toEqual({ start: "2026-07-01", end: "2026-07-31" });
+  });
+});
+
+describe("todayInNewYork", () => {
+  it("returns the NY date as YYYY-MM-DD", () => {
+    expect(todayInNewYork(new Date("2026-07-20T12:00:00Z"))).toBe("2026-07-20");
+  });
+
+  it("uses NY local date across the UTC-midnight boundary", () => {
+    // 2026-08-01T03:00Z is 2026-07-31 23:00 in New York (EDT).
+    expect(todayInNewYork(new Date("2026-08-01T03:00:00Z"))).toBe("2026-07-31");
   });
 });

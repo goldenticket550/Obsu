@@ -10,4 +10,5 @@ export * from "./expenses";
 export * from "./profit";
 export * from "./trip-rates";
 export * from "./customers";
+export * from "./customer-intel";
 export * from "./date-range";
