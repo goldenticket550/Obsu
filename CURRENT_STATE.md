@@ -1,8 +1,8 @@
 # CURRENT STATE
 
-**As of:** OBSIDIAN RIDES MVP — M7 (Ask OBSIDIAN) **built + statically verified** (2026-07-20).
+**As of:** OBSIDIAN RIDES MVP — M7 (Ask OBSIDIAN) **complete and verified** (2026-07-21).
 **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
-**Current sub-phase:** M7 — Ask OBSIDIAN. ✅ **Built & statically verified; owner to test with an ANTHROPIC_API_KEY set.**
+**Current sub-phase:** M7 — Ask OBSIDIAN. ✅ **Complete and verified — owner tested live with the API key (answers from tools; unsupported questions decline).**
 **Next sub-phase:** M8 — Natural-language trip entry (do NOT start until the owner says go).
 
 ## What exists right now
@@ -41,7 +41,7 @@ supabase/ migrations/0001, 0002 ; seed_dev.sql (NOT run)
   - **Model:** `claude-haiku-4-5` (low cost), a single config constant (`ASK_MODEL`) — swap to `claude-sonnet-5` if answers need more reasoning.
   - **UI:** `/ask` page with a chat island (`components/ask-obsidian.tsx`), example-question chips, graceful errors (missing key → friendly message, not a crash). Dashboard "Ask OBSIDIAN" box + Quick Action link to `/ask`.
   - **Secrets:** `ANTHROPIC_API_KEY` is read server-side only (never `NEXT_PUBLIC`, never committed); the SDK + AI code stay server-side. Verified: the built client static bundle contains no key/SDK/prompt.
-  - **Verified:** `tsc --noEmit` clean; M5 tests 30/30; `next build` (13 routes) OK; dev boots on 3001; `/ask` is auth-protected. **Owner-pending:** functional test with a real `ANTHROPIC_API_KEY` — "How much did I make this month?" should match the dashboard; "Who's my top customer?" correct; "How much on gas?" correct; an unsupported question should decline rather than invent a number.
+  - **Verified:** `tsc --noEmit` clean; M5 tests 30/30; `next build` (13 routes) OK; dev boots on 3001; `/ask` is auth-protected. **Owner-confirmed live (2026-07-21)** via server-side tracing of the tool-use loop: revenue ($2,065.00), top customer (jojo, $1,595.00), gas ($120.00), and trips (3) each came straight from a tool result; "What's the weather?" declined (no tool called, no fabricated number); zero tool errors across the session.
 - **Not yet:** natural-language trip entry (M8), customer intelligence / inactive detection (M9), field test (M10).
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)
