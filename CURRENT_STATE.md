@@ -1,9 +1,9 @@
 # CURRENT STATE
 
-**As of:** OBSIDIAN RIDES MVP — M7 (Ask OBSIDIAN) **complete and verified** (2026-07-21).
+**As of:** OBSIDIAN RIDES MVP — M8 (Natural-language trip entry) **built + statically verified** (2026-07-21).
 **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
-**Current sub-phase:** M7 — Ask OBSIDIAN. ✅ **Complete and verified — owner tested live with the API key (answers from tools; unsupported questions decline).**
-**Next sub-phase:** M8 — Natural-language trip entry (do NOT start until the owner says go).
+**Current sub-phase:** M8 — Natural-language trip entry. ✅ **Built & statically verified; owner reviews the prefilled form (the built-in confirm step) with a key set.**
+**Next sub-phase:** M9 — Customer intelligence (do NOT start until the owner says go).
 
 ## What exists right now
 
@@ -42,7 +42,8 @@ supabase/ migrations/0001, 0002 ; seed_dev.sql (NOT run)
   - **UI:** `/ask` page with a chat island (`components/ask-obsidian.tsx`), example-question chips, graceful errors (missing key → friendly message, not a crash). Dashboard "Ask OBSIDIAN" box + Quick Action link to `/ask`.
   - **Secrets:** `ANTHROPIC_API_KEY` is read server-side only (never `NEXT_PUBLIC`, never committed); the SDK + AI code stay server-side. Verified: the built client static bundle contains no key/SDK/prompt.
   - **Verified:** `tsc --noEmit` clean; M5 tests 30/30; `next build` (13 routes) OK; dev boots on 3001; `/ask` is auth-protected. **Owner-confirmed live (2026-07-21)** via server-side tracing of the tool-use loop: revenue ($2,065.00), top customer (jojo, $1,595.00), gas ($120.00), and trips (3) each came straight from a tool result; "What's the weather?" declined (no tool called, no fabricated number); zero tool errors across the session.
-- **Not yet:** natural-language trip entry (M8), customer intelligence / inactive detection (M9), field test (M10).
+- **M8 (built + statically verified):** **natural-language trip entry** on `/trips/new`. A "Log a trip by text" box sends the note to a **server** parse action (`src/lib/ai/parse-trip.ts`, reuses `ANTHROPIC_API_KEY` + `ASK_MODEL`, forced `record_trip` tool). The parser is Level-2 "prepare" — **read-only, writes nothing, invents nothing**: it extracts only values explicitly stated (unstated → null), does no arithmetic (reports dollars as written), and validates enums. The parsed values **prefill the existing M4 `TripForm`** (now a client component accepting `defaults`) under a banner: "Here's what OBSIDIAN understood — review it and press Log trip to save…". The owner reviews/edits and submits the **normal form → existing `createTrip`** (find-or-create customer + inline gas/tolls/other → linked expenses; dollars→cents via `money.ts`). No write logic duplicated; leaving the page = cancel. Missing key or unusable text → friendly message, blank form. `ANTHROPIC_API_KEY`/SDK stay server-side (verified absent from the client bundle). **Verified:** `tsc` clean, M5 tests 30/30, `next build` (13 routes) OK, boots on 3001, `/trips/new` auth-protected. **Owner-pending:** on-screen review — "logged a ride for Ashley, Brooklyn to JFK, $240, $18 gas, $12 tolls" should prefill customer/pickup/dropoff/revenue/gas/tolls; submit saves via M4; vaguer input leaves unstated fields blank.
+- **Not yet:** customer intelligence / inactive detection (M9), field test (M10).
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)
 
@@ -57,8 +58,8 @@ supabase/ migrations/0001, 0002 ; seed_dev.sql (NOT run)
 
 ## Next action
 
-**M8 — Natural-language trip entry:** parse free text ("log a $320 ride from Brooklyn to JFK for Ashley, $40 gas") → a structured trip proposal → owner confirms/edits/cancels → save only on confirm (reuse the M4 create path + find-or-create customer + inline costs). Claude proposes; nothing is written without confirmation. **Only after the owner confirms M7 and says go.** One sub-phase at a time; stop and verify.
+**M9 — Customer intelligence:** inactive-customer detection (e.g. repeat customers who've gone quiet 90+ days), repeat-customer insight, lifetime value, and follow-up **drafts** (no auto-send). Pure detection over the M3 data via `src/lib/business`; surface on the dashboard's Customer Insights. This is where the deferred `getInactiveCustomers` tool belongs. **Only after the owner confirms M8 and says go.** One sub-phase at a time; stop and verify.
 
 ## Git
 
-Commits: Phase 0; planning; M1; Next 14.2.35 patch; M2; M3; HARD GATE doc; M4; M4 verified; M5 business engine; M6 dashboard wiring; **M7 Ask OBSIDIAN**.
+Commits: Phase 0; planning; M1; Next 14.2.35 patch; M2; M3; HARD GATE doc; M4; M4 verified; M5 business engine; M6 dashboard wiring; M7 Ask OBSIDIAN; M7 verified; **M8 natural-language trip entry**.

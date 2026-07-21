@@ -14,6 +14,8 @@ import {
   optionalNonNegativeNumber,
   str,
 } from "@/lib/form";
+import { parseTripFromText } from "@/lib/ai/parse-trip";
+import type { TripFormDefaults } from "@/components/trip-form";
 
 /** Fields shared by create + update. Throws on invalid money/number input. */
 function readTripFields(formData: FormData) {
@@ -120,4 +122,46 @@ export async function updateTrip(formData: FormData) {
   revalidatePath("/trips");
   revalidatePath("/");
   redirect("/trips");
+}
+
+/**
+ * M8 — parse a free-text note into prefill values for the trip form. This is a
+ * Level-2 "prepare" step: it reads the text and returns proposed values only.
+ * It writes NOTHING — the sole write is the owner submitting the form
+ * (createTrip). Unstated fields are left blank; nothing is invented.
+ */
+export async function parseTripText(
+  text: string,
+): Promise<{ defaults?: TripFormDefaults; error?: string }> {
+  const note = String(text ?? "").trim();
+  if (!note) return { error: "Type what happened first." };
+
+  const supabase = createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Please sign in again." };
+
+  try {
+    const p = await parseTripFromText(note);
+    const d: TripFormDefaults = {};
+    if (p.customerName) d.customer_name = p.customerName;
+    if (p.tripDate) d.trip_date = p.tripDate;
+    if (p.pickup) d.pickup_location = p.pickup;
+    if (p.dropoff) d.dropoff_location = p.dropoff;
+    if (p.tripType) d.trip_type = p.tripType;
+    if (p.paymentMethod) d.payment_method = p.paymentMethod;
+    if (p.revenueDollars != null) d.revenue = String(p.revenueDollars);
+    if (p.hours != null) d.hours = String(p.hours);
+    if (p.hourlyRateDollars != null) d.hourly_rate = String(p.hourlyRateDollars);
+    if (p.mileage != null) d.mileage = String(p.mileage);
+    if (p.notes) d.notes = p.notes;
+    if (p.gasDollars != null) d.cost_gas = String(p.gasDollars);
+    if (p.tollsDollars != null) d.cost_tolls = String(p.tollsDollars);
+    if (p.otherDollars != null) d.cost_other = String(p.otherDollars);
+    if (p.otherLabel) d.cost_other_label = p.otherLabel;
+    return { defaults: d };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
 }
