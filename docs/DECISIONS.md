@@ -61,6 +61,11 @@ This file records **Architecture Decision Records (ADRs)** and the **architectur
 **Why:** Build the smallest model that answers the Customer-Zero questions; add entities only when a validated need appears. Avoids schema bloat and premature abstraction.
 **Status:** Accepted. Audit logging (from the fuller model) is **not** dropped in principle — it's simply not needed for the read/prepare-only MVP, which sends nothing and moves no money. Reintroduce with Level-3 actions (Phase 5 / auto-send), per `SECURITY.md`.
 
+### ADR-012 — Voice pulled into the build as a browser-native I/O skin over the existing brain
+**Decision:** Add a voice interface (M11 "OBSIDIAN Voice + Orb", `/obsidian`) on top of the existing Ask OBSIDIAN orchestrator, using the **free browser Web Speech API** (SpeechRecognition) for input and browser **SpeechSynthesis** for output behind a **swappable TTS interface**. Voice is only a new input/output skin — it routes through the **same M7 tools** and no-fabrication guarantee (no second answer path), adds **no new backend tools and no new API key**. The orb is a canvas animation reacting to live mic amplitude (Web Audio) and TTS state.
+**Why:** The owner explicitly pulled the (previously MVP-excluded) voice work forward, scoped to low-risk, key-free browser primitives. Reusing the M7 answer path preserves "answers from structured data, never fabricated" (ADR-002/003). The heavyweight/paid pipeline stays out.
+**Status:** Accepted. The MVP exclusion "voice/ElevenLabs" is now satisfied **only** for browser-native voice I/O. Still excluded pending explicit approval: **ElevenLabs** premium voice (planned via the swappable TTS layer), **auto-SMS/any message sending**, and the other excluded features. Queued follow-ups: (a) ElevenLabs TTS implementation, (b) voice-driven trip logging (speech → the M8 parse flow).
+
 ---
 
 ## Architectural risks & recommended corrections

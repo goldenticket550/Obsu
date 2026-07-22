@@ -352,6 +352,12 @@ export default async function DashboardPage() {
           The assistant answers from your verified business data — never
           guessed numbers.
         </p>
+        <Link
+          href="/obsidian"
+          className="mt-2 inline-flex items-center gap-1 text-xs text-obsidian-cyan transition-colors hover:text-obsidian-platinum"
+        >
+          🎙 Talk to OBSIDIAN (voice) →
+        </Link>
       </section>
 
       <footer className="mt-12 border-t border-obsidian-line pt-5 text-center text-xs text-obsidian-muted">
