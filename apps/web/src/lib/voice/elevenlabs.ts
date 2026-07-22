@@ -5,8 +5,15 @@
  * client. Verified against the ElevenLabs API reference (2026).
  */
 
-/** Voice id — a single config constant. Default: "Rachel" (calm, professional). */
-export const ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
+/**
+ * Voice id — a single config constant. Default: "Sarah" (calm, professional).
+ * NOTE: this must be a "default" ElevenLabs voice — Voice Library voices (e.g.
+ * "Rachel" 21m00Tcm4TlvDq8ikWAM) return 402 `paid_plan_required` on free
+ * accounts via the API. Verified free-tier-usable defaults: Sarah, Brian
+ * (nPczCjzI2devNBz1zQrb), Daniel (onwK4e9ZLuTAKqWW03F9). On a paid plan any
+ * voice id works — just swap this constant.
+ */
+export const ELEVENLABS_VOICE_ID = "EXAVITQu4vr4xnSDxMaL";
 export const ELEVENLABS_STT_MODEL = "scribe_v1";
 export const ELEVENLABS_TTS_MODEL = "eleven_multilingual_v2";
 export const ELEVENLABS_TTS_FORMAT = "mp3_44100_128";
