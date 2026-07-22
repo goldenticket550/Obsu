@@ -63,10 +63,10 @@ export function ObsidianOrb({
       if (st === "listening") {
         target = Math.min(1, levelRef.current);
       } else if (st === "speaking") {
-        target =
-          0.35 +
-          0.4 * Math.abs(Math.sin(t * 7)) +
-          0.15 * Math.abs(Math.sin(t * 13.3));
+        // Pulse to the real voice amplitude (ElevenLabs onLevel); if there's no
+        // amplitude stream (browser-fallback voice, level ~0) breathe a floor.
+        const floor = 0.28 + 0.14 * Math.abs(Math.sin(t * 6.5));
+        target = Math.max(levelRef.current, floor);
       } else if (st === "thinking") {
         target = 0.16 + 0.09 * (0.5 + 0.5 * Math.sin(t * 3));
       } else {
