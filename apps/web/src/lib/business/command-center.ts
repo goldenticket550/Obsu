@@ -1,8 +1,9 @@
 import type { Trip } from "@/lib/types";
-import { BUSINESS_TIME_ZONE, formatPickupTime } from "./pickup-time";
+import { formatPickupTime } from "./pickup-time";
 import {
   BUSINESS_DAY_ROLLOVER_HOUR,
   businessDayKey,
+  businessDayLabelParts,
   businessLocalHour,
   closeOutReason,
   groupUpcomingTrips,
@@ -105,14 +106,25 @@ export function greetingFor(now: Date): string {
   return "Good evening";
 }
 
-/** The business-local date, e.g. "Tuesday, July 15". */
+/**
+ * The current BUSINESS day as a date, e.g. "Tuesday, July 28".
+ *
+ * F2: this used to report the calendar date, which contradicted the rest of the
+ * screen. At 1:52 AM the header said "Wednesday, July 29" while the greeting
+ * said "Good evening" and the Next Ride card said "Tonight · Tuesday, July 28"
+ * — two dates on one screen, each correct under a different definition. The
+ * header now speaks the same language as everything else.
+ *
+ * Returns the DATE PART ONLY. The relative word is deliberately omitted: the
+ * greeting sits immediately beside it and the Next Ride card carries it below,
+ * so "Tonight · " here would be redundant twice over. This is exactly why the
+ * formatter returns parts.
+ *
+ * Delegates to the single business-day formatter — no second date path, no
+ * inline formatting, and `now` stays injected.
+ */
 export function businessDateLabel(now: Date): string {
-  return now.toLocaleDateString("en-US", {
-    timeZone: BUSINESS_TIME_ZONE,
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  return businessDayLabelParts(businessDayKey(now), now).dateLabel;
 }
 
 /**

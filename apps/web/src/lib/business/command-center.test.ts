@@ -10,6 +10,12 @@ import {
   timeUntilLabel,
   todaysFlow,
 } from "./command-center";
+import {
+  businessDayKey,
+  businessDayLabelParts,
+  joinBusinessDayLabel,
+  tripDayKey,
+} from "./schedule";
 
 /** 2026-07-15T18:00Z = 2:00 PM EDT on Wed Jul 15 in New York. */
 const NOW = new Date("2026-07-15T18:00:00Z");
@@ -116,9 +122,90 @@ describe("greetingFor", () => {
 });
 
 describe("businessDateLabel", () => {
-  it("labels the business-local day", () => {
-    // 03:30 UTC Jul 16 is still Jul 15 in New York.
-    expect(businessDateLabel(new Date("2026-07-16T03:30:00Z"))).toContain("July 15");
+  it("labels the business day, not the calendar date", () => {
+    // 03:30 UTC Jul 16 is 11:30 PM Jul 15 in New York — still Jul 15's night.
+    // (F2 changed the intent here from "business-LOCAL day" to "business day";
+    // this instant gives the same answer under both, so the assertion below is
+    // tightened to a full-string match and the 4 AM cases are covered in the
+    // dedicated F2 suite.)
+    expect(businessDateLabel(new Date("2026-07-16T03:30:00Z"))).toBe(
+      "Wednesday, July 15",
+    );
+  });
+});
+
+/**
+ * F2 — the dashboard header date must speak the same language as the rest of
+ * the screen. At 1:52 AM the header used to read "Wednesday, July 29" beside a
+ * greeting of "Good evening" and a card reading "Tonight · Tuesday, July 28".
+ */
+describe("F2 — dashboard header date", () => {
+  const AT_0152 = new Date("2026-07-29T05:52:00Z"); // 1:52 AM Wed Jul 29 NY
+  const AT_1000 = new Date("2026-07-29T14:00:00Z"); // 10:00 AM Wed Jul 29 NY
+  const AT_0359 = new Date("2026-07-29T07:59:00Z"); // 3:59 AM Wed Jul 29 NY
+  const AT_0400 = new Date("2026-07-29T08:00:00Z"); // 4:00 AM Wed Jul 29 NY
+
+  it("reads the previous calendar date at 1:52 AM, because the night is not over", () => {
+    expect(businessDateLabel(AT_0152)).toBe("Tuesday, July 28");
+  });
+
+  it("reads the current calendar date once the day has rolled over", () => {
+    expect(businessDateLabel(AT_1000)).toBe("Wednesday, July 29");
+  });
+
+  it("flips at exactly 4:00 AM", () => {
+    expect(businessDateLabel(AT_0359)).toBe("Tuesday, July 28");
+    expect(businessDateLabel(AT_0400)).toBe("Wednesday, July 29");
+  });
+
+  it("never renders a relative word — the greeting beside it already says that", () => {
+    for (const now of [AT_0152, AT_1000, AT_0359, AT_0400]) {
+      const label = businessDateLabel(now).toLowerCase();
+      for (const word of ["today", "tonight", "tomorrow", "yesterday", "·"]) {
+        expect(label).not.toContain(word);
+      }
+    }
+  });
+
+  it("is the business-day formatter's output, not a string built in the header", () => {
+    // Fails if calendar-date formatting is ever reintroduced here: this asserts
+    // the header IS the shared formatter rather than matching a hard-coded
+    // literal that a second date path could also happen to produce.
+    for (const now of [AT_0152, AT_1000, AT_0359, AT_0400]) {
+      expect(businessDateLabel(now)).toBe(
+        businessDayLabelParts(businessDayKey(now), now).dateLabel,
+      );
+    }
+  });
+
+  it("agrees with the greeting, Tonight's Flow, and the Next Ride card at 1:52 AM", () => {
+    const currentKey = businessDayKey(AT_0152);
+    expect(currentKey).toBe("2026-07-28");
+
+    // A ride on the current business night.
+    const ride = makeTrip({
+      status: "scheduled",
+      trip_date: "2026-07-28",
+      start_time: "2026-07-29T06:30:00Z", // 2:30 AM Jul 29 — same night
+    });
+
+    // Header.
+    const header = businessDateLabel(AT_0152);
+
+    // Greeting — still the evening shift.
+    expect(greetingFor(AT_0152)).toBe("Good evening");
+
+    // Tonight's Flow includes the ride, i.e. it agrees on which day this is.
+    const flow = todaysFlow([ride], AT_0152);
+    expect(flow.map((f) => f.trip.id)).toEqual([ride.id]);
+
+    // Next Ride card's day label for that same ride.
+    const cardLabel = businessDayLabelParts(tripDayKey(ride), AT_0152);
+
+    // The three do not disagree: one business day, one date.
+    expect(header).toBe("Tuesday, July 28");
+    expect(cardLabel.dateLabel).toBe(header);
+    expect(joinBusinessDayLabel(cardLabel)).toBe("Tonight · Tuesday, July 28");
   });
 });
 
