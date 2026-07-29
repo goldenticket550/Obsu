@@ -139,7 +139,8 @@ export function TopBar({
         >
           ←
         </Link>
-        <div className="flex items-baseline gap-2">
+        {/* Hidden on desktop, where the sidebar already carries the wordmark. */}
+        <div className="flex items-baseline gap-2 lg:hidden">
           <span className="text-lg font-semibold tracking-[0.2em] text-obsidian-platinum">
             OBSIDIAN
           </span>

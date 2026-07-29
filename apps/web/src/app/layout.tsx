@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { AppShell } from "@/components/app-shell";
 
 export const metadata: Metadata = {
   title: "OBSIDIAN RIDES",
@@ -18,7 +19,11 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen font-sans">{children}</body>
+      <body className="min-h-screen font-sans">
+        {/* The shell renders navigation for the signed-in app and gets out of
+            the way entirely on /login and /onboarding. It fetches nothing. */}
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

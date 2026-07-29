@@ -175,32 +175,6 @@ export default async function DashboardPage() {
         <p className="mt-1 text-sm text-obsidian-silver">
           {businessName} at a glance.
         </p>
-        <nav className="mt-4 flex flex-wrap gap-4 text-sm">
-          <Link
-            href="/upcoming"
-            className="text-obsidian-silver transition-colors hover:text-obsidian-platinum"
-          >
-            Upcoming
-          </Link>
-          <Link
-            href="/customers"
-            className="text-obsidian-silver transition-colors hover:text-obsidian-platinum"
-          >
-            Customers
-          </Link>
-          <Link
-            href="/trips"
-            className="text-obsidian-silver transition-colors hover:text-obsidian-platinum"
-          >
-            Trips
-          </Link>
-          <Link
-            href="/expenses"
-            className="text-obsidian-silver transition-colors hover:text-obsidian-platinum"
-          >
-            Expenses
-          </Link>
-        </nav>
       </section>
 
       {/* This month */}
