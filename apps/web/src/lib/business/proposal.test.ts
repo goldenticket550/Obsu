@@ -164,8 +164,16 @@ describe("the summary is derived from the executed fields", () => {
 
   it("dates use the F1 business-day formatter", () => {
     // 2026-07-28 is the current business day at 7 PM on the 28th.
+    //
+    // EXPECTATION UPDATED: this asserted "Tonight · Tuesday, July 28", the
+    // HEADING form. The summary is prose, and pasting a heading into prose
+    // produced "on Tonight · Tuesday, July 28". The mid-sentence form is now
+    // used instead. Same source, same day, different wording — see
+    // businessDayPhrase.
     const summary = summarizeProposal(SAMPLE_ACTIONS.create_trip, NOW);
-    expect(summary).toContain("Tonight · Tuesday, July 28");
+    expect(summary).toContain("tonight (Tuesday, July 28)");
+    expect(summary).not.toContain("·");
+    expect(summary).not.toContain("on tonight");
   });
 
   it("the executor receives exactly the action the summary described", async () => {

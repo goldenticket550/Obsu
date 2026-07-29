@@ -1,6 +1,7 @@
 import type { PaymentMethod, TripStatus, TripType } from "@/lib/types";
 import { formatUsd } from "@/lib/money";
-import { businessDayLabelParts, joinBusinessDayLabel } from "./schedule";
+import { businessDayLabelParts, businessDayPhrase } from "./schedule";
+import { indefiniteArticle } from "./english";
 
 /**
  * V3 — the proposal model. PURE.
@@ -127,9 +128,14 @@ function money(cents: number): string {
   return formatUsd(cents);
 }
 
-/** Business-day wording for a date-only key, via the F1 formatter. */
+/**
+ * Business-day wording for a date-only key, in the mid-sentence form.
+ *
+ * Carries its own preposition — see businessDayPhrase. Callers concatenate it
+ * as-is and must not prefix "on".
+ */
 function day(dateKey: string, now: Date): string {
-  return joinBusinessDayLabel(businessDayLabelParts(dateKey, now));
+  return businessDayPhrase(businessDayLabelParts(dateKey, now));
 }
 
 /**
@@ -143,7 +149,13 @@ export function summarizeProposal(action: ProposalAction, now: Date): string {
   switch (action.kind) {
     case "create_trip": {
       const who = action.customerName ?? "no customer";
-      const when = day(action.tripDate, now);
+      // The phrase carries its own preposition, and may be empty when the date
+      // is unreadable — in which case the clause is dropped rather than left
+      // dangling as "for Ashley  , Brooklyn to JFK".
+      const phrase = day(action.tripDate, now);
+      const when = phrase ? ` ${phrase}` : "";
+      // Derived from the trip type, which is data the owner can extend.
+      const article = indefiniteArticle(action.tripType);
       const route =
         action.pickup && action.dropoff
           ? `, ${action.pickup} to ${action.dropoff}`
@@ -165,7 +177,7 @@ export function summarizeProposal(action: ProposalAction, now: Date): string {
       const costs =
         costParts.length > 0 ? ` Also record ${costParts.join(", ")}.` : "";
 
-      return `${verb} a ${action.tripType} ride for ${who} on ${when}${route}${fare}.${costs}`;
+      return `${verb} ${article} ${action.tripType} ride for ${who}${when}${route}${fare}.${costs}`;
     }
     case "update_trip": {
       const parts: string[] = [];

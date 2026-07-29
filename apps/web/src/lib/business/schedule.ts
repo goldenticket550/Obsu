@@ -271,6 +271,34 @@ export function joinBusinessDayLabel(label: BusinessDayLabel): string {
   return label.dateLabel ? `${relative} · ${label.dateLabel}` : relative;
 }
 
+/**
+ * The same day, worded to sit INSIDE a sentence rather than stand as a heading.
+ *
+ * `joinBusinessDayLabel` is a display label — capitalised, `·`-separated, meant
+ * to be read on its own line. Dropping that into prose produces "on Tonight ·
+ * Wednesday, July 29", which is wrong twice: "on" does not precede a relative
+ * word, and a middot is a layout device, not punctuation you read aloud.
+ *
+ * The preposition is therefore carried by this function rather than the call
+ * site, because whether one belongs depends entirely on which branch was taken:
+ *
+ *   relative + date  →  "tonight (Wednesday, July 29)"
+ *   relative only    →  "tonight"
+ *   date only        →  "on Saturday, August 8"
+ *   neither          →  ""   (caller omits the clause entirely)
+ *
+ * A caller that pasted "on " in front of this would break the first two cases,
+ * which is exactly the bug this replaces. Both forms still derive from the same
+ * `businessDayLabelParts`, so there remains one answer to "what day is this".
+ */
+export function businessDayPhrase(label: BusinessDayLabel): string {
+  if (!label.relative) return label.dateLabel ? `on ${label.dateLabel}` : "";
+  // Lower case: mid-sentence, not a heading.
+  return label.dateLabel
+    ? `${label.relative} (${label.dateLabel})`
+    : label.relative;
+}
+
 /** Chronological order within the list: earlier pickups first. */
 function compareTrips(a: Trip, b: Trip): number {
   const dayA = tripDayKey(a);
