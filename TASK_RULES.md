@@ -80,6 +80,23 @@ transitions · modify `supabase/seed_dev.sql`.
 2. Run the focused tests, the full suite, `tsc --noEmit`, lint, and the production build.
 3. **Stop the dev server before running a build.** Building against a running server's
    `.next` directory clobbers its chunks and produces fake 500s.
+
+   **Confirm the port is free at the OS level first.** Before any `rm -rf .next` or
+   `npm run build`, run:
+
+   ```
+   netstat -ano | findstr :3000
+   ```
+
+   No output means the port is free. Output means a server is running: identify it
+   (`Get-CimInstance Win32_Process -Filter "ProcessId = <pid>"`) and stop it before building.
+
+   `preview_list` is **not** an acceptable substitute. It reports only servers started inside
+   the current session, so it returns empty for any server launched from a terminal, a
+   previous session, or by the owner. **An empty `preview_list` is not evidence that no server
+   is running** — only the OS-level port check is. A build run against a live server may report
+   success while leaving that server serving from a directory deleted underneath it, so the
+   build result and everything observed in the browser afterwards are both unreliable.
 4. Report exact **passed / failed / skipped** counts, and separate pre-existing failures from
    new ones.
 5. Never claim a check passed unless it actually ran. If one cannot run, report the command,
