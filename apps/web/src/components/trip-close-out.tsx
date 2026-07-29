@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Field, SubmitButton, TextInput } from "@/components/form";
 import { formatPickupTime } from "@/lib/business/pickup-time";
+import { hasQuotedPrice } from "@/lib/business/trip-status";
+import { centsToDollars } from "@/lib/money";
 import type { Trip } from "@/lib/types";
 
 /**
@@ -31,7 +33,7 @@ export function TripCloseOut({
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const pickup = formatPickupTime(trip.start_time);
   // 0 on a scheduled trip means "no price set" — don't prefill a fake 0.00.
-  const quoted = trip.revenue_cents > 0 ? (trip.revenue_cents / 100).toFixed(2) : "";
+  const quoted = hasQuotedPrice(trip) ? centsToDollars(trip.revenue_cents) : "";
 
   return (
     <section

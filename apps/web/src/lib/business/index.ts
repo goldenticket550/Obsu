@@ -7,6 +7,8 @@
  */
 export * from "./revenue";
 export * from "./trip-status";
+export * from "./pickup-time";
+export * from "./schedule";
 export * from "./expenses";
 export * from "./profit";
 export * from "./trip-rates";

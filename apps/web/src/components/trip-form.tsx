@@ -10,7 +10,7 @@ import {
   TextArea,
   TextInput,
 } from "@/components/form";
-import { requiresRevenue } from "@/lib/business/trip-status";
+import { hasQuotedPrice, requiresRevenue } from "@/lib/business/trip-status";
 import { toTimeInputValue } from "@/lib/business/pickup-time";
 import type { TripStatus } from "@/lib/types";
 import {
@@ -83,7 +83,7 @@ export function TripForm({
         // A scheduled trip stored as 0 has no price set yet — show it blank
         // rather than a fabricated "0.00".
         revenue:
-          trip.status !== "completed" && trip.revenue_cents === 0
+          trip.status !== "completed" && !hasQuotedPrice(trip)
             ? ""
             : centsToDollars(trip.revenue_cents),
         hours: trip.hours != null ? String(trip.hours) : "",

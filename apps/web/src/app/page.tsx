@@ -177,6 +177,12 @@ export default async function DashboardPage() {
         </p>
         <nav className="mt-4 flex flex-wrap gap-4 text-sm">
           <Link
+            href="/upcoming"
+            className="text-obsidian-silver transition-colors hover:text-obsidian-platinum"
+          >
+            Upcoming
+          </Link>
+          <Link
             href="/customers"
             className="text-obsidian-silver transition-colors hover:text-obsidian-platinum"
           >
@@ -327,6 +333,7 @@ export default async function DashboardPage() {
       <section className="mt-8">
         <SectionLabel>Quick Actions</SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <QuickAction label="Schedule Ride" href="/trips/new?status=scheduled" />
           <QuickAction label="Log Trip" href="/trips/new" />
           <QuickAction label="Add Expense" href="/expenses/new" />
           <QuickAction label="Add Customer" href="/customers/new" />
