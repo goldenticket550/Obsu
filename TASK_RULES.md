@@ -41,6 +41,15 @@ transitions · modify `supabase/seed_dev.sql`.
 - **No component formats a date inline.**
 - **Two functions must never answer the same question** — derive one from the other and add
   an agreement test.
+- **Every migration must be safe to run twice and safe to run late.** Migrations are applied
+  by hand in the Supabase SQL Editor and there is no tracking table, so nothing knows or
+  enforces what has already run — and a change may have been made manually before its file is
+  ever executed. Each migration therefore asks the schema what is true right now (does the
+  table exist, does the column exist, does the constraint or policy exist) and skips cleanly
+  with a `raise notice` when its work is already done. It never assumes it is the first or the
+  only thing to have touched that object. Where a guard must reference a column that might not
+  exist, issue it through `execute` so plpgsql does not parse it on a schema where it is
+  absent — an unguarded reference raises 42703 before any check can run.
 
 ## Honesty in the interface
 
