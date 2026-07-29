@@ -5,6 +5,7 @@ import type {
   TextareaHTMLAttributes,
 } from "react";
 import Link from "next/link";
+import { SubmitButtonClient } from "./submit-button";
 
 /**
  * Presentational form + page-chrome primitives for the CRUD screens (M4).
@@ -65,14 +66,21 @@ export function FormError({ message }: { message?: string }) {
   );
 }
 
-export function SubmitButton({ children }: { children: ReactNode }) {
+/**
+ * Submit control for the CRUD forms. Delegates to a client component so it can
+ * disable itself after the first submit — the CRUD pages are server components,
+ * and React 18.3 here has no `useFormStatus`. See components/submit-button.tsx.
+ */
+export function SubmitButton({
+  children,
+  pendingLabel,
+}: {
+  children: string;
+  /** Shown while the submission is in flight. Defaults to "Saving…". */
+  pendingLabel?: string;
+}) {
   return (
-    <button
-      type="submit"
-      className="rounded-lg bg-obsidian-platinum px-4 py-2 text-sm font-semibold text-obsidian-black transition-opacity hover:opacity-90"
-    >
-      {children}
-    </button>
+    <SubmitButtonClient pendingLabel={pendingLabel}>{children}</SubmitButtonClient>
   );
 }
 
@@ -86,7 +94,7 @@ export function CancelLink({
   return (
     <Link
       href={href}
-      className="rounded-lg border border-obsidian-line px-4 py-2 text-center text-sm text-obsidian-silver transition-colors hover:border-obsidian-cyan hover:text-obsidian-platinum"
+      className="rounded-lg border border-obsidian-line px-4 py-2 text-center text-sm text-obsidian-silver transition-colors hover:border-obsidian-cyan hover:text-obsidian-platinum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian-black"
     >
       {children}
     </Link>
@@ -104,7 +112,7 @@ export function LinkButton({
   return (
     <Link
       href={href}
-      className="rounded-lg bg-obsidian-platinum px-3 py-1.5 text-xs font-semibold text-obsidian-black transition-opacity hover:opacity-90"
+      className="rounded-lg bg-obsidian-platinum px-3 py-1.5 text-xs font-semibold text-obsidian-black transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian-black"
     >
       {children}
     </Link>
