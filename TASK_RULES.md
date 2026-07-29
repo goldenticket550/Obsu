@@ -4,16 +4,32 @@ Standing rules for every task in this repository. Task prompts do not restate th
 
 ## Protected files
 
-These hold separate paused work. Keep them **byte-identical**, do not open them except to
-locate a path, and **never stage them**:
+**None at present.** No file in this repository is currently frozen.
 
-- `apps/web/src/components/obsidian-voice.tsx`
-- `apps/web/src/app/api/voice/transcribe/route.ts`
+### The voice freeze ended 2026-07-29
 
-Hash both before starting a task and verify both after.
+`apps/web/src/components/obsidian-voice.tsx` and
+`apps/web/src/app/api/voice/transcribe/route.ts` were held **byte-identical** from M11.1
+through V2 Part 1. They carried uncommitted paused work with no second copy, so any edit
+risked destroying it irrecoverably — that, and only that, is what the freeze protected.
 
-> `src/app/api/voice/transcribe/route.ts` still contains a **temporary debug file-write**.
-> It must be removed before that work is ever committed.
+It ended because V2 owns those files: the voice layer cannot be split into modules while the
+component that fuses every concern is untouchable. Before the first edit, both files were
+committed verbatim to the branch **`paused/voice-pre-v2`** (commit `6803919`), which is not
+merged, not pushed, and not built on. The recovery point the freeze existed to preserve now
+exists in git, so the freeze has nothing left to do.
+
+Recorded hashes at the moment of unfreezing, matching every prior task's verification:
+
+- `obsidian-voice.tsx` — `a887c15dfc9c1b06ab2e0fe62b6d8399b603f0f492288bccf4de537ccb2e8fd5`
+- `voice/transcribe/route.ts` — `d6d7ab813fb748b91218fe7b85c67e6a2b97ca21c3017e6ac0c4de77ef420a49`
+
+**The freeze was never violated.** Every task from V1 onward verified both hashes and reported
+them unchanged. If a future reader finds those files edited after this date, this is why.
+
+The temporary debug file-write that saved captured audio to the OS temp directory never
+existed on `master` — it lived only in the uncommitted working tree, and it survives only on
+`paused/voice-pre-v2`. It is a privacy defect and must not be carried forward.
 
 ## Never without explicit written approval in the task prompt
 
