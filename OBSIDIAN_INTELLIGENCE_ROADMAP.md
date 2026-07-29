@@ -234,6 +234,28 @@ No provider key, service-role key, or privileged call ever reaches the browser.
 - **Full cleanup** of media tracks, audio contexts, timers, and animation frames on
   unmount, navigation, error, and sign-out.
 
+### Debt V2 must clear: the legacy orb state alias
+
+V1 put the real orb state machine in `src/lib/business/orb.ts` as a discriminated union.
+But `obsidian-orb.tsx` still exports a **deprecated `OrbState` string alias**
+(`"idle" | "listening" | "thinking" | "speaking"`), and the component accepts either shape,
+normalizing the legacy string into a machine state at its boundary.
+
+That exists for exactly one reason: the frozen `obsidian-voice.tsx` imports the string type,
+and removing it would break the type-check on a file that must stay byte-identical.
+
+**Until the voice files are unfrozen, two shapes describe orb state.** That is a real
+duplication and the orb is the one component that must never disagree with itself.
+
+When V2 unfreezes the voice files it MUST, in the same change:
+
+- delete the deprecated `OrbState` alias from `obsidian-orb.tsx`,
+- delete the legacy normalization boundary (`legacyToState`, the `typeof state === "string"`
+  branch, and the `level` prop that only the legacy form uses),
+- move the remaining call site onto `OrbState` from `lib/business/orb.ts`,
+- and drop the caption-suppression rule, which exists only because the legacy caller renders
+  its own label.
+
 ---
 
 ## V3 — Approval-gated action proposals
