@@ -261,6 +261,34 @@ Naming the second source keeps the machine total instead of letting typing fake 
 never performed. It is accepted only from a resting state, so typing while the microphone is
 live or while an action is executing does not discard what is happening.
 
+### Unbuilt: deliberate tenant erasure
+
+`action_log` is append-only — enforced by policy, by grant, and by a trigger that raises on
+any UPDATE or DELETE — and its `organization_id` is `ON DELETE RESTRICT`. Together those mean
+**an organization that has history cannot currently be deleted at all.** That is intentional:
+erasing a tenant should never happen implicitly, as a side effect of removing some parent row.
+
+It also means there is a genuine tension with no code behind it yet. An append-only audit log
+and a right-to-erasure request pull in opposite directions: one exists precisely so the past
+cannot be rewritten, and the other is a legal obligation to rewrite it. Neither wins by
+default, and picking one silently in application code would be the wrong place to decide it.
+
+**This is not built and must not be improvised.** A real procedure has to answer, in writing,
+before any code:
+
+- what "erase" means for an audit log — full row deletion, or redaction of the personal
+  fields (`approved_summary` contains customer names) with the outcome record retained;
+- who may run it, and what proof of authorization is recorded — and where that record lives,
+  given the thing being erased is the record store;
+- whether the trigger is dropped for the operation or the procedure runs as a privileged role
+  that the trigger deliberately still blocks (today it blocks everyone, by design);
+- what is kept for financial and tax obligations, which typically outlast an erasure request
+  and are a separate legal duty from the one prompting it.
+
+Until that exists, deleting an organization fails loudly at the foreign key. A loud failure is
+the correct behaviour here — far better than a cascade that quietly destroys the audit trail,
+or a trigger error that makes an organization delete look like a bug in the logging code.
+
 ### Resolved in V3.1: the two definitions of "create a trip"
 
 V3 shipped an executor whose `create_trip` wrote **only the trips row**, while the ride form

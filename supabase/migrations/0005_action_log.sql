@@ -24,10 +24,23 @@
 -- Note: NOT a foreign key to trips.id. A cancelled-then-deleted ride must not
 -- take its history with it, and ON DELETE CASCADE on an append-only log is a
 -- contradiction. The id is stored as a plain uuid.
+--
+-- organization_id is ON DELETE RESTRICT for the same reason, made explicit:
+-- a cascade here would ask the database to delete log rows, and the
+-- append-only trigger below refuses every DELETE. The two would contradict
+-- each other, and deleting an organization would fail with a message about
+-- append-only logs — a confusing error at the wrong level, for a rule the
+-- schema had already declared it would break.
+--
+-- RESTRICT states the real rule instead: an organization that has history
+-- cannot be erased as a side effect of deleting its parent row. Erasing a
+-- tenant is a deliberate, separate operation with its own procedure, not
+-- something that happens implicitly while removing something else. See the
+-- roadmap — that procedure is not built.
 
 create table if not exists public.action_log (
   id               uuid primary key default gen_random_uuid(),
-  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  organization_id  uuid not null references public.organizations(id) on delete restrict,
   actor_user_id    uuid not null references auth.users(id),
   proposal_id      text not null,
   action_kind      text not null check (action_kind in (
@@ -46,6 +59,34 @@ create table if not exists public.action_log (
   occurred_at      timestamptz not null default now(),
   created_at       timestamptz not null default now()
 );
+
+-- Reconciles an earlier draft of this file that declared the organization
+-- foreign key ON DELETE CASCADE. `create table if not exists` above does
+-- nothing when the table already exists, so a table created from that draft
+-- would keep the contradictory cascade forever. This asks the schema what the
+-- constraint actually is and corrects it only when it is wrong, which is what
+-- "safe to run late" means when a change may already be half-applied.
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint c
+    join pg_class     t on t.oid = c.conrelid
+    join pg_namespace n on n.oid = t.relnamespace
+    where n.nspname = 'public'
+      and t.relname = 'action_log'
+      and c.conname = 'action_log_organization_id_fkey'
+      and c.confdeltype = 'c'          -- 'c' = cascade
+  ) then
+    alter table public.action_log
+      drop constraint action_log_organization_id_fkey;
+    alter table public.action_log
+      add constraint action_log_organization_id_fkey
+      foreign key (organization_id) references public.organizations(id)
+      on delete restrict;
+    raise notice 'action_log: organization_id cascade replaced with restrict.';
+  end if;
+end $$;
 
 create index if not exists action_log_org_time_idx
   on public.action_log (organization_id, occurred_at desc);
