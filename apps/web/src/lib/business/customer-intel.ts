@@ -19,6 +19,51 @@ export interface InactiveCustomer {
   lifetimeRevenueCents: number;
 }
 
+/**
+ * A single customer's completed-ride history, for their own page (U3).
+ * Same definitions as the inactivity rule above — completed rides only — so
+ * the customer page and the follow-up flag can never disagree.
+ *
+ * `lastTripDate` / `daysSinceLastTrip` are null when they have no completed
+ * rides yet; that is "no history", not "zero days".
+ */
+export interface CustomerActivity {
+  tripCount: number;
+  lifetimeRevenueCents: number;
+  lastTripDate: string | null;
+  daysSinceLastTrip: number | null;
+  /** True once they qualify as a repeat customer who has gone quiet. */
+  isQuiet: boolean;
+}
+
+export function customerActivity(
+  trips: Trip[],
+  customerId: string,
+  asOfDate: string,
+  thresholdDays: number = INACTIVE_THRESHOLD_DAYS,
+): CustomerActivity {
+  const completed = trips.filter(
+    (t) => t.customer_id === customerId && t.status === "completed",
+  );
+  const lastTripDate = completed.reduce<string | null>(
+    (latest, t) => (latest === null || t.trip_date > latest ? t.trip_date : latest),
+    null,
+  );
+  const daysSinceLastTrip =
+    lastTripDate === null ? null : daysBetween(lastTripDate, asOfDate);
+
+  return {
+    tripCount: completed.length,
+    lifetimeRevenueCents: customerLifetimeRevenueCents(trips, customerId),
+    lastTripDate,
+    daysSinceLastTrip,
+    isQuiet:
+      completed.length >= 2 &&
+      daysSinceLastTrip !== null &&
+      daysSinceLastTrip > thresholdDays,
+  };
+}
+
 /** Whole days between two "YYYY-MM-DD" dates (UTC-day math, DST-independent). */
 function toUtcDay(dateStr: string): number {
   const p = dateStr.slice(0, 10).split("-");

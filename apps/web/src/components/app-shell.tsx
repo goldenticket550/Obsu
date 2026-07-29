@@ -4,6 +4,7 @@ import type { ReactNode, SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/app/login/actions";
+import { CreateMenu } from "@/components/create-menu";
 import {
   NAV_DESTINATIONS,
   isActiveDestination,
@@ -118,6 +119,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
 
+        {/* Primary create control (desktop). Menu opens upward from here. */}
+        <div className="px-3 pb-3">
+          <CreateMenu variant="sidebar" />
+        </div>
+
         <nav aria-label="Main" className="flex-1 px-3">
           <ul className="flex flex-col gap-1">
             {NAV_DESTINATIONS.map(({ href, label }) => {
@@ -155,10 +161,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* CONTENT — bottom padding on mobile clears the fixed bar (plus the
-          device's own safe area, e.g. the iPhone home indicator). */}
-      <div className="min-w-0 flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-56">
+      {/* CONTENT — bottom padding on mobile clears the fixed bar AND the
+          floating create button (plus the device's own safe area, e.g. the
+          iPhone home indicator), so neither ever covers content at 320px. */}
+      <div className="min-w-0 flex-1 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-56">
         {children}
+      </div>
+
+      {/* MOBILE CREATE (FAB) — sits above the bottom bar, right-aligned, so it
+          never overlaps navigation or the safe area. */}
+      <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-50 lg:hidden">
+        <CreateMenu variant="fab" />
       </div>
 
       {/* MOBILE BOTTOM BAR */}

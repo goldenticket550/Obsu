@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { INACTIVE_THRESHOLD_DAYS, inactiveCustomers } from "./customer-intel";
+import {
+  INACTIVE_THRESHOLD_DAYS,
+  customerActivity,
+  inactiveCustomers,
+} from "./customer-intel";
 import { makeCustomer, makeTrip } from "./__factories";
 
 const AS_OF = "2026-07-31";
@@ -90,5 +94,81 @@ describe("inactiveCustomers", () => {
 
   it("has a sane default threshold constant", () => {
     expect(INACTIVE_THRESHOLD_DAYS).toBe(30);
+  });
+});
+
+describe("customerActivity", () => {
+  const CUSTOMER_ID = "cust-1";
+  const TODAY = "2026-07-15";
+
+  it("reports no history rather than zero days for a customer with no rides", () => {
+    const a = customerActivity([], CUSTOMER_ID, TODAY);
+    expect(a.tripCount).toBe(0);
+    expect(a.lifetimeRevenueCents).toBe(0);
+    expect(a.lastTripDate).toBeNull();
+    expect(a.daysSinceLastTrip).toBeNull();
+    expect(a.isQuiet).toBe(false);
+  });
+
+  it("counts only completed rides, matching the inactivity rule", () => {
+    const trips = [
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", revenue_cents: 20000, trip_date: "2026-07-01" }),
+      makeTrip({ customer_id: CUSTOMER_ID, status: "scheduled", revenue_cents: 90000, trip_date: "2026-07-20" }),
+      makeTrip({ customer_id: CUSTOMER_ID, status: "canceled", revenue_cents: 90000, trip_date: "2026-07-02" }),
+    ];
+    const a = customerActivity(trips, CUSTOMER_ID, TODAY);
+    expect(a.tripCount).toBe(1);
+    expect(a.lifetimeRevenueCents).toBe(20000);
+    expect(a.lastTripDate).toBe("2026-07-01");
+    expect(a.daysSinceLastTrip).toBe(14);
+  });
+
+  it("uses the most recent completed ride regardless of input order", () => {
+    const trips = [
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-06-01" }),
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-07-10" }),
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-05-01" }),
+    ];
+    expect(customerActivity(trips, CUSTOMER_ID, TODAY).lastTripDate).toBe("2026-07-10");
+  });
+
+  it("ignores other customers' rides", () => {
+    const trips = [
+      makeTrip({ customer_id: "someone-else", status: "completed", revenue_cents: 50000 }),
+    ];
+    expect(customerActivity(trips, CUSTOMER_ID, TODAY).tripCount).toBe(0);
+  });
+
+  it("flags quiet only for a repeat customer past the threshold", () => {
+    const twoOld = [
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-05-01" }),
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-05-02" }),
+    ];
+    expect(customerActivity(twoOld, CUSTOMER_ID, TODAY).isQuiet).toBe(true);
+
+    // One ride is not a repeat customer, however long ago it was.
+    const oneOld = [
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-05-01" }),
+    ];
+    expect(customerActivity(oneOld, CUSTOMER_ID, TODAY).isQuiet).toBe(false);
+
+    // Recent repeat customer is not quiet.
+    const recent = [
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-07-10" }),
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-07-14" }),
+    ];
+    expect(customerActivity(recent, CUSTOMER_ID, TODAY).isQuiet).toBe(false);
+  });
+
+  it("agrees with inactiveCustomers for the same data", () => {
+    const customer = makeCustomer({ id: CUSTOMER_ID, name: "Ashley" });
+    const trips = [
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-05-01" }),
+      makeTrip({ customer_id: CUSTOMER_ID, status: "completed", trip_date: "2026-05-02" }),
+    ];
+    const flagged = inactiveCustomers(trips, [customer], INACTIVE_THRESHOLD_DAYS, TODAY);
+    const a = customerActivity(trips, CUSTOMER_ID, TODAY);
+    expect(a.isQuiet).toBe(flagged.length === 1);
+    expect(a.daysSinceLastTrip).toBe(flagged[0]?.daysSinceLastTrip);
   });
 });

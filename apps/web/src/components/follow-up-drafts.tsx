@@ -3,10 +3,14 @@
 import { useState } from "react";
 
 /**
- * M9 — follow-up drafts (Level-2 "prepare" only). For each inactive repeat
- * customer, the owner can open an editable, copyable draft message. There is
- * NO send button and no messaging integration — the owner copies it and sends
- * it himself elsewhere. Nothing leaves the app.
+ * M9 — follow-up drafts (Level-2 "prepare" only). The owner can open an
+ * editable, copyable draft message for a customer. There is NO send button and
+ * no messaging integration — the owner copies it and sends it himself
+ * elsewhere. Nothing leaves the app. That rule has not changed.
+ *
+ * U3: rehomed from the dashboard to the individual customer's page, and the
+ * business name is now passed in rather than hard-coded, so a second operator
+ * gets their own name in the draft.
  */
 
 export interface FollowUpRow {
@@ -16,17 +20,23 @@ export interface FollowUpRow {
   lifetimeUsd: string;
 }
 
-function defaultDraft(name: string): string {
-  return `Hey ${name}, hope all's well — just checking in! It's been a little while. Midnight Rydes is here whenever you need a ride; happy to get you booked in.`;
+function defaultDraft(name: string, businessName: string): string {
+  return `Hey ${name}, hope all's well — just checking in! It's been a little while. ${businessName} is here whenever you need a ride; happy to get you booked in.`;
 }
 
-export function FollowUpDrafts({ customers }: { customers: FollowUpRow[] }) {
+export function FollowUpDrafts({
+  customers,
+  businessName,
+}: {
+  customers: FollowUpRow[];
+  businessName: string;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   function draftFor(row: FollowUpRow): string {
-    return drafts[row.id] ?? defaultDraft(row.name);
+    return drafts[row.id] ?? defaultDraft(row.name, businessName);
   }
 
   async function copy(row: FollowUpRow) {

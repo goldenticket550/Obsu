@@ -4,6 +4,7 @@ import {
   estimatedTripProfitCents,
   profitMarginPercent,
 } from "./profit";
+import { totalRevenueCents } from "./revenue";
 import { makeExpense, makeTrip } from "./__factories";
 
 describe("estimatedTripProfitCents", () => {
@@ -66,5 +67,41 @@ describe("profitMarginPercent", () => {
 
   it("guards against a non-finite revenue figure", () => {
     expect(profitMarginPercent(Number.NaN, 100)).toBeNull();
+  });
+});
+
+describe("profitMarginPercent — a month with no completed trips", () => {
+  it("is null (never NaN, Infinity, or a fake 0%) when only scheduled rides exist", () => {
+    // The exact real-world case: rides are booked but none driven yet, so
+    // revenue is 0. The UI must render an honest dash, not "0.0%" (which
+    // would claim a measured break-even) and not "NaN%".
+    const monthTrips = [
+      makeTrip({ status: "scheduled", revenue_cents: 50000 }),
+      makeTrip({ status: "scheduled", revenue_cents: 0 }),
+    ];
+    const monthExpenses = [makeExpense({ amount_cents: 4000 })];
+
+    const revenue = totalRevenueCents(monthTrips);
+    const profit = estimatedOperatingProfitCents(monthTrips, monthExpenses);
+    const margin = profitMarginPercent(revenue, profit);
+
+    expect(revenue).toBe(0); // scheduled rides earn nothing
+    expect(profit).toBe(-4000); // real expenses still count
+    expect(margin).toBeNull();
+    expect(Number.isNaN(margin as unknown as number)).toBe(false);
+  });
+
+  it("is null with no trips and no expenses at all", () => {
+    const revenue = totalRevenueCents([]);
+    const profit = estimatedOperatingProfitCents([], []);
+    expect(profitMarginPercent(revenue, profit)).toBeNull();
+  });
+
+  it("starts reporting a margin as soon as one ride is completed", () => {
+    const trips = [makeTrip({ status: "completed", revenue_cents: 20000 })];
+    const expenses = [makeExpense({ amount_cents: 5000 })];
+    const revenue = totalRevenueCents(trips);
+    const profit = estimatedOperatingProfitCents(trips, expenses);
+    expect(profitMarginPercent(revenue, profit)).toBe(75);
   });
 });
