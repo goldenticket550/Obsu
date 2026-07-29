@@ -111,6 +111,20 @@ export interface Trip {
   notes?: string | null;
   status: TripStatus;
   created_at: ISODate;
+
+  // D1 (migration 0003). All nullable with no default and no backfill: NULL
+  // means "not tracked", which is the truth for every ride recorded earlier.
+  /** Cents actually received. NULL = payment not tracked. Payment status and
+   * outstanding balance are DERIVED from this (see lib/business/payment.ts),
+   * never stored — two columns for one fact would be two sources of truth. */
+  amount_paid_cents?: Cents | null;
+  /** When the customer confirmed. NULL = unconfirmed. A timestamp rather than
+   * a boolean, so the "when" is not lost. */
+  confirmed_at?: ISODate | null;
+  /** NULL = not recorded. */
+  passenger_count?: number | null;
+  /** Free-text note about the ride. NULL = none. */
+  note?: string | null;
 }
 
 export interface Expense {

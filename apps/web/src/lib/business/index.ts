@@ -9,6 +9,7 @@ export * from "./revenue";
 export * from "./trip-status";
 export * from "./pickup-time";
 export * from "./schedule";
+export * from "./payment";
 export * from "./command-center";
 export * from "./action-required";
 export * from "./expenses";
