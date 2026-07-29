@@ -123,8 +123,8 @@ export interface Trip {
   confirmed_at?: ISODate | null;
   /** NULL = not recorded. */
   passenger_count?: number | null;
-  /** Free-text note about the ride. NULL = none. */
-  note?: string | null;
+  // D2 (migration 0004) dropped the duplicate `note` column. The surviving
+  // free-text field is `notes` above, which the M8 parser also writes into.
 }
 
 export interface Expense {

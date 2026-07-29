@@ -88,7 +88,6 @@ function readTripFields(formData: FormData) {
     // blank, never 0 and never "".
     amount_paid_cents: optionalDollarsToCents(str(formData, "amount_paid")),
     passenger_count: optionalPositiveInt(str(formData, "passenger_count")),
-    note: optStr(formData, "note"),
     // confirmed_at is NOT set here: it is stamped by its own confirm action,
     // so editing a ride never silently confirms or unconfirms it.
   };

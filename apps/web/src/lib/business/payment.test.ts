@@ -13,6 +13,8 @@ import {
 import { estimatedOperatingProfitCents } from "./profit";
 import { optionalDollarsToCents } from "@/lib/money";
 import { optStr, optionalPositiveInt } from "@/lib/form";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { formatBusinessDateTime } from "./pickup-time";
 
 /**
@@ -230,5 +232,83 @@ describe("confirmation state", () => {
     expect(after.revenue_cents).toBe(before.revenue_cents);
     expect(totalRevenueCents([after])).toBe(totalRevenueCents([before]));
     expect(tripCount([after])).toBe(tripCount([before]));
+  });
+});
+
+/**
+ * D2 — one note field, not two. `notes` survives; D1's duplicate `note` column
+ * is dropped by migration 0004.
+ */
+describe("notes is the single free-text field", () => {
+  it("round-trips a value through the form parser", () => {
+    const fd = new FormData();
+    fd.set("notes", "Waited 10 min at the terminal");
+    expect(optStr(fd, "notes")).toBe("Waited 10 min at the terminal");
+  });
+
+  it("blank persists NULL, never an empty string", () => {
+    const fd = new FormData();
+    expect(optStr(fd, "notes")).toBeNull();
+    fd.set("notes", "");
+    expect(optStr(fd, "notes")).toBeNull();
+    fd.set("notes", "   ");
+    expect(optStr(fd, "notes")).toBeNull();
+  });
+
+  it("trims surrounding whitespace but keeps the content", () => {
+    const fd = new FormData();
+    fd.set("notes", "  Ran late  ");
+    expect(optStr(fd, "notes")).toBe("Ran late");
+  });
+
+  it("leaves an existing stored value untouched when editing", () => {
+    // The edit form opens with the ride's own value; nothing rewrites it.
+    const stored = makeTrip({ notes: "Original note" });
+    expect(stored.notes).toBe("Original note");
+    expect(stored.notes ?? "").toBe("Original note");
+  });
+
+  it("a ride with no notes reads as absence, not an empty string", () => {
+    expect(makeTrip({ notes: null }).notes).toBeNull();
+  });
+});
+
+/**
+ * Regression guard: the dropped column must not reappear in application code.
+ * Migration 0004 removes it from the database, so any surviving reference
+ * would write to (or read from) a column that no longer exists.
+ */
+describe("the dropped `note` column is gone from application code", () => {
+  const SRC = join(process.cwd(), "src");
+
+  function sourceFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) return sourceFiles(full);
+      return entry.isFile() && /\.tsx?$/.test(entry.name) ? [full] : [];
+    });
+  }
+
+  it("no source file references trip.note or a `note` form field", () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      // The protected voice files are out of scope and never opened here.
+      if (/obsidian-voice|voice[\/]transcribe/.test(file)) continue;
+      // This file legitimately contains the patterns — it IS the guard.
+      if (/payment\.test\.tsx?$/.test(file)) continue;
+      const text = readFileSync(file, "utf8");
+      // Strip comments so prose about the change does not trip the guard.
+      const code = text
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/[^\n]*/g, "");
+      if (
+        /\btrip\.note\b(?!s)/.test(code) ||
+        /name="note"/.test(code) ||
+        /\bnote:\s*optStr/.test(code)
+      ) {
+        offenders.push(file);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

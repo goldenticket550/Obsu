@@ -47,7 +47,6 @@ export type TripFormDefaults = Partial<
     | "cost_other_label"
     | "amount_paid"
     | "passenger_count"
-    | "note"
     | "pickup_time",
     string
   >
@@ -126,7 +125,6 @@ export function TripForm({
             : "",
         passenger_count:
           trip.passenger_count != null ? String(trip.passenger_count) : "",
-        note: trip.note ?? "",
         pickup_time: toTimeInputValue(trip.start_time),
         cost_gas: "",
         cost_tolls: "",
@@ -154,7 +152,6 @@ export function TripForm({
         notes: d.notes ?? "",
         amount_paid: d.amount_paid ?? "",
         passenger_count: d.passenger_count ?? "",
-        note: d.note ?? "",
         pickup_time: d.pickup_time ?? "",
         cost_gas: d.cost_gas ?? "",
         cost_tolls: d.cost_tolls ?? "",
@@ -419,15 +416,16 @@ export function TripForm({
         />
       </Field>
 
-      <Field label="Notes">
-        <TextArea name="notes" rows={2} defaultValue={v.notes} />
-      </Field>
-
-      {/* D1 added a `note` column alongside the pre-existing `notes`. Labelled
-          distinctly so the two are not mistaken for each other — see the report:
-          consolidating them needs its own approved migration. */}
-      <Field label="Ride note" hint="Optional — a short note about this ride.">
-        <TextInput name="note" defaultValue={v.note} placeholder="Optional" />
+      {/* D2: one note field, not two. D1's duplicate `note` column is dropped
+          by migration 0004; this is the surviving `notes`, which also receives
+          anything the natural-language parser extracts. */}
+      <Field label="Notes" hint="Optional — anything worth remembering.">
+        <TextArea
+          name="notes"
+          rows={2}
+          defaultValue={v.notes}
+          placeholder="Optional"
+        />
       </Field>
 
       {showInlineCosts ? (
