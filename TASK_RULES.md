@@ -68,3 +68,15 @@ Local and focused, **one per task part**. Never push.
 
 Before committing: list the files, inspect the staged diff, and confirm no unrelated hunks,
 no protected file, and no migration, lockfile, seed file, or generated DB type is staged.
+
+## Editing source
+
+**Never use `sed`, `perl`, or regex substitution to edit TypeScript source.** Use the Edit
+tool with an exact, unique string match.
+
+Regex delimiters that appear inside the pattern — `|` in a union type, `/` in a path —
+silently corrupt adjacent lines.
+
+If a multi-file mechanical rename is genuinely needed: print the planned diff for approval
+first, then run `tsc` immediately afterwards and diff the **whole file**, not just the
+intended hunk.
