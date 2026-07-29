@@ -234,27 +234,32 @@ No provider key, service-role key, or privileged call ever reaches the browser.
 - **Full cleanup** of media tracks, audio contexts, timers, and animation frames on
   unmount, navigation, error, and sign-out.
 
-### Debt V2 must clear: the legacy orb state alias
+### Debt V2 cleared: the legacy orb state alias — PAID 2026-07-29
 
-V1 put the real orb state machine in `src/lib/business/orb.ts` as a discriminated union.
-But `obsidian-orb.tsx` still exports a **deprecated `OrbState` string alias**
-(`"idle" | "listening" | "thinking" | "speaking"`), and the component accepts either shape,
-normalizing the legacy string into a machine state at its boundary.
+For one phase, two shapes described orb state: the real discriminated union in
+`src/lib/business/orb.ts`, and a deprecated `OrbState` string alias exported from
+`obsidian-orb.tsx` (`"idle" | "listening" | "thinking" | "speaking"`). The component accepted
+either and normalized the string at its boundary. It existed for exactly one reason — the
+frozen `obsidian-voice.tsx` imported the string type, and removing it would have broken the
+type-check on a file that had to stay byte-identical.
 
-That exists for exactly one reason: the frozen `obsidian-voice.tsx` imports the string type,
-and removing it would break the type-check on a file that must stay byte-identical.
+V2 unfroze those files and paid it off in the same change:
 
-**Until the voice files are unfrozen, two shapes describe orb state.** That is a real
-duplication and the orb is the one component that must never disagree with itself.
+- the deprecated `OrbState` alias is deleted from `obsidian-orb.tsx`;
+- the normalization boundary is gone — `legacyToState`, the `typeof state === "string"`
+  branch, and the `level` prop that only the legacy form used;
+- the remaining call site takes `OrbState` from `lib/business/orb.ts`;
+- the caption-suppression rule is gone with it, so the orb always renders its own label.
 
-When V2 unfreezes the voice files it MUST, in the same change:
+**Exactly one shape describes orb state.** Three tests hold it there: the alias name is absent
+from `obsidian-orb.tsx`, no file in `src/` imports `OrbState` from the component, and the
+`level` prop does not come back.
 
-- delete the deprecated `OrbState` alias from `obsidian-orb.tsx`,
-- delete the legacy normalization boundary (`legacyToState`, the `typeof state === "string"`
-  branch, and the `level` prop that only the legacy form uses),
-- move the remaining call site onto `OrbState` from `lib/business/orb.ts`,
-- and drop the caption-suppression rule, which exists only because the legacy caller renders
-  its own label.
+V2 also **added one event** to the machine: `text_submitted`. The typed path produces a
+transcript that never passed through capture, so it cannot honestly emit `capture_stopped`.
+Naming the second source keeps the machine total instead of letting typing fake a capture it
+never performed. It is accepted only from a resting state, so typing while the microphone is
+live or while an action is executing does not discard what is happening.
 
 ### Resolved in V3.1: the two definitions of "create a trip"
 

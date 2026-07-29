@@ -261,7 +261,12 @@ describe("capturing and releasing", () => {
       onStop: (h) => {
         stopHandler = h;
       },
+      takeRecording: vi.fn(() => {
+        takenCount += 1;
+        return { size: 40_000, type: "audio/webm" } as Blob;
+      }),
     };
+    let takenCount = 0;
 
     let meterClosed = 0;
     const meter: LevelMeterLike = {
@@ -286,6 +291,7 @@ describe("capturing and releasing", () => {
       tracks,
       stopped,
       meterClosedCount: () => meterClosed,
+      takenCount: () => takenCount,
       emit: (n: number) => chunkHandler?.(n),
       advance: (ms: number) => {
         clock += ms;

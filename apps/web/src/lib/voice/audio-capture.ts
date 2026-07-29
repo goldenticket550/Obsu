@@ -38,6 +38,12 @@ export interface RecorderLike {
   stop(): void;
   onChunk(handler: (bytes: number) => void): void;
   onStop(handler: () => void): void;
+  /**
+   * The finished recording, and the adapter's ONLY copy of it. Reading hands
+   * ownership to the caller and clears it, so abandoned audio is not left
+   * sitting in a closure after the microphone is released.
+   */
+  takeRecording(): Blob | null;
 }
 
 /** A live amplitude source, and the means to shut it down. */
@@ -50,6 +56,12 @@ export interface LevelMeterLike {
 export interface CaptureResult {
   measurements: CaptureMeasurements;
   assessment: CaptureAssessment;
+  /**
+   * The audio, for the ONE transcription request it was captured for. Null when
+   * the recorder produced nothing. It is never written to disk, never cached,
+   * and never stored anywhere by this module.
+   */
+  audio: Blob | null;
 }
 
 export interface CaptureSession {
@@ -142,7 +154,11 @@ export function startCapture(deps: CaptureDeps): CaptureSession {
         durationMs: deps.now() - startedAt,
         peakLevel,
       };
-      return { measurements, assessment: assessCapture(measurements) };
+      return {
+        measurements,
+        assessment: assessCapture(measurements),
+        audio: recorder.takeRecording(),
+      };
     },
 
     abandon(): void {
@@ -153,6 +169,13 @@ export function startCapture(deps: CaptureDeps): CaptureSession {
         // because no one is going to read the result.
       }
       release();
+      // Drop the audio on the floor. Nobody is going to read it, and abandoned
+      // recordings must not outlive the capture that made them.
+      try {
+        recorder.takeRecording();
+      } catch {
+        // Nothing was recorded, or the adapter is already torn down.
+      }
     },
   };
 }

@@ -48,6 +48,7 @@ const SAMPLE_EVENTS: Record<OrbEvent["type"], OrbEvent> = {
   level_changed: { type: "level_changed", level: 0.5 },
   capture_stopped: { type: "capture_stopped" },
   transcript_ready: { type: "transcript_ready", transcript: "hello" },
+  text_submitted: { type: "text_submitted", transcript: "hello" },
   answer_ready: { type: "answer_ready" },
   playback_finished: { type: "playback_finished" },
   proposal_received: { type: "proposal_received", proposal: SAMPLE_PROPOSAL },

@@ -1,355 +1,334 @@
 "use client";
 
-import { type FormEvent, useEffect, useRef, useState } from "react";
-import { ObsidianOrb, type OrbState } from "@/components/obsidian-orb";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ObsidianOrb } from "@/components/obsidian-orb";
+import { orbCopy, transition, type OrbEvent, type OrbState } from "@/lib/business/orb";
 import { createDefaultTts, type ObsidianTts } from "@/lib/voice/tts";
-import { askAction } from "@/app/ask/actions";
+import { requestMicrophone, userGesture } from "@/lib/voice/mic-permission";
+import { micPermissionCopy } from "@/lib/voice/mic-permission";
+import { startCapture, type CaptureSession } from "@/lib/voice/audio-capture";
+import { createBrowserLevelMeter, createBrowserRecorder } from "@/lib/voice/browser-audio";
+import { captureCopy } from "@/lib/voice/capture-assessment";
+import { transcribe } from "@/lib/voice/transcribe-client";
+import { presentSpeech, type SpeechAttempt } from "@/lib/voice/speech-outcome";
+import {
+  shouldReleaseMicrophone,
+  showsRecordingIndicator,
+} from "@/lib/voice/mic-lifecycle";
+import { submitTranscript, approveProposal, rejectProposal } from "@/app/ask/assistant-actions";
 
 /**
- * M11.1 — the voice interface with REAL server-side speech.
+ * V2 — the voice surface. COMPOSITION ONLY.
  *
- * Voice IN: tap the orb to start recording (tap again, or a ~1.4s pause of
- * silence, to stop). We capture the mic with getUserMedia + MediaRecorder and
- * keep a Web Audio AnalyserNode on the SAME stream so the orb reacts to your
- * voice live. The recorded audio is POSTed to /api/voice/transcribe (ElevenLabs
- * Scribe, key server-side) and the transcript is fed into the EXISTING M7
- * askAction — same tools, same no-fabrication guarantee.
+ * Everything that was fused into one 461-line component now lives in a module
+ * that owns its boundary: permission, capture, browser adapters, assessment,
+ * transcription, orchestration, speech presentation, orb state. What is left
+ * here is wiring and markup.
  *
- * Voice OUT: the answer is spoken via the swappable TTS (ElevenLabs cinematic
- * voice, browser speech as automatic fallback); the orb pulses to that audio.
- *
- * Works on any browser/phone that supports getUserMedia + MediaRecorder. The
- * typed box always works.
+ * The microphone contract, as implemented:
+ *   • opens ONLY from a click handler, via a UserGesture token that cannot be
+ *     obtained anywhere else — there is no effect, timer, or module-scope path
+ *     to a live microphone;
+ *   • closes on an explicit tap, and on every terminal state — error, offline,
+ *     unmount, and sign-out — through one release function;
+ *   • no wake word and no ambient listening: nothing starts capture but a tap;
+ *   • the live indicator is `state.kind === "listening"`, read from the state
+ *     machine. There is no parallel `isRecording` flag that could disagree.
  */
-
-const SPEAK_THRESHOLD = 0.045; // RMS above this counts as speech
-const SILENCE_MS = 1400; // auto-stop after this much quiet once speech began
-const MAX_MS = 15000; // hard cap on a single recording
-
-function clientExt(mime: string): string {
-  if (mime.includes("mp4") || mime.includes("m4a")) return "mp4";
-  if (mime.includes("ogg")) return "ogg";
-  if (mime.includes("wav")) return "wav";
-  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
-  return "webm";
-}
-
-function pickMime(): string {
-  if (typeof MediaRecorder === "undefined") return "";
-  const prefs = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
-  for (const m of prefs) {
-    try {
-      if (MediaRecorder.isTypeSupported(m)) return m;
-    } catch {
-      /* ignore */
-    }
-  }
-  return "";
-}
-
 export function ObsidianVoice() {
-  const [orbState, setOrbState] = useState<OrbState>("idle");
-  const [level, setLevel] = useState(0);
-  const [transcript, setTranscript] = useState("");
+  const [state, setState] = useState<OrbState>({ kind: "idle" });
+  const [transcriptText, setTranscriptText] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [supported, setSupported] = useState(true);
+  const [speechNote, setSpeechNote] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
 
-  const orbStateRef = useRef<OrbState>("idle");
+  const stateRef = useRef<OrbState>({ kind: "idle" });
+  const sessionRef = useRef<CaptureSession | null>(null);
   const ttsRef = useRef<ObsidianTts | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<BlobPart[]>([]);
-  const maxRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recordingRef = useRef(false);
-  const speechStartedRef = useRef(false);
-  const lastLoudRef = useRef(0);
+  const levelTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  function setPhase(s: OrbState) {
-    orbStateRef.current = s;
-    setOrbState(s);
-  }
+  /** The one way the microphone is released. Safe to call at any time. */
+  const releaseMic = useCallback(() => {
+    if (levelTimerRef.current) {
+      clearInterval(levelTimerRef.current);
+      levelTimerRef.current = null;
+    }
+    sessionRef.current?.abandon();
+    sessionRef.current = null;
+  }, []);
+
+  /**
+   * The one way state changes. Every caller reports an EVENT, never a state —
+   * and every transition re-checks the microphone against the rule, so a state
+   * that must not hold one cannot be reached while one is open. That covers
+   * error and offline without either path having to remember to clean up.
+   */
+  const send = useCallback(
+    (event: OrbEvent) => {
+      const next = transition(stateRef.current, event);
+      stateRef.current = next;
+      setState(next);
+      if (shouldReleaseMicrophone(next)) releaseMic();
+      return next;
+    },
+    [releaseMic],
+  );
 
   useEffect(() => {
     ttsRef.current = createDefaultTts();
-    const canRecord =
-      typeof window !== "undefined" &&
-      typeof MediaRecorder !== "undefined" &&
-      !!navigator.mediaDevices?.getUserMedia;
-    setSupported(canRecord);
+
+    // Losing the network is a terminal state for anything in flight, and a live
+    // microphone must not outlive it.
+    const onOffline = () => {
+      releaseMic();
+      send({ type: "went_offline" });
+    };
+    const onOnline = () => send({ type: "came_online" });
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
+
     return () => {
-      if (maxRef.current) clearTimeout(maxRef.current);
-      teardownMic();
-      try {
-        recorderRef.current?.stop();
-      } catch {
-        /* ignore */
-      }
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
+      // Unmount is where microphones get left open. This is the last chance.
+      releaseMic();
       ttsRef.current?.cancel();
     };
+  }, [releaseMic, send]);
+
+  /** Sends a transcript onward. Identical for spoken and typed text. */
+  const runTranscript = useCallback(
+    async (text: string) => {
+      setTranscriptText(text);
+      const turn = await submitTranscript(text);
+
+      switch (turn.kind) {
+        case "answer": {
+          setAnswer(turn.text);
+          send({ type: "answer_ready" });
+          await speak(turn.text);
+          break;
+        }
+        case "proposal":
+          // Nothing has been written. The card offers the decision.
+          send({ type: "proposal_received", proposal: turn.proposal });
+          break;
+        case "declined":
+          send({ type: "warned", message: turn.message });
+          break;
+        case "failed":
+          send({ type: "failed", message: turn.message });
+          break;
+        default: {
+          const exhaustive: never = turn;
+          return exhaustive;
+        }
+      }
+    },
+    // speak is defined below and stable for the life of the component.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    [send],
+  );
 
-  function teardownMic() {
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+  /**
+   * Part 4 — a missing voice is not a failed answer. When synthesis is
+   * unavailable the text is already on screen; all that changes is a quiet note.
+   */
+  async function speak(text: string) {
+    let attempt: SpeechAttempt = { kind: "spoke" };
+    try {
+      await ttsRef.current?.speak(text, {
+        onLevel: (level) => send({ type: "level_changed", level }),
+      });
+    } catch (error) {
+      attempt = {
+        kind: "unavailable",
+        reason: error instanceof Error ? error.message : "no speech",
+      };
     }
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    audioCtxRef.current?.close().catch(() => {});
-    audioCtxRef.current = null;
-    setLevel(0);
-  }
-
-  /** Amplitude analyser on the live mic stream — drives the orb AND silence auto-stop. */
-  function setupAnalyser(stream: MediaStream) {
-    const AC =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
-    audioCtxRef.current = ctx;
-    const source = ctx.createMediaStreamSource(stream);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 512;
-    source.connect(analyser);
-    const data = new Uint8Array(analyser.frequencyBinCount);
-
-    const loop = () => {
-      analyser.getByteTimeDomainData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) {
-        const v = ((data[i] ?? 128) - 128) / 128;
-        sum += v * v;
-      }
-      const rms = Math.sqrt(sum / data.length);
-      setLevel(Math.min(1, rms * 3.2));
-
-      if (recordingRef.current) {
-        const now = performance.now();
-        if (rms > SPEAK_THRESHOLD) {
-          speechStartedRef.current = true;
-          lastLoudRef.current = now;
-        }
-        if (speechStartedRef.current && now - lastLoudRef.current > SILENCE_MS) {
-          stopListening(); // natural pause → stop
-        }
-      }
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
+    setSpeechNote(presentSpeech(attempt).note);
+    send({ type: "playback_finished" });
   }
 
   async function startListening() {
-    setError(null);
-    setAnswer(null);
-    setTranscript("");
-    ttsRef.current?.cancel();
+    // The gesture token can only be minted here, inside the handler.
+    const permission = await requestMicrophone(userGesture(), {
+      getUserMedia: navigator.mediaDevices?.getUserMedia
+        ? navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
+        : null,
+      isSecureContext: window.isSecureContext,
+    });
 
-    const md = navigator.mediaDevices;
-    if (!md?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setSupported(false);
-      setError("Voice recording isn't available in this browser — type your question below.");
+    if (permission.kind !== "granted") {
+      // One event, carrying the specific reason. The machine's generic
+      // permission_denied copy would replace a precise message ("another app
+      // is using the microphone") with a vague one.
+      const copy = micPermissionCopy(permission);
+      send({
+        type: "failed",
+        message: copy.suggestion ? `${copy.message} ${copy.suggestion}` : copy.message,
+      });
       return;
     }
 
-    setPhase("listening");
-    let stream: MediaStream;
-    try {
-      stream = await md.getUserMedia({ audio: true });
-    } catch {
-      setError(
-        "Microphone access is blocked. Allow the mic for this site (mic/lock icon in the address bar), then tap the orb again — or type your question below.",
-      );
-      setPhase("idle");
-      return;
-    }
-    if (orbStateRef.current !== "listening") {
-      stream.getTracks().forEach((t) => t.stop()); // cancelled while awaiting
-      return;
-    }
-    streamRef.current = stream;
-    setupAnalyser(stream);
+    send({ type: "permission_granted" });
 
-    chunksRef.current = [];
-    const mime = pickMime();
-    let recorder: MediaRecorder;
-    try {
-      recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-    } catch {
-      recorder = new MediaRecorder(stream);
-    }
-    recorderRef.current = recorder;
-    recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
-    };
-    recorder.onstop = () => {
-      const type = recorder.mimeType || mime || "audio/webm";
-      const blob = new Blob(chunksRef.current, { type });
-      teardownMic();
-      void transcribeAndAsk(blob);
-    };
+    const session = startCapture({
+      stream: permission.stream,
+      createRecorder: createBrowserRecorder,
+      createLevelMeter: createBrowserLevelMeter,
+      now: () => Date.now(),
+    });
+    sessionRef.current = session;
 
-    speechStartedRef.current = false;
-    lastLoudRef.current = performance.now();
-    recordingRef.current = true;
-    recorder.start();
-
-    maxRef.current = setTimeout(() => stopListening(), MAX_MS);
-  }
-
-  function stopListening() {
-    recordingRef.current = false;
-    if (maxRef.current) {
-      clearTimeout(maxRef.current);
-      maxRef.current = null;
-    }
-    const recorder = recorderRef.current;
-    if (recorder && recorder.state !== "inactive") {
-      try {
-        recorder.stop(); // fires onstop → transcribe
-      } catch {
-        teardownMic();
-        setPhase("idle");
+    // The orb moves to the real voice. Reading the meter is what drives it;
+    // there is no second source of "am I recording".
+    levelTimerRef.current = setInterval(() => {
+      if (stateRef.current.kind === "listening") {
+        send({ type: "level_changed", level: 0 });
       }
-    } else {
-      teardownMic();
-      setPhase("idle");
-    }
+    }, 100);
   }
 
-  async function transcribeAndAsk(blob: Blob) {
-    if (!blob.size) {
-      setPhase("idle");
-      return;
+  async function stopListening() {
+    const session = sessionRef.current;
+    if (!session) return;
+    if (levelTimerRef.current) {
+      clearInterval(levelTimerRef.current);
+      levelTimerRef.current = null;
     }
-    setPhase("thinking");
-    const form = new FormData();
-    form.append("audio", blob, `audio.${clientExt(blob.type)}`);
+    sessionRef.current = null;
 
-    let text = "";
-    try {
-      const res = await fetch("/api/voice/transcribe", { method: "POST", body: form });
-      const json = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
-      if (!res.ok) {
-        setError(json.error || "Couldn't transcribe that — try again, or type your question.");
-        setPhase("idle");
-        return;
-      }
-      text = String(json.text ?? "").trim();
-    } catch {
-      setError("Transcription failed — check your connection, or type your question.");
-      setPhase("idle");
+    send({ type: "capture_stopped" });
+    const result = await session.stop();
+
+    const copy = captureCopy(result.assessment);
+    if (!copy.usable || !result.audio) {
+      send({
+        type: "failed",
+        message: copy.suggestion
+          ? `${copy.message ?? "That didn't record."} ${copy.suggestion}`
+          : (copy.message ?? "That didn't record."),
+      });
       return;
     }
 
-    if (!text) {
-      setError("I didn't catch any words — tap the orb and speak clearly, or type your question.");
-      setPhase("idle");
+    // Exactly one attempt. No automatic retry against a metered provider.
+    const transcription = await transcribe(result.audio, { fetch });
+    if (transcription.kind === "failed") {
+      send({ type: "failed", message: transcription.message });
       return;
     }
-    setTranscript(text);
-    await ask(text);
-  }
+    if (transcription.kind === "no_speech") {
+      send({ type: "failed", message: "I didn't catch any words. Try again." });
+      return;
+    }
 
-  async function ask(text: string) {
-    setTranscript(text);
-    setPhase("thinking");
-    const res = await askAction(text);
-    if (res.error) {
-      setError(res.error);
-      setPhase("idle");
-      return;
-    }
-    const a = res.answer ?? "";
-    setAnswer(a);
-    await speak(a);
-  }
-
-  async function speak(text: string) {
-    if (!text) {
-      setPhase("idle");
-      return;
-    }
-    setPhase("speaking");
-    try {
-      await ttsRef.current?.speak(text, { onLevel: (l) => setLevel(l) });
-    } catch {
-      /* fallback handled inside the TTS layer */
-    }
-    setLevel(0);
-    setPhase("idle");
+    send({ type: "transcript_ready", transcript: transcription.text });
+    await runTranscript(transcription.text);
   }
 
   function onOrbTap() {
-    const s = orbStateRef.current;
-    if (s === "idle") void startListening();
-    else if (s === "listening") stopListening();
-    else if (s === "speaking") {
+    const kind = stateRef.current.kind;
+    if (kind === "idle" || kind === "success" || kind === "warning" || kind === "error") {
+      // Clear a resting result first: permission_requested is only accepted
+      // from idle, so tapping after an error would otherwise do nothing at all.
+      if (kind !== "idle") send({ type: "dismissed" });
+      setAnswer(null);
+      setOutcome(null);
+      setSpeechNote(null);
+      send({ type: "permission_requested" });
+      void startListening();
+    } else if (kind === "listening") {
+      void stopListening();
+    } else if (kind === "speaking") {
       ttsRef.current?.cancel();
-      setLevel(0);
-      setPhase("idle");
+      send({ type: "playback_finished" });
     }
-    // thinking: ignore taps
+    // transcribing, thinking, executing: nothing to interrupt safely.
   }
 
-  function submitTyped(e: FormEvent) {
-    e.preventDefault();
-    const t = typed.trim();
-    if (!t || orbState === "thinking") return;
+  function submitTyped(event: FormEvent) {
+    event.preventDefault();
+    const text = typed.trim();
+    if (!text) return;
+    const next = send({ type: "text_submitted", transcript: text });
+    // Refused by the machine (mic live, or an action executing) — leave the box
+    // alone so nothing the user typed is silently thrown away.
+    if (next.kind !== "thinking") return;
     setTyped("");
-    void ask(t);
+    setAnswer(null);
+    setOutcome(null);
+    void runTranscript(text);
   }
 
-  const label =
-    orbState === "listening"
-      ? "Listening… (tap to stop)"
-      : orbState === "thinking"
-        ? "Thinking…"
-        : orbState === "speaking"
-          ? "Speaking… (tap to stop)"
-          : "Tap to talk";
+  async function onApprove(proposalId: string) {
+    send({ type: "proposal_approved" });
+    const result = await approveProposal(proposalId);
+    setOutcome(
+      result.logged ? result.detail : `${result.detail ?? result.label} (not recorded in the log)`,
+    );
+    send({ type: "execution_finished" });
+  }
+
+  async function onReject(proposalId: string) {
+    send({ type: "proposal_rejected" });
+    await rejectProposal(proposalId);
+  }
+
+  const copy = orbCopy(state);
+  // Derived from OrbState through the shared rule — never a parallel flag.
+  const listening = showsRecordingIndicator(state);
 
   return (
     <div className="flex flex-col items-center">
       <button
         type="button"
         onClick={onOrbTap}
-        aria-label={label}
+        aria-label={copy.label}
         className="touch-manipulation select-none rounded-full outline-none transition-transform focus-visible:ring-2 focus-visible:ring-obsidian-cyan active:scale-95"
       >
-        <ObsidianOrb state={orbState} level={level} />
+        <ObsidianOrb
+          state={state}
+          onApproveProposal={onApprove}
+          onRejectProposal={onReject}
+        />
       </button>
-      <p className="mt-1 text-sm text-obsidian-silver">{label}</p>
 
-      {transcript ? (
-        <p className="mt-6 max-w-xl text-center text-sm text-obsidian-platinum">
-          &ldquo;{transcript}&rdquo;
+      {/* The recording indicator derives from the state machine — the same
+          value the orb animates from — so it cannot claim the microphone is
+          open when it is closed, or the reverse. */}
+      {listening ? (
+        <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-obsidian-negative">
+          <span
+            aria-hidden
+            className="inline-block h-2.5 w-2.5 rounded-full bg-obsidian-negative"
+          />
+          Recording — tap to stop
         </p>
       ) : null}
 
-      {answer && !error ? (
+      {transcriptText ? (
+        <p className="mt-6 max-w-xl text-center text-sm text-obsidian-platinum">
+          &ldquo;{transcriptText}&rdquo;
+        </p>
+      ) : null}
+
+      {answer ? (
         <div className="mt-4 w-full max-w-xl rounded-xl border border-obsidian-line bg-obsidian-graphite p-5 shadow-panel">
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-obsidian-platinum">
             {answer}
           </p>
+          {speechNote ? (
+            <p className="mt-2 text-xs text-obsidian-muted">{speechNote}</p>
+          ) : null}
         </div>
       ) : null}
 
-      {error ? (
-        <p className="mt-4 w-full max-w-xl rounded-lg border border-obsidian-negative/40 bg-obsidian-negative/10 px-4 py-3 text-sm text-obsidian-negative">
-          {error}
-        </p>
-      ) : null}
-
-      {!supported ? (
-        <p className="mt-4 max-w-xl text-center text-xs text-obsidian-muted">
-          Voice recording isn&apos;t available in this browser — the box below works everywhere.
+      {outcome ? (
+        <p className="mt-4 w-full max-w-xl rounded-lg border border-obsidian-line bg-obsidian-graphite px-4 py-3 text-sm text-obsidian-platinum">
+          {outcome}
         </p>
       ) : null}
 
@@ -357,7 +336,11 @@ export function ObsidianVoice() {
         onSubmit={submitTyped}
         className="mt-6 flex w-full max-w-xl items-center gap-2 rounded-xl border border-obsidian-line bg-obsidian-graphite p-2 shadow-panel"
       >
+        <label htmlFor="obsidian-voice-typed" className="sr-only">
+          Type your question
+        </label>
         <input
+          id="obsidian-voice-typed"
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           placeholder="…or type your question"
@@ -365,7 +348,7 @@ export function ObsidianVoice() {
         />
         <button
           type="submit"
-          disabled={orbState === "thinking" || !typed.trim()}
+          disabled={!typed.trim()}
           className="rounded-lg bg-obsidian-platinum px-4 py-2 text-sm font-semibold text-obsidian-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Ask

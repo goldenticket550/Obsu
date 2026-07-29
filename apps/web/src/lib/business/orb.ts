@@ -72,6 +72,14 @@ export type OrbEvent =
   /** Capture ended (silence, tap, or cap) — audio is on its way to be read. */
   | { type: "capture_stopped" }
   | { type: "transcript_ready"; transcript: string }
+  /**
+   * V2 — a transcript that never went through capture, because it was typed.
+   * The orchestrator cannot tell the two sources apart and must not; the orb
+   * needs to, because typing skips the listening and transcribing states
+   * entirely. Naming the second source is what keeps the machine total rather
+   * than letting the typed path fake a `capture_stopped` it never did.
+   */
+  | { type: "text_submitted"; transcript: string }
   | { type: "answer_ready" }
   | { type: "playback_finished" }
   /** V3 emits these; V1 defines them so the machine is total. */
@@ -96,6 +104,7 @@ export const ORB_EVENT_TYPES: OrbEventType[] = [
   "level_changed",
   "capture_stopped",
   "transcript_ready",
+  "text_submitted",
   "answer_ready",
   "playback_finished",
   "proposal_received",
@@ -197,6 +206,16 @@ export function transition(state: OrbState, event: OrbEvent): OrbState {
 
     case "transcript_ready":
       return state.kind === "transcribing"
+        ? { kind: "thinking", transcript: event.transcript }
+        : state;
+
+    case "text_submitted":
+      // Accepted from rest only. Typing while the microphone is live or while
+      // an action is executing must not silently discard what is happening.
+      return state.kind === "idle" ||
+        state.kind === "success" ||
+        state.kind === "warning" ||
+        state.kind === "error"
         ? { kind: "thinking", transcript: event.transcript }
         : state;
 

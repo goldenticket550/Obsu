@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  orbCopy,
-  orbLevel,
-  type OrbState as OrbMachineState,
-} from "@/lib/business/orb";
+import { orbCopy, orbLevel, type OrbState } from "@/lib/business/orb";
 import { ProposalCard } from "@/components/proposal-card";
 
 /** The four motion phases the canvas animates. Derived from the state machine. */
@@ -14,16 +10,8 @@ type OrbPhase = "idle" | "listening" | "thinking" | "speaking";
 /** Placeholder for an absent handler; never reached (see showsProposalCard). */
 const noop = (): void => {};
 
-/**
- * @deprecated Legacy phase strings. Retained ONLY so the paused voice
- * component (obsidian-voice.tsx, uncommitted) keeps compiling; V2 replaces
- * that call site with the state machine and this alias goes away. New code
- * passes an OrbState from lib/business/orb.
- */
-export type OrbState = OrbPhase;
-
 /** Which motion phase a machine state animates as. One source, no booleans. */
-function phaseFor(state: OrbMachineState): OrbPhase {
+function phaseFor(state: OrbState): OrbPhase {
   switch (state.kind) {
     case "listening":
       return "listening";
@@ -59,20 +47,6 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-/** Maps a legacy phase string onto the machine state it stands for. */
-function legacyToState(phase: OrbPhase, level: number): OrbMachineState {
-  switch (phase) {
-    case "listening":
-      return { kind: "listening", level };
-    case "speaking":
-      return { kind: "speaking", level };
-    case "thinking":
-      return { kind: "thinking", transcript: "" };
-    default:
-      return { kind: "idle" };
-  }
-}
-
 const TONE_CLASS: Record<ReturnType<typeof orbCopy>["tone"], string> = {
   neutral: "text-obsidian-silver",
   active: "text-obsidian-cyan",
@@ -83,33 +57,24 @@ const TONE_CLASS: Record<ReturnType<typeof orbCopy>["tone"], string> = {
 
 /**
  * M11 — the OBSIDIAN orb. A canvas cluster of glowing points around a soft
- * core. V1: its ENTIRE appearance derives from one OrbState — the phase it
+ * core. Its ENTIRE appearance derives from one OrbState — the phase it
  * animates, the amplitude it moves to, and the words beneath it all come from
  * that single value. There is no local `isListening`/`hasError` to disagree
  * with it.
  *
- * Accepts a legacy phase string as well, purely for the paused voice
- * component. In that mode the caller supplies its own label, so no caption is
- * rendered here and nothing is duplicated on screen.
+ * V2 removed the legacy phase-string form and its normalization boundary.
+ * Exactly one shape describes orb state now: the union in lib/business/orb.
  */
 export function ObsidianOrb({
-  state,
-  level = 0,
+  state: machineState,
   onApproveProposal,
   onRejectProposal,
 }: {
-  state: OrbMachineState | OrbState;
-  /** Only used with the legacy string form; union states carry their own. */
-  level?: number;
+  state: OrbState;
   /** V3: supplied together, or the approval controls are not rendered. */
   onApproveProposal?: (proposalId: string) => void;
   onRejectProposal?: (proposalId: string) => void;
 }) {
-  const legacy = typeof state === "string";
-  const machineState: OrbMachineState = legacy
-    ? legacyToState(state, level)
-    : state;
-
   const reducedMotion = usePrefersReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawRef = useRef<((now: number) => void) | null>(null);
@@ -248,18 +213,14 @@ export function ObsidianOrb({
     <div className="flex flex-col items-center">
       <canvas ref={canvasRef} className="h-64 w-64 sm:h-72 sm:w-72" aria-hidden />
 
-      {/* Legacy callers render their own label; showing ours too would put two
-          status lines on the same screen. */}
-      {legacy ? null : (
-        <div role="status" className="mt-2 max-w-xs text-center">
-          <p className={`text-sm ${TONE_CLASS[copy.tone]}`}>{copy.label}</p>
-          {/* A proposal renders its own card below, which already carries the
-              summary — repeating it here would say the same thing twice. */}
-          {copy.detail && !showsProposalCard ? (
-            <p className="mt-0.5 text-xs text-obsidian-muted">{copy.detail}</p>
-          ) : null}
-        </div>
-      )}
+      <div role="status" className="mt-2 max-w-xs text-center">
+        <p className={`text-sm ${TONE_CLASS[copy.tone]}`}>{copy.label}</p>
+        {/* A proposal renders its own card below, which already carries the
+            summary — repeating it here would say the same thing twice. */}
+        {copy.detail && !showsProposalCard ? (
+          <p className="mt-0.5 text-xs text-obsidian-muted">{copy.detail}</p>
+        ) : null}
+      </div>
 
       {/* V3 — the real approval interface. `action_proposed` offers the
           decision; `executing` shows the same summary in progress. Controls
