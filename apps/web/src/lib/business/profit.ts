@@ -31,3 +31,19 @@ export function estimatedOperatingProfitCents(
 ): number {
   return totalRevenueCents(trips) - totalExpensesCents(expenses);
 }
+
+/**
+ * Estimated operating profit as a percentage of recorded revenue.
+ *
+ * Derived from the two figures above — it introduces no new business rule.
+ * Returns null when there is no revenue to divide by, so the UI can say "—"
+ * instead of showing 0% (which would read as "we broke even", a different and
+ * false claim) or NaN.
+ */
+export function profitMarginPercent(
+  revenueCents: number,
+  profitCents: number,
+): number | null {
+  if (!Number.isFinite(revenueCents) || revenueCents <= 0) return null;
+  return (profitCents / revenueCents) * 100;
+}

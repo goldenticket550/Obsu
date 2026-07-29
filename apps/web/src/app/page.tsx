@@ -1,43 +1,46 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  EmptyState,
-  Panel,
-  QuickAction,
-  SectionLabel,
-  StatCard,
-} from "@/components/dashboard";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
 import { listTrips } from "@/lib/db/trips";
 import { listExpenses } from "@/lib/db/expenses";
 import { listCustomers } from "@/lib/db/customers";
 import {
-  INACTIVE_THRESHOLD_DAYS,
   averageTripValueCents,
+  buildActionRequired,
+  businessDateLabel,
   currentMonthRange,
   estimatedOperatingProfitCents,
   filterByDateRange,
-  inactiveCustomers,
+  greetingFor,
+  operationalSummary,
+  profitMarginPercent,
+  selectNextRide,
   todayInNewYork,
-  topCustomers,
+  todaysFlow,
   totalExpensesCents,
   totalRevenueCents,
   tripCount,
 } from "@/lib/business";
-import { formatUsd } from "@/lib/money";
-import { labelize } from "@/lib/enums";
-import { FollowUpDrafts } from "@/components/follow-up-drafts";
-import { signOut } from "./login/actions";
+import { AskObsidian } from "@/components/ask-obsidian";
+import { NextRide } from "@/components/command/next-ride";
+import { TonightsFlow } from "@/components/command/tonights-flow";
+import { BusinessPulse } from "@/components/command/business-pulse";
+import { ActionRequired } from "@/components/command/action-required";
 
 /**
- * OBSIDIAN RIDES — dashboard (M6).
+ * OBSIDIAN RIDES — Command Center (U2).
  *
- * Protected (middleware + this component). Fetches the org's trips / expenses /
- * customers (RLS-scoped), then calls the PURE calc functions in
- * src/lib/business to fill the This-Month numbers, the average-trip line, and
- * top-customer insights. This component only fetches and formats — no math
- * lives here (build rule #6).
+ * Server-rendered. Fetches the org's trips / expenses / customers (RLS-scoped),
+ * then hands them to the PURE functions in src/lib/business. No math and no
+ * date logic live here (build rule #6).
+ *
+ * Section order is the operational hierarchy: greeting → Next Ride → Obsidian
+ * Intelligence → Tonight's Flow → Business Pulse → Action Required. DOM order
+ * follows the MOBILE priority (Action Required sits third) because the phone is
+ * the primary surface and screen readers follow DOM order; `lg:order-*`
+ * restores the desktop order on wide screens.
  */
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const supabase = createSupabaseServerClient();
 
@@ -63,287 +66,99 @@ export default async function DashboardPage() {
 
   const businessName: string = org?.name ?? "Your business";
 
-  // Fetch everything for this org (RLS-scoped). Small dataset — the M5 pure
-  // functions filter/aggregate in memory, which is exactly what they're for.
   const [allTrips, allExpenses, customers] = await Promise.all([
     listTrips(),
     listExpenses(),
     listCustomers(),
   ]);
 
-  // This-month window in America/New_York (M5), then the pure calcs.
+  // One `now` for the whole render, so every section agrees on the moment.
+  const now = new Date();
+
+  // This-month window in America/New_York, then the existing pure calcs.
   const { start, end } = currentMonthRange();
   const monthTrips = filterByDateRange(allTrips, "trip_date", start, end);
-  const monthExpenses = filterByDateRange(
-    allExpenses,
-    "expense_date",
-    start,
-    end,
-  );
+  const monthExpenses = filterByDateRange(allExpenses, "expense_date", start, end);
 
   const revenueCents = totalRevenueCents(monthTrips);
   const expensesCents = totalExpensesCents(monthExpenses);
   const profitCents = estimatedOperatingProfitCents(monthTrips, monthExpenses);
-  const completedTrips = tripCount(monthTrips);
-  const avgTripCents = averageTripValueCents(monthTrips);
+  const completedRides = tripCount(monthTrips);
+  const averageRideCents = averageTripValueCents(monthTrips);
+  // Derived from the two figures above by the tested business function — no
+  // new rule, and null rather than a divide-by-zero when revenue is 0.
+  const marginPercent = profitMarginPercent(revenueCents, profitCents);
 
-  const topRanked = topCustomers(allTrips, customers, 3).filter(
-    (r) => r.revenueCents > 0,
-  );
-
-  // Follow-up intelligence (M9): repeat customers who've gone quiet.
-  const inactive = inactiveCustomers(
+  const nextRide = selectNextRide(allTrips, now);
+  const flow = todaysFlow(allTrips, now);
+  const actionItems = buildActionRequired(
     allTrips,
     customers,
-    INACTIVE_THRESHOLD_DAYS,
+    now,
     todayInNewYork(),
   );
-  const followUpRows = inactive.map((c) => ({
-    id: c.customer.id,
-    name: c.name,
-    daysSinceLastTrip: c.daysSinceLastTrip,
-    lifetimeUsd: formatUsd(c.lifetimeRevenueCents),
-  }));
-
-  // Recent Activity (unchanged from M4) — latest raw trips/expenses, newest-first.
-  type Activity = {
-    id: string;
-    created_at: string;
-    kind: "Trip" | "Expense";
-    primary: string;
-    amount_cents: number;
-    meta: string;
-    href: string;
-  };
-  const activity: Activity[] = [
-    ...allTrips.map(
-      (t): Activity => ({
-        id: `t-${t.id}`,
-        created_at: t.created_at,
-        kind: "Trip",
-        primary: t.customer?.name ?? "Trip",
-        amount_cents: t.revenue_cents,
-        meta: `${t.trip_date} · ${t.pickup_location ?? "?"} → ${t.dropoff_location ?? "?"}`,
-        href: `/trips/${t.id}/edit`,
-      }),
-    ),
-    ...allExpenses.map(
-      (e): Activity => ({
-        id: `e-${e.id}`,
-        created_at: e.created_at,
-        kind: "Expense",
-        primary: labelize(e.category),
-        amount_cents: e.amount_cents,
-        meta: `${e.expense_date}${e.description ? ` · ${e.description}` : ""}`,
-        href: `/expenses/${e.id}/edit`,
-      }),
-    ),
-  ]
-    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-    .slice(0, 6);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-5 pb-16 pt-6">
-      {/* Top bar */}
-      <header className="flex items-center justify-between">
-        <div className="flex items-baseline gap-2">
-          <span className="text-lg font-semibold tracking-[0.2em] text-obsidian-platinum">
-            OBSIDIAN
-          </span>
-          <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-obsidian-cyan">
-            Rides
-          </span>
+    <main className="mx-auto w-full max-w-5xl px-5 pb-16 pt-6">
+      <div className="flex flex-col gap-5">
+        {/* 2 — GREETING + operational status */}
+        <header className="order-1">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-obsidian-muted">
+            {businessDateLabel(now)}
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold text-obsidian-platinum">
+            {greetingFor(now)}.
+          </h1>
+          <p className="mt-1 text-sm text-obsidian-silver">
+            {businessName} · {operationalSummary(allTrips, now)}
+          </p>
+        </header>
+
+        {/* 3 — NEXT RIDE (centerpiece; its primary action lives inside) */}
+        <div className="order-2">
+          <NextRide view={nextRide} />
         </div>
-        <form action={signOut} className="flex items-center gap-3">
-          <span className="hidden text-xs text-obsidian-muted sm:inline">
-            {user.email}
-          </span>
-          <button
-            type="submit"
-            className="rounded-lg border border-obsidian-line px-3 py-1.5 text-xs text-obsidian-silver transition-colors hover:border-obsidian-cyan hover:text-obsidian-platinum"
+
+        {/* 7 — ACTION REQUIRED (third on mobile, last on desktop) */}
+        <div className="order-3 lg:order-6">
+          <ActionRequired items={actionItems} />
+        </div>
+
+        {/* 4 — OBSIDIAN INTELLIGENCE. Holds the existing, working Ask
+            OBSIDIAN. The orb arrives in V1 — nothing that does not work is
+            shipped here, but the section is where it will live. */}
+        <section
+          aria-labelledby="intelligence-heading"
+          className="order-4 rounded-2xl border border-obsidian-line bg-gradient-to-b from-obsidian-graphite to-obsidian-black p-5 shadow-panel lg:order-3"
+        >
+          <h2
+            id="intelligence-heading"
+            className="text-[11px] font-medium uppercase tracking-[0.18em] text-obsidian-silver"
           >
-            Sign out
-          </button>
-        </form>
-      </header>
-
-      {/* Greeting */}
-      <section className="mt-8">
-        <h1 className="text-2xl font-semibold text-obsidian-platinum">
-          Good morning.
-        </h1>
-        <p className="mt-1 text-sm text-obsidian-silver">
-          {businessName} at a glance.
-        </p>
-      </section>
-
-      {/* This month */}
-      <section className="mt-8">
-        <SectionLabel>This Month</SectionLabel>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Revenue" value={formatUsd(revenueCents)} />
-          <StatCard
-            label="Recorded Expenses"
-            value={formatUsd(expensesCents)}
-          />
-          <StatCard
-            label="Est. Operating Profit"
-            value={formatUsd(profitCents)}
-            hint="Estimated"
-            accent
-          />
-          <StatCard label="Trips" value={String(completedTrips)} />
-        </div>
-        <p className="mt-2 text-xs text-obsidian-muted">
-          Average trip value{" "}
-          <span className="text-obsidian-silver">
-            {formatUsd(avgTripCents)}
-          </span>
-          . Operating profit is an{" "}
-          <span className="text-obsidian-silver">estimate</span> — this
-          month&apos;s completed-trip revenue minus all recorded expenses, not
-          audited net income.
-        </p>
-      </section>
-
-      {/* Customer insights */}
-      <section className="mt-8">
-        <SectionLabel>Customer Insights</SectionLabel>
-
-        {/* Follow-ups — repeat customers who've gone quiet */}
-        {followUpRows.length > 0 ? (
-          <Panel className="p-0">
-            <div className="border-b border-obsidian-line px-5 py-3">
-              <p className="text-sm font-medium text-obsidian-platinum">
-                {followUpRows.length} repeat customer
-                {followUpRows.length === 1 ? "" : "s"} due for follow-up
-              </p>
-              <p className="mt-0.5 text-xs text-obsidian-muted">
-                Haven&apos;t ridden in {INACTIVE_THRESHOLD_DAYS}+ days. Draft a
-                note to check in — you send it yourself.
-              </p>
-            </div>
-            <FollowUpDrafts customers={followUpRows} />
-          </Panel>
-        ) : (
-          <Panel>
-            <EmptyState>
-              No repeat customers are overdue — everyone has ridden within the
-              last {INACTIVE_THRESHOLD_DAYS} days. Follow-up suggestions appear
-              here when someone goes quiet.
-            </EmptyState>
-          </Panel>
-        )}
-
-        {/* Top customers by revenue */}
-        {topRanked.length > 0 ? (
+            Obsidian intelligence
+          </h2>
           <div className="mt-3">
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-obsidian-silver">
-              Top customers
-            </p>
-            <Panel className="p-0">
-              <ul className="divide-y divide-obsidian-line">
-                {topRanked.map((r) => (
-                  <li
-                    key={r.customer.id}
-                    className="flex items-center justify-between gap-3 px-5 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-obsidian-platinum">
-                        {r.customer.name}
-                      </p>
-                      <p className="text-xs text-obsidian-muted">
-                        {r.tripCount} {r.tripCount === 1 ? "trip" : "trips"}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold tabular-nums text-obsidian-platinum">
-                      {formatUsd(r.revenueCents)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
+            <AskObsidian />
           </div>
-        ) : null}
-      </section>
+        </section>
 
-      {/* Recent activity */}
-      <section className="mt-8">
-        <SectionLabel>Recent Activity</SectionLabel>
-        {activity.length === 0 ? (
-          <Panel>
-            <EmptyState>No trips or expenses recorded yet.</EmptyState>
-          </Panel>
-        ) : (
-          <Panel className="p-0">
-            <ul className="divide-y divide-obsidian-line">
-              {activity.map((a) => (
-                <li key={a.id}>
-                  <Link
-                    href={a.href}
-                    className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-obsidian-slate/50"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-obsidian-platinum">
-                        <span className="text-obsidian-muted">{a.kind}</span>{" "}
-                        {a.primary}
-                      </p>
-                      <p className="truncate text-xs text-obsidian-muted">
-                        {a.meta}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold tabular-nums text-obsidian-platinum">
-                      {formatUsd(a.amount_cents)}
-                    </p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Panel>
-        )}
-      </section>
-
-      {/* Quick actions */}
-      <section className="mt-8">
-        <SectionLabel>Quick Actions</SectionLabel>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <QuickAction label="Schedule Ride" href="/trips/new?status=scheduled" />
-          <QuickAction label="Log Trip" href="/trips/new" />
-          <QuickAction label="Add Expense" href="/expenses/new" />
-          <QuickAction label="Add Customer" href="/customers/new" />
-          <QuickAction label="Ask OBSIDIAN" href="/ask" />
+        {/* 5 — TONIGHT'S FLOW */}
+        <div className="order-5 lg:order-4">
+          <TonightsFlow entries={flow} />
         </div>
-      </section>
 
-      {/* Ask OBSIDIAN */}
-      <section className="mt-8">
-        <SectionLabel>Ask OBSIDIAN</SectionLabel>
-        <Link
-          href="/ask"
-          className="flex items-center justify-between gap-2 rounded-xl border border-obsidian-line bg-obsidian-graphite p-3 shadow-panel transition-colors hover:border-obsidian-cyan"
-        >
-          <span className="px-1 text-sm text-obsidian-muted">
-            Ask anything about your business…
-          </span>
-          <span className="rounded-lg bg-obsidian-platinum px-3 py-1.5 text-xs font-semibold text-obsidian-black">
-            Ask →
-          </span>
-        </Link>
-        <p className="mt-2 text-xs text-obsidian-muted">
-          The assistant answers from your verified business data — never
-          guessed numbers.
-        </p>
-        <Link
-          href="/obsidian"
-          className="mt-2 inline-flex items-center gap-1 text-xs text-obsidian-cyan transition-colors hover:text-obsidian-platinum"
-        >
-          🎙 Talk to OBSIDIAN (voice) →
-        </Link>
-      </section>
-
-      <footer className="mt-12 border-t border-obsidian-line pt-5 text-center text-xs text-obsidian-muted">
-        OBSIDIAN · Your Business. Our A.I. · signed in as {user.email}
-      </footer>
+        {/* 6 — BUSINESS PULSE */}
+        <div className="order-6 lg:order-5">
+          <BusinessPulse
+            revenueCents={revenueCents}
+            expensesCents={expensesCents}
+            profitCents={profitCents}
+            marginPercent={marginPercent}
+            completedRides={completedRides}
+            averageRideCents={averageRideCents}
+          />
+        </div>
+      </div>
     </main>
   );
 }

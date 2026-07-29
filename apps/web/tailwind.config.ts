@@ -18,9 +18,13 @@ const config: Config = {
           platinum: "#e7e9ee",
           silver: "#9aa1ad",
           muted: "#6b7280",
-          cyan: "#38bdf8",
-          positive: "#4ade80",
-          negative: "#f87171",
+          // Semantic illumination. Each colour has exactly one meaning, and is
+          // never the ONLY signal — always paired with a label or icon.
+          blue: "#3b82f6", // primary illumination / primary action
+          cyan: "#38bdf8", // secondary accent, restrained
+          positive: "#4ade80", // completed / paid / confirmed / ready ONLY
+          amber: "#f59e0b", // warnings ONLY
+          negative: "#f87171", // failures / destructive / urgent ONLY
         },
       },
       fontFamily: {

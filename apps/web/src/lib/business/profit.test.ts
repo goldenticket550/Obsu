@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   estimatedOperatingProfitCents,
   estimatedTripProfitCents,
+  profitMarginPercent,
 } from "./profit";
 import { makeExpense, makeTrip } from "./__factories";
 
@@ -44,5 +45,26 @@ describe("estimatedOperatingProfitCents", () => {
 
   it("is 0 for empty inputs", () => {
     expect(estimatedOperatingProfitCents([], [])).toBe(0);
+  });
+});
+
+describe("profitMarginPercent", () => {
+  it("expresses profit as a percentage of recorded revenue", () => {
+    expect(profitMarginPercent(100_00, 25_00)).toBe(25);
+  });
+
+  it("returns null with no revenue, rather than 0% or NaN", () => {
+    // 0% would read as "broke even", which is a different claim from
+    // "there is nothing to measure yet".
+    expect(profitMarginPercent(0, 0)).toBeNull();
+    expect(profitMarginPercent(0, -500)).toBeNull();
+  });
+
+  it("handles a loss as a negative margin", () => {
+    expect(profitMarginPercent(100_00, -50_00)).toBe(-50);
+  });
+
+  it("guards against a non-finite revenue figure", () => {
+    expect(profitMarginPercent(Number.NaN, 100)).toBeNull();
   });
 });
