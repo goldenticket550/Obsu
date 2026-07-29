@@ -9,12 +9,20 @@ import {
   type OrbEvent,
   type OrbState,
 } from "./orb";
+import { buildProposal } from "./proposal";
 
 /**
  * V1 — the orb state machine. Every assertion here is driven from the unions
  * themselves, so adding a variant makes these fail rather than pass by
  * omission.
  */
+
+/** A real proposal, built the same way production builds one. */
+const SAMPLE_PROPOSAL = buildProposal(
+  "prop-1",
+  { kind: "cancel_trip", tripId: "trip-1", expectedStatus: "scheduled" },
+  new Date("2026-07-28T23:00:00Z"),
+);
 
 /** One representative value per state kind, built from the union. */
 const SAMPLE_STATES: Record<OrbState["kind"], OrbState> = {
@@ -24,8 +32,8 @@ const SAMPLE_STATES: Record<OrbState["kind"], OrbState> = {
   transcribing: { kind: "transcribing" },
   thinking: { kind: "thinking", transcript: "how much did I make this month" },
   speaking: { kind: "speaking", level: 0.6 },
-  action_proposed: { kind: "action_proposed", summary: "Mark ride complete" },
-  executing: { kind: "executing", summary: "Mark ride complete" },
+  action_proposed: { kind: "action_proposed", proposal: SAMPLE_PROPOSAL },
+  executing: { kind: "executing", proposal: SAMPLE_PROPOSAL },
   success: { kind: "success" },
   warning: { kind: "warning", message: "Some data was stale." },
   error: { kind: "error", message: "The assistant is unreachable." },
@@ -42,7 +50,7 @@ const SAMPLE_EVENTS: Record<OrbEvent["type"], OrbEvent> = {
   transcript_ready: { type: "transcript_ready", transcript: "hello" },
   answer_ready: { type: "answer_ready" },
   playback_finished: { type: "playback_finished" },
-  proposal_received: { type: "proposal_received", summary: "Do the thing" },
+  proposal_received: { type: "proposal_received", proposal: SAMPLE_PROPOSAL },
   proposal_approved: { type: "proposal_approved" },
   proposal_rejected: { type: "proposal_rejected" },
   execution_finished: { type: "execution_finished" },
@@ -126,16 +134,19 @@ describe("the happy path", () => {
 
   it("walks the V3 approval path", () => {
     let s: OrbState = { kind: "thinking", transcript: "cancel my 9pm" };
-    s = transition(s, { type: "proposal_received", summary: "Cancel the 9pm ride" });
-    expect(s).toEqual({ kind: "action_proposed", summary: "Cancel the 9pm ride" });
+    s = transition(s, { type: "proposal_received", proposal: SAMPLE_PROPOSAL });
+    expect(s).toEqual({ kind: "action_proposed", proposal: SAMPLE_PROPOSAL });
     s = transition(s, { type: "proposal_approved" });
-    expect(s).toEqual({ kind: "executing", summary: "Cancel the 9pm ride" });
+    // The very same proposal object carries through: what was approved is
+    // exactly what will be executed.
+    expect(s).toEqual({ kind: "executing", proposal: SAMPLE_PROPOSAL });
+    if (s.kind === "executing") expect(s.proposal).toBe(SAMPLE_PROPOSAL);
     s = transition(s, { type: "execution_finished" });
     expect(s).toEqual({ kind: "success" });
   });
 
   it("rejecting a proposal returns to idle without executing", () => {
-    const proposed: OrbState = { kind: "action_proposed", summary: "Cancel it" };
+    const proposed: OrbState = { kind: "action_proposed", proposal: SAMPLE_PROPOSAL };
     expect(transition(proposed, { type: "proposal_rejected" })).toEqual(IDLE);
   });
 });
@@ -321,9 +332,9 @@ describe("orbCopy", () => {
       "No connection",
     );
     expect(orbCopy({ kind: "warning", message: "Stale" }).detail).toBe("Stale");
-    expect(
-      orbCopy({ kind: "action_proposed", summary: "Cancel the 9pm" }).detail,
-    ).toBe("Cancel the 9pm");
+    expect(orbCopy({ kind: "action_proposed", proposal: SAMPLE_PROPOSAL }).detail).toBe(
+      SAMPLE_PROPOSAL.humanReadableSummary,
+    );
   });
 
   it("gives states that carry nothing no invented detail", () => {
@@ -341,13 +352,13 @@ describe("orbCopy", () => {
     expect(orbCopy({ kind: "offline" }).tone).toBe("warning");
   });
 
-  it("marks the V3 states as placeholders rather than guessing a design", () => {
-    expect(orbCopy(SAMPLE_STATES.action_proposed).placeholder).toBe(true);
-    expect(orbCopy(SAMPLE_STATES.executing).placeholder).toBe(true);
-    // Everything V1 actually drives is a real, finished presentation.
-    for (const kind of ORB_KINDS) {
-      if (kind === "action_proposed" || kind === "executing") continue;
-      expect(orbCopy(SAMPLE_STATES[kind]).placeholder).toBeUndefined();
+  it("shows the proposal's own summary for the V3 states — no placeholder left", () => {
+    // V3 replaced V1's placeholders with the real approval interface. The
+    // detail shown is the proposal's generated summary, not invented text.
+    for (const kind of ["action_proposed", "executing"] as const) {
+      expect(orbCopy(SAMPLE_STATES[kind]).detail).toBe(
+        SAMPLE_PROPOSAL.humanReadableSummary,
+      );
     }
   });
 });

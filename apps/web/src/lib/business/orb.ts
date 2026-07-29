@@ -11,6 +11,8 @@
  * or "a transcript while offline" unrepresentable rather than merely unlikely.
  */
 
+import type { Proposal } from "./proposal";
+
 export type OrbState =
   /** At rest. Carries nothing — an idle orb knows nothing. */
   | { kind: "idle" }
@@ -24,10 +26,15 @@ export type OrbState =
   | { kind: "thinking"; transcript: string }
   /** Playing a spoken answer. `level` is playback amplitude, 0..1. */
   | { kind: "speaking"; level: number }
-  /** An action is proposed and awaiting approval (V3 produces this). */
-  | { kind: "action_proposed"; summary: string }
-  /** An approved action is running (V3 produces this). Not interruptible. */
-  | { kind: "executing"; summary: string }
+  /**
+   * An action is proposed and awaiting approval. Carries the whole proposal,
+   * not a loose summary — the approval interface needs the same object the
+   * executor will receive, so the text approved and the fields run cannot
+   * drift apart.
+   */
+  | { kind: "action_proposed"; proposal: Proposal }
+  /** An approved action is running. Not interruptible. */
+  | { kind: "executing"; proposal: Proposal }
   /** Transient confirmation. Carries nothing — success needs no explanation. */
   | { kind: "success" }
   /** Completed, but with something the operator should know. */
@@ -68,7 +75,7 @@ export type OrbEvent =
   | { type: "answer_ready" }
   | { type: "playback_finished" }
   /** V3 emits these; V1 defines them so the machine is total. */
-  | { type: "proposal_received"; summary: string }
+  | { type: "proposal_received"; proposal: Proposal }
   | { type: "proposal_approved" }
   | { type: "proposal_rejected" }
   | { type: "execution_finished" }
@@ -201,12 +208,13 @@ export function transition(state: OrbState, event: OrbEvent): OrbState {
 
     case "proposal_received":
       return state.kind === "thinking"
-        ? { kind: "action_proposed", summary: event.summary }
+        ? { kind: "action_proposed", proposal: event.proposal }
         : state;
 
     case "proposal_approved":
+      // The proposal carries through unchanged: what was approved is what runs.
       return state.kind === "action_proposed"
-        ? { kind: "executing", summary: state.summary }
+        ? { kind: "executing", proposal: state.proposal }
         : state;
 
     case "proposal_rejected":
@@ -232,8 +240,6 @@ export interface OrbCopy {
    * component. Never the only signal — the label always carries words.
    */
   tone: "neutral" | "active" | "positive" | "warning" | "danger";
-  /** True where no agreed visual exists yet (V3 states). */
-  placeholder?: true;
 }
 
 /**
@@ -260,20 +266,18 @@ export function orbCopy(state: OrbState): OrbCopy {
     case "speaking":
       return { label: "Speaking…", detail: null, tone: "active" };
     case "action_proposed":
-      // V3 owns the approval interface; V1 shows a labelled placeholder rather
-      // than inventing a design for it.
+      // V3 ships the real approval interface; the summary shown is the
+      // proposal's own, generated from the fields the executor will use.
       return {
-        label: "Action proposed",
-        detail: state.summary,
+        label: "Approve this?",
+        detail: state.proposal.humanReadableSummary,
         tone: "warning",
-        placeholder: true,
       };
     case "executing":
       return {
         label: "Working…",
-        detail: state.summary,
+        detail: state.proposal.humanReadableSummary,
         tone: "active",
-        placeholder: true,
       };
     case "success":
       return { label: "Done", detail: null, tone: "positive" };

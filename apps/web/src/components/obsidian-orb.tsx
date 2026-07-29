@@ -6,9 +6,13 @@ import {
   orbLevel,
   type OrbState as OrbMachineState,
 } from "@/lib/business/orb";
+import { ProposalCard } from "@/components/proposal-card";
 
 /** The four motion phases the canvas animates. Derived from the state machine. */
 type OrbPhase = "idle" | "listening" | "thinking" | "speaking";
+
+/** Placeholder for an absent handler; never reached (see showsProposalCard). */
+const noop = (): void => {};
 
 /**
  * @deprecated Legacy phase strings. Retained ONLY so the paused voice
@@ -91,10 +95,15 @@ const TONE_CLASS: Record<ReturnType<typeof orbCopy>["tone"], string> = {
 export function ObsidianOrb({
   state,
   level = 0,
+  onApproveProposal,
+  onRejectProposal,
 }: {
   state: OrbMachineState | OrbState;
   /** Only used with the legacy string form; union states carry their own. */
   level?: number;
+  /** V3: supplied together, or the approval controls are not rendered. */
+  onApproveProposal?: (proposalId: string) => void;
+  onRejectProposal?: (proposalId: string) => void;
 }) {
   const legacy = typeof state === "string";
   const machineState: OrbMachineState = legacy
@@ -224,6 +233,17 @@ export function ObsidianOrb({
 
   const copy = orbCopy(machineState);
 
+  const proposalForCard =
+    machineState.kind === "action_proposed" || machineState.kind === "executing"
+      ? machineState.proposal
+      : null;
+  // While executing there is nothing to decide, so the card renders without
+  // controls and no handlers are needed.
+  const showsProposalCard =
+    proposalForCard !== null &&
+    (machineState.kind === "executing" ||
+      Boolean(onApproveProposal && onRejectProposal));
+
   return (
     <div className="flex flex-col items-center">
       <canvas ref={canvasRef} className="h-64 w-64 sm:h-72 sm:w-72" aria-hidden />
@@ -233,16 +253,27 @@ export function ObsidianOrb({
       {legacy ? null : (
         <div role="status" className="mt-2 max-w-xs text-center">
           <p className={`text-sm ${TONE_CLASS[copy.tone]}`}>{copy.label}</p>
-          {copy.detail ? (
+          {/* A proposal renders its own card below, which already carries the
+              summary — repeating it here would say the same thing twice. */}
+          {copy.detail && !showsProposalCard ? (
             <p className="mt-0.5 text-xs text-obsidian-muted">{copy.detail}</p>
-          ) : null}
-          {copy.placeholder ? (
-            <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-obsidian-muted">
-              Placeholder — interface arrives in V3
-            </p>
           ) : null}
         </div>
       )}
+
+      {/* V3 — the real approval interface. `action_proposed` offers the
+          decision; `executing` shows the same summary in progress. Controls
+          render only when handlers exist, so there is never a dead button. */}
+      {showsProposalCard && proposalForCard ? (
+        <div className="mt-3 w-full">
+          <ProposalCard
+            proposal={proposalForCard}
+            busy={machineState.kind === "executing"}
+            onApprove={onApproveProposal ?? noop}
+            onReject={onRejectProposal ?? noop}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
