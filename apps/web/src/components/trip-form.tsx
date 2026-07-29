@@ -45,6 +45,9 @@ export type TripFormDefaults = Partial<
     | "cost_tolls"
     | "cost_other"
     | "cost_other_label"
+    | "amount_paid"
+    | "passenger_count"
+    | "note"
     | "pickup_time",
     string
   >
@@ -115,6 +118,15 @@ export function TripForm({
             : "",
         mileage: trip.mileage != null ? String(trip.mileage) : "",
         notes: trip.notes ?? "",
+        // D1: null means NOT TRACKED, so the field opens blank — never "0.00",
+        // which would assert a payment of nothing.
+        amount_paid:
+          trip.amount_paid_cents != null
+            ? centsToDollars(trip.amount_paid_cents)
+            : "",
+        passenger_count:
+          trip.passenger_count != null ? String(trip.passenger_count) : "",
+        note: trip.note ?? "",
         pickup_time: toTimeInputValue(trip.start_time),
         cost_gas: "",
         cost_tolls: "",
@@ -140,6 +152,9 @@ export function TripForm({
         hourly_rate: d.hourly_rate ?? "",
         mileage: d.mileage ?? "",
         notes: d.notes ?? "",
+        amount_paid: d.amount_paid ?? "",
+        passenger_count: d.passenger_count ?? "",
+        note: d.note ?? "",
         pickup_time: d.pickup_time ?? "",
         cost_gas: d.cost_gas ?? "",
         cost_tolls: d.cost_tolls ?? "",
@@ -348,6 +363,21 @@ export function TripForm({
         ) : null}
       </Field>
 
+      {/* D1: amount paid sits beside the fare. Leaving it blank persists NULL —
+          "payment not tracked" — which is a different claim from "paid $0". */}
+      <Field
+        label="Amount paid ($) — optional"
+        hint="Leave blank if you're not tracking payment for this ride."
+      >
+        <TextInput
+          name="amount_paid"
+          inputMode="decimal"
+          pattern="[0-9$,. ]*"
+          defaultValue={v.amount_paid}
+          placeholder="Leave blank if not tracking"
+        />
+      </Field>
+
       <div className="grid grid-cols-2 gap-3">
         <Field label="Hours" hint="Optional — hourly jobs">
           <TextInput
@@ -377,8 +407,27 @@ export function TripForm({
         />
       </Field>
 
+      <Field label="Passengers" hint="Optional — leave blank if not recorded.">
+        <TextInput
+          name="passenger_count"
+          type="number"
+          inputMode="numeric"
+          min={1}
+          step={1}
+          defaultValue={v.passenger_count}
+          placeholder="e.g. 3"
+        />
+      </Field>
+
       <Field label="Notes">
         <TextArea name="notes" rows={2} defaultValue={v.notes} />
+      </Field>
+
+      {/* D1 added a `note` column alongside the pre-existing `notes`. Labelled
+          distinctly so the two are not mistaken for each other — see the report:
+          consolidating them needs its own approved migration. */}
+      <Field label="Ride note" hint="Optional — a short note about this ride.">
+        <TextInput name="note" defaultValue={v.note} placeholder="Optional" />
       </Field>
 
       {showInlineCosts ? (

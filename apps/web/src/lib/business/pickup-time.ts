@@ -27,6 +27,27 @@ export function toTimeInputValue(iso: string | null | undefined): string {
 }
 
 /**
+ * A stored timestamp -> a dated, timed label in business-local time, e.g.
+ * "Jul 28, 7:05 PM". Used where the "when" of an event matters (D1's
+ * confirmed_at). Returns null when absent — callers render their own absence
+ * copy rather than a fabricated date.
+ */
+export function formatBusinessDateTime(
+  iso: string | null | undefined,
+): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString("en-US", {
+    timeZone: BUSINESS_TIME_ZONE,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/**
  * A stored pickup timestamp -> a short display label, e.g. "7:05 PM".
  * Returns null when absent so callers can render their own "time not set"
  * state instead of a fabricated one.

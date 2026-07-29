@@ -61,6 +61,17 @@ export function UpcomingTripRow({
             {trip.trip_type ? labelize(trip.trip_type) : "Ride"}
             {route ? ` · ${route}` : ""}
           </p>
+          {/* D1 — confirmation. Deliberately NEUTRAL styling: most rides are
+              simply not confirmed yet, so an amber/red treatment here would
+              make the whole list cry wolf. Only the confirmed state gets
+              colour, and it carries its own word either way. */}
+          <p className="mt-0.5 text-[11px]">
+            {trip.confirmed_at ? (
+              <span className="text-obsidian-positive">✓ Confirmed</span>
+            ) : (
+              <span className="text-obsidian-muted">Not confirmed yet</span>
+            )}
+          </p>
         </div>
 
         {/* Price, or an honest statement that none is set. */}

@@ -11,6 +11,9 @@ import {
   tripCount,
 } from "./revenue";
 import { estimatedOperatingProfitCents } from "./profit";
+import { optionalDollarsToCents } from "@/lib/money";
+import { optStr, optionalPositiveInt } from "@/lib/form";
+import { formatBusinessDateTime } from "./pickup-time";
 
 /**
  * D1 — payment state is DERIVED from amount_paid_cents against the fare. These
@@ -146,5 +149,86 @@ describe("a partially-paid ride moves no existing number", () => {
     expect(totalRevenueCents([deposit])).toBe(0);
     expect(tripCount([deposit])).toBe(0);
     expect(estimatedOperatingProfitCents([deposit], [])).toBe(0);
+  });
+});
+
+/**
+ * D1 — an empty input must persist NULL, never 0. "Not tracked" and "paid
+ * nothing" are different claims and the schema distinguishes them. These pin
+ * the parsers the server action uses for the new columns.
+ */
+describe("blank inputs persist NULL, not zero", () => {
+  it("amount paid: blank -> null, explicit 0 -> 0", () => {
+    expect(optionalDollarsToCents("")).toBeNull();
+    expect(optionalDollarsToCents("   ")).toBeNull();
+    expect(optionalDollarsToCents(null)).toBeNull();
+    // An explicit zero is a real statement and is preserved as 0, not null.
+    expect(optionalDollarsToCents("0")).toBe(0);
+    expect(optionalDollarsToCents("240")).toBe(24000);
+  });
+
+  it("the two produce DIFFERENT payment states", () => {
+    const fare = 24000;
+    expect(paymentState(fare, optionalDollarsToCents("")).kind).toBe("not_tracked");
+    expect(paymentState(fare, optionalDollarsToCents("0")).kind).toBe("unpaid");
+  });
+
+  it("passenger count: blank -> null, and zero is rejected", () => {
+    expect(optionalPositiveInt("")).toBeNull();
+    expect(optionalPositiveInt("  ")).toBeNull();
+    expect(optionalPositiveInt("3")).toBe(3);
+    // The column's CHECK is > 0; 0 and negatives are refused with guidance.
+    expect(() => optionalPositiveInt("0")).toThrow();
+    expect(() => optionalPositiveInt("-2")).toThrow();
+    expect(() => optionalPositiveInt("2.5")).toThrow();
+  });
+
+  it("note: blank -> null, never an empty string", () => {
+    expect(optStr(new FormData(), "note")).toBeNull();
+    const fd = new FormData();
+    fd.set("note", "   ");
+    expect(optStr(fd, "note")).toBeNull();
+    fd.set("note", "Called ahead");
+    expect(optStr(fd, "note")).toBe("Called ahead");
+  });
+});
+
+/**
+ * D1 — confirmation is a timestamp and is reversible.
+ */
+describe("confirmation state", () => {
+  const CONFIRMED_AT = "2026-07-28T23:05:00Z";
+
+  it("a ride with no confirmed_at is unconfirmed", () => {
+    const trip = makeTrip({ status: "scheduled" });
+    expect(trip.confirmed_at ?? null).toBeNull();
+    expect(!!trip.confirmed_at).toBe(false);
+  });
+
+  it("confirming records WHEN, not merely THAT", () => {
+    const trip = makeTrip({ status: "scheduled", confirmed_at: CONFIRMED_AT });
+    expect(trip.confirmed_at).toBe(CONFIRMED_AT);
+    // A boolean would have lost this.
+    expect(formatBusinessDateTime(trip.confirmed_at)).toBe("Jul 28, 7:05 PM");
+  });
+
+  it("unconfirming clears the stamp back to null — the action is reversible", () => {
+    const confirmed = makeTrip({ status: "scheduled", confirmed_at: CONFIRMED_AT });
+    const unconfirmed = { ...confirmed, confirmed_at: null };
+    expect(unconfirmed.confirmed_at).toBeNull();
+    expect(formatBusinessDateTime(unconfirmed.confirmed_at)).toBeNull();
+  });
+
+  it("confirmation does not touch status, money, or counts", () => {
+    const before = makeTrip({
+      status: "scheduled",
+      revenue_cents: 24000,
+      amount_paid_cents: null,
+    });
+    const after = { ...before, confirmed_at: CONFIRMED_AT };
+    expect(after.status).toBe(before.status);
+    expect(after.revenue_cents).toBe(before.revenue_cents);
+    expect(totalRevenueCents([after])).toBe(totalRevenueCents([before]));
+    expect(tripCount([after])).toBe(tripCount([before]));
   });
 });

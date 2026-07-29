@@ -33,6 +33,23 @@ export function optionalNonNegativeNumber(value: string): number | null {
   return n;
 }
 
+/**
+ * Parse an optional whole number greater than zero ("" -> null).
+ *
+ * D1: blank means NOT TRACKED and must persist as NULL — never 0. "No
+ * passenger count recorded" and "zero passengers" are different claims, and
+ * the column's CHECK (> 0) rejects the second anyway.
+ */
+export function optionalPositiveInt(value: string): number | null {
+  const s = value.trim();
+  if (s === "") return null;
+  const n = Number(s);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error("Enter a whole number of passengers, or leave it blank.");
+  }
+  return n;
+}
+
 /** Extract a user-safe message from a thrown error / Supabase error. */
 export function errorMessage(e: unknown): string {
   if (e && typeof e === "object" && "message" in e) {

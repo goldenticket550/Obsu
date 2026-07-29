@@ -16,6 +16,7 @@ import {
   errorMessage,
   optStr,
   optionalNonNegativeNumber,
+  optionalPositiveInt,
   str,
 } from "@/lib/form";
 import { parseTripFromText } from "@/lib/ai/parse-trip";
@@ -80,6 +81,16 @@ function readTripFields(formData: FormData) {
     mileage: optionalNonNegativeNumber(str(formData, "mileage")),
     notes: optStr(formData, "notes"),
     start_time: pickupTimestamp(tripDate, str(formData, "pickup_time")),
+
+    // D1. Each of these persists NULL when the input is blank — "not tracked"
+    // is a different claim from "zero", and the schema distinguishes them.
+    // optionalDollarsToCents / optionalPositiveInt / optStr all return null on
+    // blank, never 0 and never "".
+    amount_paid_cents: optionalDollarsToCents(str(formData, "amount_paid")),
+    passenger_count: optionalPositiveInt(str(formData, "passenger_count")),
+    note: optStr(formData, "note"),
+    // confirmed_at is NOT set here: it is stamped by its own confirm action,
+    // so editing a ride never silently confirms or unconfirms it.
   };
   // Only set trip_date when provided so the DB default (today) applies otherwise.
   if (tripDate) fields.trip_date = tripDate;
@@ -209,6 +220,68 @@ export async function markTripCompleted(formData: FormData) {
   }
 
   revalidatePath("/trips");
+  revalidatePath("/");
+  redirect(returnTo);
+}
+
+/**
+ * D1 — record that the customer confirmed a booking, stamping confirmed_at
+ * with the moment it happened.
+ *
+ * REVERSIBLE: `unconfirmTrip` below clears the stamp back to NULL, so a
+ * mis-tap costs nothing. confirmed_at is a timestamp rather than a boolean
+ * precisely so "when" survives; unconfirming discards that timestamp, which is
+ * the intended meaning of "this was never actually confirmed".
+ *
+ * Touches only confirmed_at — no status transition, no money, nothing else.
+ */
+export async function confirmTrip(formData: FormData) {
+  const id = str(formData, "id");
+  if (!id) redirect("/upcoming");
+  const returnTo = str(formData, "return_to") || "/upcoming";
+
+  let failure: string | null = null;
+  try {
+    const supabase = createSupabaseServerClient();
+    const { error } = await supabase
+      .from("trips")
+      .update({ confirmed_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    failure = errorMessage(e);
+  }
+  if (failure) {
+    redirect(`/trips/${id}/edit?error=` + encodeURIComponent(failure));
+  }
+
+  revalidatePath("/upcoming");
+  revalidatePath("/");
+  redirect(returnTo);
+}
+
+/** D1 — undo a confirmation, clearing confirmed_at back to NULL. */
+export async function unconfirmTrip(formData: FormData) {
+  const id = str(formData, "id");
+  if (!id) redirect("/upcoming");
+  const returnTo = str(formData, "return_to") || "/upcoming";
+
+  let failure: string | null = null;
+  try {
+    const supabase = createSupabaseServerClient();
+    const { error } = await supabase
+      .from("trips")
+      .update({ confirmed_at: null })
+      .eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    failure = errorMessage(e);
+  }
+  if (failure) {
+    redirect(`/trips/${id}/edit?error=` + encodeURIComponent(failure));
+  }
+
+  revalidatePath("/upcoming");
   revalidatePath("/");
   redirect(returnTo);
 }
