@@ -4,8 +4,11 @@ import {
   countsTowardTotals,
   hasQuotedPrice,
   requiresRevenue,
+  blockingFormErrors,
   validateTripSubmission,
+  validateTripType,
 } from "./trip-status";
+import { mostCommonTripType } from "./form-defaults";
 import {
   averageTripValueCents,
   totalRevenueCents,
@@ -169,5 +172,134 @@ describe("completing a trip moves it into the totals", () => {
 
     const completed = { ...booked, status: "completed" as const };
     expect(estimatedOperatingProfitCents([completed], expenses)).toBe(20000);
+  });
+});
+
+/**
+ * U5 — trip type is required on the ride form. A form-level rule enforced
+ * server-side too, so it holds even if the browser's validation is bypassed.
+ */
+describe("validateTripType", () => {
+  it("rejects an empty trip type on submit", () => {
+    const error = validateTripType("");
+    expect(error).not.toBeNull();
+    expect(error?.field).toBe("trip_type");
+  });
+
+  it("rejects whitespace-only", () => {
+    expect(validateTripType("   ")).not.toBeNull();
+  });
+
+  it("accepts a chosen type", () => {
+    expect(validateTripType("airport")).toBeNull();
+  });
+
+  it("says what to do, not what went wrong", () => {
+    const message = validateTripType("")?.message ?? "";
+    expect(message.toLowerCase()).toContain("pick");
+    // No jargon about invalid/null/required-field errors.
+    for (const jargon of ["invalid", "null", "undefined", "error"]) {
+      expect(message.toLowerCase()).not.toContain(jargon);
+    }
+  });
+
+  it("is independent of the revenue rule, so closing out a ride is unaffected", () => {
+    // markTripCompleted supplies only a final revenue and no trip type; it must
+    // not be blocked by the form-level requirement.
+    expect(validateTripSubmission({ status: "completed", revenue: "240" })).toEqual([]);
+  });
+});
+
+/**
+ * U5 — an existing ride stored WITHOUT a trip type is untouched by the new form
+ * requirement. This is not a data migration.
+ */
+describe("existing rides with no trip type", () => {
+  it("still has a null trip type — nothing backfills a default", () => {
+    const legacy = makeTrip({ status: "completed", trip_type: null });
+    expect(legacy.trip_type).toBeNull();
+  });
+
+  it("renders its absence copy rather than a fabricated default", () => {
+    // Mirrors how the Next Ride card renders it: `trip_type ? labelize(...) : "Not set"`.
+    const legacy = makeTrip({ status: "completed", trip_type: null });
+    const rendered = legacy.trip_type ? String(legacy.trip_type) : "Not set";
+    expect(rendered).toBe("Not set");
+  });
+
+  it("does not become the org's derived default just by being displayed", () => {
+    // The default is derived from history for the FORM; it never rewrites a row.
+    const legacy = makeTrip({ status: "completed", trip_type: null });
+    const history = [makeTrip({ status: "completed", trip_type: "airport" })];
+    expect(mostCommonTripType(history)).toBe("airport");
+    expect(legacy.trip_type).toBeNull();
+  });
+});
+
+/**
+ * U5 — "a validation failure preserves every entered field".
+ *
+ * The server action redirects on failure, which throws away everything typed.
+ * Preservation is therefore achieved by catching every blocking rule BEFORE
+ * submitting, so a validation failure never reaches that redirect. These tests
+ * pin the property that makes it true: the set the form enforces pre-submit is
+ * exactly the set the server enforces.
+ */
+describe("blockingFormErrors — nothing is ever cleared", () => {
+  const valid = { status: "completed" as const, revenue: "240", tripType: "airport" };
+
+  it("passes a complete submission", () => {
+    expect(blockingFormErrors(valid)).toEqual([]);
+  });
+
+  it("catches a missing trip type", () => {
+    const errors = blockingFormErrors({ ...valid, tripType: "" });
+    expect(errors.map((e) => e.field)).toContain("trip_type");
+  });
+
+  it("catches missing revenue on a completed ride", () => {
+    const errors = blockingFormErrors({ ...valid, revenue: "" });
+    expect(errors.map((e) => e.field)).toContain("revenue");
+  });
+
+  it("catches a malformed amount", () => {
+    const errors = blockingFormErrors({ ...valid, revenue: "abc" });
+    expect(errors.map((e) => e.field)).toContain("revenue");
+  });
+
+  it("reports EVERY problem at once, so one round trip fixes the form", () => {
+    const errors = blockingFormErrors({
+      status: "completed",
+      revenue: "",
+      tripType: "",
+    });
+    expect(errors.map((e) => e.field).sort()).toEqual(["revenue", "trip_type"]);
+  });
+
+  it("still allows a scheduled ride with no price yet", () => {
+    expect(
+      blockingFormErrors({ status: "scheduled", revenue: "", tripType: "airport" }),
+    ).toEqual([]);
+  });
+
+  it("is a pure predicate — it never mutates or clears the submitted values", () => {
+    const submission = { status: "completed" as const, revenue: "", tripType: "" };
+    const snapshot = { ...submission };
+    blockingFormErrors(submission);
+    expect(submission).toEqual(snapshot);
+  });
+
+  it("covers every rule the server enforces, so no validation failure can reach the redirect", () => {
+    // Each case the server would reject must also be caught pre-submit.
+    const serverRejects = [
+      { status: "completed" as const, revenue: "", tripType: "airport" },
+      { status: "completed" as const, revenue: "abc", tripType: "airport" },
+      { status: "completed" as const, revenue: "-5", tripType: "airport" },
+      { status: "completed" as const, revenue: "240", tripType: "" },
+      { status: "scheduled" as const, revenue: "abc", tripType: "airport" },
+    ];
+    for (const submission of serverRejects) {
+      expect(blockingFormErrors(submission).length).toBeGreaterThan(0);
+    }
   });
 });

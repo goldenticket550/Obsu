@@ -6,7 +6,10 @@ import { createSupabaseServerClient } from "@/lib/db/supabase-server";
 import { getCurrentOrgId } from "@/lib/db/org";
 import { findOrCreateCustomerByName } from "@/lib/db/customers";
 import { optionalDollarsToCents } from "@/lib/money";
-import { validateTripSubmission } from "@/lib/business/trip-status";
+import {
+  blockingFormErrors,
+  validateTripSubmission,
+} from "@/lib/business/trip-status";
 import { PAYMENT_METHODS, TRIP_STATUSES, TRIP_TYPES } from "@/lib/enums";
 import {
   enumOrNull,
@@ -50,15 +53,23 @@ function readTripFields(formData: FormData) {
     enumOrNull(str(formData, "status"), TRIP_STATUSES) ?? "completed";
   const revenue = str(formData, "revenue");
 
-  // S1: revenue is required to COMPLETE a trip and optional while it is only
-  // scheduled. The rule itself lives in the tested business module.
-  const [firstError] = validateTripSubmission({ status, revenue });
+  // S1 + U5: revenue is required to COMPLETE a trip (optional while merely
+  // scheduled), and trip type is required on the form. The form enforces this
+  // same set before submitting, so a validation failure never reaches the
+  // redirect below and never costs the operator their entry; this run is
+  // defence in depth for a bypassed client.
+  const rawTripType = str(formData, "trip_type");
+  const [firstError] = blockingFormErrors({
+    status,
+    revenue,
+    tripType: rawTripType,
+  });
   if (firstError) throw new Error(firstError.message);
 
   const fields: Record<string, unknown> = {
     pickup_location: optStr(formData, "pickup_location"),
     dropoff_location: optStr(formData, "dropoff_location"),
-    trip_type: enumOrNull(str(formData, "trip_type"), TRIP_TYPES),
+    trip_type: enumOrNull(rawTripType, TRIP_TYPES),
     payment_method: enumOrNull(str(formData, "payment_method"), PAYMENT_METHODS),
     status,
     // Blank is only reachable for a non-completed trip (validated above); it is

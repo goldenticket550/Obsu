@@ -35,8 +35,48 @@ export function hasQuotedPrice(trip: Trip): boolean {
 }
 
 export interface TripValidationError {
-  field: "revenue";
+  field: "revenue" | "trip_type";
   message: string;
+}
+
+/**
+ * U5 — trip type is required when submitting the ride FORM.
+ *
+ * This is a form-level rule, not a data migration: rides already stored without
+ * a type are untouched and keep rendering their absence copy wherever they
+ * appear. It is deliberately separate from validateTripSubmission so that
+ * closing out a booked ride (which only supplies a final revenue) is unaffected.
+ *
+ * The message says what to do, not what went wrong.
+ */
+export function validateTripType(tripType: string): TripValidationError | null {
+  return tripType.trim() === ""
+    ? { field: "trip_type", message: "Pick the kind of ride this was." }
+    : null;
+}
+
+export interface TripFormSubmission extends TripSubmission {
+  tripType: string;
+}
+
+/**
+ * Every rule that can block a ride-form submission, in one place.
+ *
+ * This matters for data preservation: the server action redirects on failure,
+ * which throws away everything the operator typed. So the form enforces this
+ * same set BEFORE submitting (via native `required` and input patterns), which
+ * means a validation failure never reaches that redirect and no field is ever
+ * cleared. The server still runs it as defence in depth for a bypassed client.
+ *
+ * Deliberately NOT used by markTripCompleted — closing out a booked ride
+ * supplies only a final revenue and has no trip type to give.
+ */
+export function blockingFormErrors(
+  input: TripFormSubmission,
+): TripValidationError[] {
+  const errors = validateTripSubmission(input);
+  const typeError = validateTripType(input.tripType);
+  return typeError ? [...errors, typeError] : errors;
 }
 
 export interface TripSubmission {

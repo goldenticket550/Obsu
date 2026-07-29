@@ -12,7 +12,7 @@ import {
 } from "@/components/form";
 import { hasQuotedPrice, requiresRevenue } from "@/lib/business/trip-status";
 import { toTimeInputValue } from "@/lib/business/pickup-time";
-import type { TripStatus } from "@/lib/types";
+import type { PaymentMethod, TripStatus, TripType } from "@/lib/types";
 import {
   PAYMENT_METHODS,
   TRIP_STATUSES,
@@ -49,6 +49,12 @@ export type TripFormDefaults = Partial<
   >
 >;
 
+/** A customer offered as a quick-pick chip (U5). */
+export interface QuickPickCustomer {
+  id: string;
+  name: string;
+}
+
 export function TripForm({
   action,
   trip,
@@ -57,6 +63,9 @@ export function TripForm({
   error,
   submitLabel,
   showInlineCosts,
+  defaultTripType,
+  defaultPaymentMethod,
+  recentCustomers = [],
 }: {
   action: (formData: FormData) => void | Promise<void>;
   trip?: Trip | null;
@@ -65,6 +74,13 @@ export function TripForm({
   error?: string;
   submitLabel: string;
   showInlineCosts: boolean;
+  /** Org's most common trip type. Null/undefined when there's no history —
+   * then the field is simply required and empty (U5). */
+  defaultTripType?: TripType | null;
+  /** Org's most common payment method, same rule. */
+  defaultPaymentMethod?: PaymentMethod | null;
+  /** Most recently ridden customers, offered as chips. */
+  recentCustomers?: QuickPickCustomer[];
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const d = defaults ?? {};
@@ -105,8 +121,10 @@ export function TripForm({
         status: d.status ?? "completed",
         pickup_location: d.pickup_location ?? "",
         dropoff_location: d.dropoff_location ?? "",
-        trip_type: d.trip_type ?? "",
-        payment_method: d.payment_method ?? "",
+        // U5: preselect the org's own most common values. Where the org has no
+        // history these are null and the field opens empty — never guessed.
+        trip_type: d.trip_type ?? defaultTripType ?? "",
+        payment_method: d.payment_method ?? defaultPaymentMethod ?? "",
         revenue: d.revenue ?? "",
         hours: d.hours ?? "",
         hourly_rate: d.hourly_rate ?? "",
@@ -126,6 +144,24 @@ export function TripForm({
   const scheduling = status === "scheduled";
   const revenueRequired = requiresRevenue(status);
 
+  // Controlled only where the UI has to write into the field: the quick-pick
+  // chips fill the customer, and trip type / payment carry a derived default.
+  // Everything else stays uncontrolled, so nothing is re-rendered away.
+  const [customer, setCustomer] = useState(v.customer_name);
+  const [tripType, setTripType] = useState(v.trip_type);
+  const [payment, setPayment] = useState(v.payment_method);
+
+  // Inline validation appears on BLUR, not on every keystroke — being corrected
+  // mid-word while typing one-handed is worse than no help at all. Messages say
+  // what to do, not what went wrong.
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const markTouched = (field: string) =>
+    setTouched((t) => ({ ...t, [field]: true }));
+
+  const tripTypeError =
+    touched.trip_type && !tripType ? "Pick the kind of ride this was." : null;
+  const revenueHint = "Enter the amount you charged.";
+
   return (
     <form action={action} className="mt-8 flex flex-col gap-3">
       {trip ? <input type="hidden" name="id" value={trip.id} /> : null}
@@ -136,10 +172,45 @@ export function TripForm({
       >
         <TextInput
           name="customer_name"
-          defaultValue={v.customer_name}
+          value={customer}
+          onChange={(e) => setCustomer(e.target.value)}
           placeholder="e.g. Ashley"
         />
       </Field>
+
+      {/* Quick-pick: a shortcut, never a constraint. The field above stays free
+          text, so typing a brand-new name is exactly as fast as before. */}
+      {recentCustomers.length > 0 ? (
+        <div className="-mt-1">
+          <p className="sr-only" id="recent-customers-label">
+            Recent customers
+          </p>
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-labelledby="recent-customers-label"
+          >
+            {recentCustomers.map((c) => {
+              const selected = customer.trim() === c.name;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCustomer(c.name)}
+                  aria-pressed={selected}
+                  className={`inline-flex min-h-[44px] items-center rounded-full border px-3.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian-black ${
+                    selected
+                      ? "border-obsidian-cyan bg-obsidian-cyan/10 text-obsidian-platinum"
+                      : "border-obsidian-line text-obsidian-silver hover:border-obsidian-cyan hover:text-obsidian-platinum"
+                  }`}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={scheduling ? "Pickup date" : "Trip date"}>
@@ -190,18 +261,43 @@ export function TripForm({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
+        {/* U5: required. `required` + an empty placeholder option means the
+            browser blocks submission before the form is ever sent — so a
+            missing trip type never costs the operator the rest of their
+            entry, and the submit guard never latches. */}
         <Field label="Trip type">
-          <Select name="trip_type" defaultValue={v.trip_type}>
-            <option value="">—</option>
+          <Select
+            name="trip_type"
+            required
+            value={tripType}
+            onChange={(e) => setTripType(e.target.value)}
+            onBlur={() => markTouched("trip_type")}
+            aria-invalid={tripTypeError ? true : undefined}
+            aria-describedby={tripTypeError ? "trip-type-error" : undefined}
+          >
+            <option value="">Choose…</option>
             {TRIP_TYPES.map((t) => (
               <option key={t} value={t}>
                 {labelize(t)}
               </option>
             ))}
           </Select>
+          {tripTypeError ? (
+            <span
+              id="trip-type-error"
+              role="alert"
+              className="mt-1 block text-[11px] normal-case tracking-normal text-obsidian-amber"
+            >
+              {tripTypeError}
+            </span>
+          ) : null}
         </Field>
         <Field label="Payment">
-          <Select name="payment_method" defaultValue={v.payment_method}>
+          <Select
+            name="payment_method"
+            value={payment}
+            onChange={(e) => setPayment(e.target.value)}
+          >
             <option value="">—</option>
             {PAYMENT_METHODS.map((p) => (
               <option key={p} value={p}>
@@ -223,10 +319,23 @@ export function TripForm({
         <TextInput
           name="revenue"
           inputMode="decimal"
+          pattern="[0-9$,. ]*"
           required={revenueRequired}
           defaultValue={v.revenue}
           placeholder="240"
+          onBlur={() => markTouched("revenue")}
+          aria-describedby={
+            revenueRequired && touched.revenue ? "revenue-hint" : undefined
+          }
         />
+        {revenueRequired && touched.revenue ? (
+          <span
+            id="revenue-hint"
+            className="mt-1 block text-[11px] normal-case tracking-normal text-obsidian-muted"
+          >
+            {revenueHint}
+          </span>
+        ) : null}
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
@@ -242,6 +351,7 @@ export function TripForm({
           <TextInput
             name="hourly_rate"
             inputMode="decimal"
+            pattern="[0-9$,. ]*"
             defaultValue={v.hourly_rate}
             placeholder="90"
           />
@@ -274,6 +384,7 @@ export function TripForm({
               <TextInput
                 name="cost_gas"
                 inputMode="decimal"
+                pattern="[0-9$,. ]*"
                 defaultValue={v.cost_gas}
                 placeholder="0"
               />
@@ -282,6 +393,7 @@ export function TripForm({
               <TextInput
                 name="cost_tolls"
                 inputMode="decimal"
+                pattern="[0-9$,. ]*"
                 defaultValue={v.cost_tolls}
                 placeholder="0"
               />
@@ -290,6 +402,7 @@ export function TripForm({
               <TextInput
                 name="cost_other"
                 inputMode="decimal"
+                pattern="[0-9$,. ]*"
                 defaultValue={v.cost_other}
                 placeholder="0"
               />

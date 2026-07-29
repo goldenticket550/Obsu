@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { TripForm, type TripFormDefaults } from "@/components/trip-form";
+import {
+  TripForm,
+  type QuickPickCustomer,
+  type TripFormDefaults,
+} from "@/components/trip-form";
 import { createTrip, parseTripText } from "@/app/trips/actions";
+import type { PaymentMethod, TripType } from "@/lib/types";
 
 /**
  * M8 — natural-language trip entry wrapper (client). Sends the note to the
@@ -13,10 +18,17 @@ import { createTrip, parseTripText } from "@/app/trips/actions";
 export function NewTripByText({
   initialError,
   initialStatus,
+  defaultTripType,
+  defaultPaymentMethod,
+  recentCustomers,
 }: {
   initialError?: string;
   /** "scheduled" opens the form in scheduling mode (S1). */
   initialStatus?: "scheduled";
+  /** Org-derived form defaults, computed server-side (U5). */
+  defaultTripType?: TripType | null;
+  defaultPaymentMethod?: PaymentMethod | null;
+  recentCustomers?: QuickPickCustomer[];
 }) {
   const [text, setText] = useState("");
   const [defaults, setDefaults] = useState<TripFormDefaults | undefined>(
@@ -101,6 +113,9 @@ export function NewTripByText({
         error={submitError}
         submitLabel="Log trip"
         showInlineCosts
+        defaultTripType={defaultTripType}
+        defaultPaymentMethod={defaultPaymentMethod}
+        recentCustomers={recentCustomers}
       />
     </div>
   );
