@@ -22,9 +22,11 @@ import { askAction } from "@/app/ask/actions";
  * typed box always works.
  */
 
-const SPEAK_THRESHOLD = 0.045; // RMS above this counts as speech
+const SPEAK_THRESHOLD = 0.03; // RMS above this counts as speech
 const SILENCE_MS = 1400; // auto-stop after this much quiet once speech began
+const MIN_RECORD_MS = 900; // never auto-stop/allow stop before this much recorded
 const MAX_MS = 15000; // hard cap on a single recording
+const TIMESLICE_MS = 250; // flush recorded audio this often (Edge needs this)
 
 function clientExt(mime: string): string {
   if (mime.includes("mp4") || mime.includes("m4a")) return "mp4";
@@ -55,6 +57,7 @@ export function ObsidianVoice() {
   const [error, setError] = useState<string | null>(null);
   const [supported, setSupported] = useState(true);
   const [typed, setTyped] = useState("");
+  const [status, setStatus] = useState("ready");
 
   const orbStateRef = useRef<OrbState>("idle");
   const ttsRef = useRef<ObsidianTts | null>(null);
@@ -67,10 +70,18 @@ export function ObsidianVoice() {
   const recordingRef = useRef(false);
   const speechStartedRef = useRef(false);
   const lastLoudRef = useRef(0);
+  const recordStartRef = useRef(0);
+  const lastTapRef = useRef(0);
+  const peakRef = useRef(0);
 
   function setPhase(s: OrbState) {
     orbStateRef.current = s;
     setOrbState(s);
+  }
+  function log(msg: string) {
+    // eslint-disable-next-line no-console
+    console.log("[obsidian-voice]", msg);
+    setStatus(msg);
   }
 
   useEffect(() => {
@@ -114,6 +125,7 @@ export function ObsidianVoice() {
     if (!AC) return;
     const ctx = new AC();
     audioCtxRef.current = ctx;
+    void ctx.resume().catch(() => {}); // some browsers start suspended
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 512;
@@ -128,6 +140,7 @@ export function ObsidianVoice() {
         sum += v * v;
       }
       const rms = Math.sqrt(sum / data.length);
+      if (rms > peakRef.current) peakRef.current = rms;
       setLevel(Math.min(1, rms * 3.2));
 
       if (recordingRef.current) {
@@ -136,7 +149,13 @@ export function ObsidianVoice() {
           speechStartedRef.current = true;
           lastLoudRef.current = now;
         }
-        if (speechStartedRef.current && now - lastLoudRef.current > SILENCE_MS) {
+        // Only auto-stop after we've actually recorded a bit AND heard speech
+        // that has since gone quiet — never in the first moment.
+        if (
+          now - recordStartRef.current > MIN_RECORD_MS &&
+          speechStartedRef.current &&
+          now - lastLoudRef.current > SILENCE_MS
+        ) {
           stopListening(); // natural pause → stop
         }
       }
@@ -159,10 +178,12 @@ export function ObsidianVoice() {
     }
 
     setPhase("listening");
+    log("requesting mic…");
     let stream: MediaStream;
     try {
       stream = await md.getUserMedia({ audio: true });
     } catch {
+      log("mic DENIED");
       setError(
         "Microphone access is blocked. Allow the mic for this site (mic/lock icon in the address bar), then tap the orb again — or type your question below.",
       );
@@ -173,7 +194,12 @@ export function ObsidianVoice() {
       stream.getTracks().forEach((t) => t.stop()); // cancelled while awaiting
       return;
     }
+    const track = stream.getAudioTracks()[0];
+    log(
+      `mic ok: ${track?.label || "?"} · muted=${track?.muted} · enabled=${track?.enabled} · state=${track?.readyState}`,
+    );
     streamRef.current = stream;
+    peakRef.current = 0;
     setupAnalyser(stream);
 
     chunksRef.current = [];
@@ -181,29 +207,67 @@ export function ObsidianVoice() {
     let recorder: MediaRecorder;
     try {
       recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-    } catch {
-      recorder = new MediaRecorder(stream);
+    } catch (err) {
+      log(`recorder ctor failed (${mime}); retrying default`);
+      try {
+        recorder = new MediaRecorder(stream);
+      } catch (err2) {
+        log(`MediaRecorder unsupported: ${String(err2)}`);
+        setError("This browser can't record audio — type your question below.");
+        teardownMic();
+        setPhase("idle");
+        return;
+      }
     }
     recorderRef.current = recorder;
+    recorder.onstart = () => log(`recording… (mime=${recorder.mimeType || mime || "default"})`);
     recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+      if (e.data && e.data.size > 0) {
+        chunksRef.current.push(e.data);
+        log(`recording… ${chunksRef.current.length} chunk(s)`);
+      }
     };
+    recorder.onerror = (e) => log(`recorder error: ${String((e as unknown as { error?: unknown }).error)}`);
     recorder.onstop = () => {
       const type = recorder.mimeType || mime || "audio/webm";
       const blob = new Blob(chunksRef.current, { type });
+      const info = {
+        ms: Math.round(performance.now() - recordStartRef.current),
+        chunks: chunksRef.current.length,
+      };
+      log(
+        `stopped: ${info.ms}ms, ${info.chunks} chunk(s), ${blob.size}b, peakMic=${peakRef.current.toFixed(3)}`,
+      );
       teardownMic();
-      void transcribeAndAsk(blob);
+      void transcribeAndAsk(blob, info);
     };
 
     speechStartedRef.current = false;
-    lastLoudRef.current = performance.now();
+    recordStartRef.current = performance.now();
+    lastLoudRef.current = recordStartRef.current;
     recordingRef.current = true;
-    recorder.start();
+    try {
+      recorder.start(TIMESLICE_MS); // timeslice → periodic dataavailable (reliable on Edge)
+    } catch (err) {
+      log(`recorder.start threw: ${String(err)}`);
+      teardownMic();
+      setPhase("idle");
+      return;
+    }
 
-    maxRef.current = setTimeout(() => stopListening(), MAX_MS);
+    maxRef.current = setTimeout(() => stopListening(true), MAX_MS);
   }
 
-  function stopListening() {
+  function stopListening(force = false) {
+    // Ignore an instant stop (touchscreen double-fire / spurious) — a real clip
+    // needs at least MIN_RECORD_MS. `force` (max-timer) always stops.
+    if (
+      !force &&
+      recordingRef.current &&
+      performance.now() - recordStartRef.current < MIN_RECORD_MS
+    ) {
+      return;
+    }
     recordingRef.current = false;
     if (maxRef.current) {
       clearTimeout(maxRef.current);
@@ -223,36 +287,45 @@ export function ObsidianVoice() {
     }
   }
 
-  async function transcribeAndAsk(blob: Blob) {
+  async function transcribeAndAsk(blob: Blob, info?: { ms: number; chunks: number }) {
     if (!blob.size) {
+      log(`empty recording (${info?.ms ?? "?"}ms, ${info?.chunks ?? 0} chunks) — nothing to send`);
+      setError("No audio was captured — tap the orb, wait for “recording…”, then speak.");
       setPhase("idle");
       return;
     }
     setPhase("thinking");
     const form = new FormData();
     form.append("audio", blob, `audio.${clientExt(blob.type)}`);
+    form.append("ms", String(info?.ms ?? 0));
+    form.append("chunks", String(info?.chunks ?? 0));
 
     let text = "";
     try {
+      log(`transcribing ${blob.size}b…`);
       const res = await fetch("/api/voice/transcribe", { method: "POST", body: form });
       const json = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
+      log(`transcribe → HTTP ${res.status}`);
       if (!res.ok) {
         setError(json.error || "Couldn't transcribe that — try again, or type your question.");
         setPhase("idle");
         return;
       }
       text = String(json.text ?? "").trim();
-    } catch {
+    } catch (err) {
+      log(`transcribe fetch failed: ${String(err)}`);
       setError("Transcription failed — check your connection, or type your question.");
       setPhase("idle");
       return;
     }
 
     if (!text) {
+      log("transcript empty");
       setError("I didn't catch any words — tap the orb and speak clearly, or type your question.");
       setPhase("idle");
       return;
     }
+    log(`heard: "${text}"`);
     setTranscript(text);
     await ask(text);
   }
@@ -287,6 +360,12 @@ export function ObsidianVoice() {
   }
 
   function onOrbTap() {
+    // Debounce: touchscreens (Surface) can fire two clicks for one tap, which
+    // would start-then-instantly-stop the recording.
+    const now = Date.now();
+    if (now - lastTapRef.current < 450) return;
+    lastTapRef.current = now;
+
     const s = orbStateRef.current;
     if (s === "idle") void startListening();
     else if (s === "listening") stopListening();
@@ -326,6 +405,7 @@ export function ObsidianVoice() {
         <ObsidianOrb state={orbState} level={level} />
       </button>
       <p className="mt-1 text-sm text-obsidian-silver">{label}</p>
+      <p className="mt-1 text-[10px] text-obsidian-muted">{status}</p>
 
       {transcript ? (
         <p className="mt-6 max-w-xl text-center text-sm text-obsidian-platinum">
