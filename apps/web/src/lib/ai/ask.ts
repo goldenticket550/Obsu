@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ASK_MODEL, ASK_SYSTEM_PROMPT, MAX_TOOL_ITERATIONS } from "./config";
+import { ASK_MODEL, MAX_TOOL_ITERATIONS, buildAskSystemPrompt } from "./config";
 import { TOOL_DEFS, executeTool } from "./tools";
+import { getCurrentOrgName } from "@/lib/db/org";
 import { errorMessage } from "@/lib/form";
 
 /**
@@ -19,6 +20,11 @@ export async function askObsidian(question: string): Promise<string> {
   }
 
   const client = new Anthropic({ apiKey });
+
+  // The business name is resolved SERVER-SIDE from the authenticated user's
+  // org (RLS-scoped) — never from the client or from the question text.
+  const systemPrompt = buildAskSystemPrompt(await getCurrentOrgName());
+
   const messages: Anthropic.MessageParam[] = [
     { role: "user", content: question },
   ];
@@ -27,7 +33,7 @@ export async function askObsidian(question: string): Promise<string> {
     const response = await client.messages.create({
       model: ASK_MODEL,
       max_tokens: 1024,
-      system: ASK_SYSTEM_PROMPT,
+      system: systemPrompt,
       tools: TOOL_DEFS,
       messages,
     });

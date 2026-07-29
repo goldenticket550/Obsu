@@ -24,8 +24,8 @@ export default function OnboardingPage({
           Name your business.
         </h1>
         <p className="mt-1 text-sm text-obsidian-silver">
-          This is the business OBSIDIAN will manage. You can use{" "}
-          <span className="text-obsidian-platinum">Midnight Rydes</span>.
+          This is the business OBSIDIAN will manage. It&apos;s how OBSIDIAN will
+          refer to your business.
         </p>
       </div>
 
@@ -36,7 +36,8 @@ export default function OnboardingPage({
             name="name"
             type="text"
             required
-            defaultValue="Midnight Rydes"
+            autoFocus
+            placeholder="Your business name"
             className="mt-1 w-full rounded-lg border border-obsidian-line bg-obsidian-graphite px-3 py-2 text-sm text-obsidian-platinum placeholder:text-obsidian-muted focus:border-obsidian-cyan focus:outline-none"
           />
         </label>
