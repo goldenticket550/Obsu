@@ -1,28 +1,113 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  orbCopy,
+  orbLevel,
+  type OrbState as OrbMachineState,
+} from "@/lib/business/orb";
 
-export type OrbState = "idle" | "listening" | "thinking" | "speaking";
+/** The four motion phases the canvas animates. Derived from the state machine. */
+type OrbPhase = "idle" | "listening" | "thinking" | "speaking";
 
 /**
- * M11 — the OBSIDIAN orb. A canvas cluster of glowing cyan points around a soft
- * core on the graphite background. State drives the motion: idle breathes,
- * listening reacts to live mic amplitude (`level`), thinking shimmers, speaking
- * pulses. State/level are read through refs so the animation loop never
- * restarts on re-render.
+ * @deprecated Legacy phase strings. Retained ONLY so the paused voice
+ * component (obsidian-voice.tsx, uncommitted) keeps compiling; V2 replaces
+ * that call site with the state machine and this alias goes away. New code
+ * passes an OrbState from lib/business/orb.
+ */
+export type OrbState = OrbPhase;
+
+/** Which motion phase a machine state animates as. One source, no booleans. */
+function phaseFor(state: OrbMachineState): OrbPhase {
+  switch (state.kind) {
+    case "listening":
+      return "listening";
+    case "speaking":
+      return "speaking";
+    case "transcribing":
+    case "thinking":
+    case "executing":
+    case "requesting_permission":
+      return "thinking";
+    default:
+      // idle, success, warning, error, offline, action_proposed all rest.
+      return "idle";
+  }
+}
+
+/**
+ * Whether the viewer has asked for reduced motion. Read from the media query
+ * and kept in sync, so toggling the OS setting takes effect without a reload.
+ */
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!query) return;
+    setReduced(query.matches);
+    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  return reduced;
+}
+
+/** Maps a legacy phase string onto the machine state it stands for. */
+function legacyToState(phase: OrbPhase, level: number): OrbMachineState {
+  switch (phase) {
+    case "listening":
+      return { kind: "listening", level };
+    case "speaking":
+      return { kind: "speaking", level };
+    case "thinking":
+      return { kind: "thinking", transcript: "" };
+    default:
+      return { kind: "idle" };
+  }
+}
+
+const TONE_CLASS: Record<ReturnType<typeof orbCopy>["tone"], string> = {
+  neutral: "text-obsidian-silver",
+  active: "text-obsidian-cyan",
+  positive: "text-obsidian-positive",
+  warning: "text-obsidian-amber",
+  danger: "text-obsidian-negative",
+};
+
+/**
+ * M11 — the OBSIDIAN orb. A canvas cluster of glowing points around a soft
+ * core. V1: its ENTIRE appearance derives from one OrbState — the phase it
+ * animates, the amplitude it moves to, and the words beneath it all come from
+ * that single value. There is no local `isListening`/`hasError` to disagree
+ * with it.
+ *
+ * Accepts a legacy phase string as well, purely for the paused voice
+ * component. In that mode the caller supplies its own label, so no caption is
+ * rendered here and nothing is duplicated on screen.
  */
 export function ObsidianOrb({
   state,
-  level,
+  level = 0,
 }: {
-  state: OrbState;
-  level: number;
+  state: OrbMachineState | OrbState;
+  /** Only used with the legacy string form; union states carry their own. */
+  level?: number;
 }) {
+  const legacy = typeof state === "string";
+  const machineState: OrbMachineState = legacy
+    ? legacyToState(state, level)
+    : state;
+
+  const reducedMotion = usePrefersReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<OrbState>(state);
-  const levelRef = useRef<number>(level);
-  stateRef.current = state;
-  levelRef.current = level;
+  const drawRef = useRef<((now: number) => void) | null>(null);
+  const stateRef = useRef<OrbPhase>(phaseFor(machineState));
+  const levelRef = useRef<number>(orbLevel(machineState));
+  stateRef.current = phaseFor(machineState);
+  levelRef.current = orbLevel(machineState);
 
   useEffect(() => {
     const canvasEl = canvasRef.current;
@@ -107,15 +192,57 @@ export function ObsidianOrb({
         ctx.fill();
       }
 
-      raf = requestAnimationFrame(frame);
+      if (!reducedMotion) raf = requestAnimationFrame(frame);
     };
 
-    raf = requestAnimationFrame(frame);
+    // V1 spec: respect prefers-reduced-motion. In reduced mode the orb draws a
+    // single static frame and communicates state through form, colour and the
+    // label instead of a continuous loop. `drawRef` lets the state-change
+    // effect below repaint it without ever starting an animation.
+    drawRef.current = frame;
+    if (reducedMotion) {
+      frame(performance.now());
+    } else {
+      raf = requestAnimationFrame(frame);
+    }
+
     return () => {
       cancelAnimationFrame(raf);
+      drawRef.current = null;
       window.removeEventListener("resize", resize);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reducedMotion]);
 
-  return <canvas ref={canvasRef} className="h-64 w-64 sm:h-72 sm:w-72" aria-hidden />;
+  // Reduced motion only: repaint once whenever the state actually changes.
+  const currentKind = machineState.kind;
+  const currentLevel = orbLevel(machineState);
+  useEffect(() => {
+    if (!reducedMotion) return;
+    drawRef.current?.(performance.now());
+  }, [reducedMotion, currentKind, currentLevel]);
+
+  const copy = orbCopy(machineState);
+
+  return (
+    <div className="flex flex-col items-center">
+      <canvas ref={canvasRef} className="h-64 w-64 sm:h-72 sm:w-72" aria-hidden />
+
+      {/* Legacy callers render their own label; showing ours too would put two
+          status lines on the same screen. */}
+      {legacy ? null : (
+        <div role="status" className="mt-2 max-w-xs text-center">
+          <p className={`text-sm ${TONE_CLASS[copy.tone]}`}>{copy.label}</p>
+          {copy.detail ? (
+            <p className="mt-0.5 text-xs text-obsidian-muted">{copy.detail}</p>
+          ) : null}
+          {copy.placeholder ? (
+            <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-obsidian-muted">
+              Placeholder — interface arrives in V3
+            </p>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
 }
