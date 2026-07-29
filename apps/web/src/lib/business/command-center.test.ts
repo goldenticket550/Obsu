@@ -196,20 +196,28 @@ describe("todaysFlow", () => {
     expect(flow.map((f) => f.kind)).toEqual(["completed", "completed", "scheduled"]);
   });
 
-  it("keeps an 11:30pm ride on today across the midnight boundary", () => {
-    // 03:30 UTC Jul 16 = 11:30 PM Jul 15 in New York — same business day.
+  it("keeps the whole working night in one flow: 11:30pm and 12:30am together", () => {
+    // F1 strengthened this. It used to assert only that an 11:30 PM ride stayed
+    // on today. With the 4 AM rollover the stronger, true claim is that the ride
+    // AFTER midnight is part of the same night and appears in the same flow,
+    // while the next evening's ride does not.
     const lateNight = makeTrip({
       status: "scheduled",
       trip_date: "2026-07-15",
-      start_time: "2026-07-16T03:30:00Z",
+      start_time: "2026-07-16T03:30:00Z", // 11:30 PM EDT Jul 15
     });
-    const tomorrow = makeTrip({
+    const afterMidnight = makeTrip({
       status: "scheduled",
       trip_date: "2026-07-16",
-      start_time: "2026-07-16T19:00:00Z",
+      start_time: "2026-07-16T04:30:00Z", // 12:30 AM EDT Jul 16
     });
-    const flow = todaysFlow([lateNight, tomorrow], NOW);
-    expect(flow.map((f) => f.trip.id)).toEqual([lateNight.id]);
+    const nextEvening = makeTrip({
+      status: "scheduled",
+      trip_date: "2026-07-16",
+      start_time: "2026-07-16T23:00:00Z", // 7 PM EDT Jul 16 — next business day
+    });
+    const flow = todaysFlow([lateNight, afterMidnight, nextEvening], NOW);
+    expect(flow.map((f) => f.trip.id)).toEqual([lateNight.id, afterMidnight.id]);
   });
 
   it("excludes canceled rides", () => {
@@ -252,5 +260,80 @@ describe("todaysFlow", () => {
     });
     const flow = todaysFlow([untimedB, timed, untimedA], NOW);
     expect(flow.map((f) => f.trip.id)).toEqual([timed.id, untimedA.id, untimedB.id]);
+  });
+});
+
+/**
+ * F1 — greeting boundaries follow the working night, not the calendar.
+ * Every instant is an explicit UTC literal with its New York time noted.
+ */
+describe("greetingFor — F1 business-night boundaries", () => {
+  const cases: { utc: string; ny: string; expected: string }[] = [
+    { utc: "2026-07-16T07:59:00Z", ny: "3:59 AM", expected: "Good evening" },
+    { utc: "2026-07-16T08:00:00Z", ny: "4:00 AM", expected: "Good morning" },
+    { utc: "2026-07-16T15:59:00Z", ny: "11:59 AM", expected: "Good morning" },
+    { utc: "2026-07-16T16:00:00Z", ny: "12:00 PM", expected: "Good afternoon" },
+    { utc: "2026-07-16T20:59:00Z", ny: "4:59 PM", expected: "Good afternoon" },
+    { utc: "2026-07-16T21:00:00Z", ny: "5:00 PM", expected: "Good evening" },
+  ];
+
+  for (const { utc, ny, expected } of cases) {
+    it(`${ny} New York -> "${expected}"`, () => {
+      expect(greetingFor(new Date(utc))).toBe(expected);
+    });
+  }
+
+  it("greets the operator working at 1:52 AM with 'Good evening'", () => {
+    // He is still on the previous evening's shift; "Good morning" was wrong.
+    expect(greetingFor(new Date("2026-07-29T05:52:00Z"))).toBe("Good evening");
+  });
+
+  it("holds in EST as well as EDT (wall-clock, not a fixed offset)", () => {
+    expect(greetingFor(new Date("2026-01-16T08:59:00Z"))).toBe("Good evening"); // 3:59 AM
+    expect(greetingFor(new Date("2026-01-16T09:00:00Z"))).toBe("Good morning"); // 4:00 AM
+  });
+});
+
+/**
+ * F1 Part B — the Next Ride card must carry the REASON a ride is still open,
+ * so the card never re-infers it or shows the wrong sentence.
+ */
+describe("selectNextRide — closeout reason", () => {
+  const NOW_0152 = new Date("2026-07-29T05:52:00Z"); // 1:52 AM Jul 29 -> Jul 28
+
+  it("carries pickup_time_passed for a timed overdue ride", () => {
+    const trip = makeTrip({
+      status: "scheduled",
+      trip_date: "2026-07-28",
+      start_time: "2026-07-29T03:00:00Z", // 11 PM Jul 28
+    });
+    const view = selectNextRide([trip], NOW_0152);
+    expect(view.kind).toBe("needs_closing_out");
+    if (view.kind === "needs_closing_out") {
+      expect(view.reason).toEqual({ kind: "pickup_time_passed" });
+    }
+  });
+
+  it("carries scheduled_day_passed with daysAgo for an untimed previous-night ride", () => {
+    const trip = makeTrip({
+      status: "scheduled",
+      trip_date: "2026-07-27",
+      start_time: null,
+    });
+    const view = selectNextRide([trip], NOW_0152);
+    expect(view.kind).toBe("needs_closing_out");
+    if (view.kind === "needs_closing_out") {
+      expect(view.reason).toEqual({ kind: "scheduled_day_passed", daysAgo: 1 });
+    }
+  });
+
+  it("does NOT flag an untimed ride on the current business night", () => {
+    const trip = makeTrip({
+      status: "scheduled",
+      trip_date: "2026-07-28",
+      start_time: null,
+    });
+    const view = selectNextRide([trip], NOW_0152);
+    expect(view.kind).toBe("upcoming");
   });
 });

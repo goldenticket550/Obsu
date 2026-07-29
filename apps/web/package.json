@@ -2,7 +2,7 @@
   "name": "obsidian-rides-web",
   "version": "0.1.0",
   "private": true,
-  "description": "OBSIDIAN RIDES — AI business operating assistant for luxury transportation. Customer Zero: Midnight Rydes.",
+  "description": "Business operations platform for premium transportation services",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

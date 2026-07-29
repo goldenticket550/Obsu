@@ -50,29 +50,65 @@ describe("tripDayKey", () => {
 });
 
 describe("isPastDue", () => {
+  // F1: isPastDue is now DERIVED from closeOutReason, which encodes the
+  // existing status-eligibility rule. Only a `scheduled` ride can be overdue,
+  // so these fixtures state the status explicitly rather than relying on the
+  // factory default (`completed`) — which the old implementation ignored.
   it("is true when the pickup time has passed", () => {
     expect(
-      isPastDue(makeTrip({ start_time: "2026-07-15T16:00:00Z" }), NOW),
+      isPastDue(
+        makeTrip({ status: "scheduled", start_time: "2026-07-15T16:00:00Z" }),
+        NOW,
+      ),
     ).toBe(true);
   });
 
   it("is false for a pickup later today", () => {
     expect(
-      isPastDue(makeTrip({ start_time: "2026-07-15T23:00:00Z" }), NOW),
+      isPastDue(
+        makeTrip({ status: "scheduled", start_time: "2026-07-15T23:00:00Z" }),
+        NOW,
+      ),
     ).toBe(false);
   });
 
   it("is true for a ride dated before today with no pickup time", () => {
     expect(
-      isPastDue(makeTrip({ trip_date: "2026-07-14", start_time: null }), NOW),
+      isPastDue(
+        makeTrip({
+          status: "scheduled",
+          trip_date: "2026-07-14",
+          start_time: null,
+        }),
+        NOW,
+      ),
     ).toBe(true);
   });
 
   it("is FALSE for a ride dated today with no pickup time (still upcoming)", () => {
     // No time was set, so we cannot claim it was missed just because it is 2pm.
     expect(
-      isPastDue(makeTrip({ trip_date: "2026-07-15", start_time: null }), NOW),
+      isPastDue(
+        makeTrip({
+          status: "scheduled",
+          trip_date: "2026-07-15",
+          start_time: null,
+        }),
+        NOW,
+      ),
     ).toBe(false);
+  });
+
+  it("is false for an ineligible status even with a long-past pickup", () => {
+    // Stronger than the old test: eligibility is now part of the rule.
+    for (const status of ["completed", "canceled"] as const) {
+      expect(
+        isPastDue(
+          makeTrip({ status, start_time: "2026-07-01T16:00:00Z" }),
+          NOW,
+        ),
+      ).toBe(false);
+    }
   });
 });
 
@@ -88,15 +124,29 @@ describe("groupUpcomingTrips", () => {
     expect(g.later.map((t) => t.id)).toEqual([later.id]);
   });
 
-  it("keeps an 11:30pm pickup on TODAY rather than pushing it to tomorrow", () => {
-    // The whole reason day bucketing is timezone-aware.
-    const lateNight = makeTrip({
+  it("keeps a whole working night together: 11:30pm and 12:30am are the SAME business day", () => {
+    // F1 strengthened this. It used to assert only that an 11:30pm pickup was
+    // not pushed to tomorrow (true under calendar-midnight bucketing too). The
+    // real rule is that the shift does not split at midnight: with the 4 AM
+    // rollover, 11:30 PM Jul 15 and 12:30 AM Jul 16 are one night.
+    const ELEVEN_THIRTY_PM = "2026-07-16T03:30:00Z"; // 11:30 PM EDT Jul 15
+    const TWELVE_THIRTY_AM = "2026-07-16T04:30:00Z"; // 12:30 AM EDT Jul 16
+
+    const before = makeTrip({
       status: "scheduled",
       trip_date: "2026-07-15",
-      start_time: "2026-07-16T03:30:00Z",
+      start_time: ELEVEN_THIRTY_PM,
     });
-    const g = groupUpcomingTrips([lateNight], NOW);
-    expect(g.today.map((t) => t.id)).toEqual([lateNight.id]);
+    const after = makeTrip({
+      status: "scheduled",
+      trip_date: "2026-07-16",
+      start_time: TWELVE_THIRTY_AM,
+    });
+
+    expect(businessDayKey(ELEVEN_THIRTY_PM)).toBe(businessDayKey(TWELVE_THIRTY_AM));
+
+    const g = groupUpcomingTrips([before, after], NOW);
+    expect(g.today.map((t) => t.id)).toEqual([before.id, after.id]);
     expect(g.tomorrow).toEqual([]);
   });
 

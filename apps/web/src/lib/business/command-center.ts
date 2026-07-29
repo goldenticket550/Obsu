@@ -1,6 +1,15 @@
 import type { Trip } from "@/lib/types";
 import { BUSINESS_TIME_ZONE, formatPickupTime } from "./pickup-time";
-import { businessDayKey, groupUpcomingTrips, tripDayKey } from "./schedule";
+import {
+  BUSINESS_DAY_ROLLOVER_HOUR,
+  businessDayKey,
+  businessLocalHour,
+  closeOutReason,
+  groupUpcomingTrips,
+  tripDayKey,
+  type BusinessDayLabel,
+  type CloseOutReason,
+} from "./schedule";
 
 /**
  * U2 — Command Center selection logic. PURE: `now` is always injected, never
@@ -50,7 +59,7 @@ export function msUntilPickup(trip: Trip, now: Date): number | null {
  * ride, it just is not today.
  */
 export type NextRideView<T extends Trip = Trip> =
-  | { kind: "needs_closing_out"; trip: T }
+  | { kind: "needs_closing_out"; trip: T; reason: CloseOutReason }
   | { kind: "upcoming"; trip: T; msUntil: number | null; sameDay: boolean }
   | { kind: "none" };
 
@@ -61,7 +70,12 @@ export function selectNextRide<T extends Trip>(
   const groups = groupUpcomingTrips(trips, now);
 
   const overdue = groups.needsClosingOut[0];
-  if (overdue) return { kind: "needs_closing_out", trip: overdue };
+  if (overdue) {
+    // Carried on the view so the card never re-infers WHY it is open — there
+    // is one implementation of that rule (closeOutReason).
+    const reason = closeOutReason(overdue, now);
+    if (reason) return { kind: "needs_closing_out", trip: overdue, reason };
+  }
 
   const next = groups.today[0] ?? groups.tomorrow[0] ?? groups.later[0];
   if (!next) return { kind: "none" };
@@ -74,16 +88,18 @@ export function selectNextRide<T extends Trip>(
   };
 }
 
-/** Greeting keyed to the business day's local hour, not the viewer's. */
+/**
+ * Greeting keyed to the business day's local hour, not the viewer's.
+ *
+ * F1: the boundaries follow the working night, not the calendar. 00:00–03:59
+ * is still the previous evening's shift, so at 1:52 AM the operator sees
+ * "Good evening" rather than being told it is morning.
+ *   04:00–11:59 morning · 12:00–16:59 afternoon · 17:00–03:59 evening
+ */
 export function greetingFor(now: Date): string {
-  const hour = Number(
-    now.toLocaleString("en-US", {
-      timeZone: BUSINESS_TIME_ZONE,
-      hour: "2-digit",
-      hour12: false,
-    }),
-  );
-  if (!Number.isFinite(hour)) return "Welcome";
+  const hour = businessLocalHour(now);
+  if (hour === null) return "Welcome";
+  if (hour < BUSINESS_DAY_ROLLOVER_HOUR) return "Good evening";
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
@@ -129,6 +145,51 @@ export function operationalSummary(trips: Trip[], now: Date): string {
   }
 
   return parts.join(" · ");
+}
+
+/**
+ * Copy for why a ride is still open. EXHAUSTIVE over CloseOutReason: the
+ * `never` branch means adding a future reason fails the type check until its
+ * wording exists, so a new reason can never silently render the wrong
+ * sentence.
+ *
+ * Deliberately avoids the phrase "business days" — that reads as "weekdays
+ * excluding weekends", and this operator works nights including weekends.
+ *
+ * Lives here rather than in the component so it is pure and testable; the card
+ * only renders what this returns.
+ */
+export function closeOutCopy(reason: CloseOutReason): string {
+  switch (reason.kind) {
+    case "pickup_time_passed":
+      return "Pickup time has passed — still open";
+    case "scheduled_day_passed":
+      return reason.daysAgo === 1
+        ? "Scheduled for yesterday — still open"
+        : `Scheduled ${reason.daysAgo} days ago — still open`;
+    default: {
+      const exhaustive: never = reason;
+      return exhaustive;
+    }
+  }
+}
+
+/**
+ * The Next Ride headline: the customer when we know them, otherwise the day
+ * this ride is for. A missing-field message ("No time set") is NEVER the
+ * headline — it belongs in the time field. Never returns undefined, null, an
+ * empty string, or a raw record id.
+ */
+export function nextRideHeadline(
+  customerName: string | null | undefined,
+  dayLabel: BusinessDayLabel,
+): string {
+  const name = typeof customerName === "string" ? customerName.trim() : "";
+  if (name) return name;
+  if (dayLabel.relative) {
+    return dayLabel.relative.charAt(0).toUpperCase() + dayLabel.relative.slice(1);
+  }
+  return dayLabel.dateLabel || "Scheduled ride";
 }
 
 export interface FlowEntry<T extends Trip = Trip> {

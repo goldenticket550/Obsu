@@ -3,10 +3,17 @@ import { RouteLine } from "./route-line";
 import { TripQuickActions } from "./trip-quick-actions";
 import { cancelTrip, markTripCompleted } from "@/app/trips/actions";
 import {
+  closeOutCopy,
+  nextRideHeadline,
   shortRideId,
   timeUntilLabel,
   type NextRideView,
 } from "@/lib/business/command-center";
+import {
+  businessDayLabelParts,
+  joinBusinessDayLabel,
+  tripDayKey,
+} from "@/lib/business/schedule";
 import { formatPickupTime } from "@/lib/business/pickup-time";
 import { hasQuotedPrice } from "@/lib/business/trip-status";
 import { centsToDollars } from "@/lib/money";
@@ -59,7 +66,14 @@ function Shell({
   );
 }
 
-export function NextRide({ view }: { view: NextRideView<TripListRow> }) {
+export function NextRide({
+  view,
+  now,
+}: {
+  view: NextRideView<TripListRow>;
+  /** Injected so day labels are deterministic — no ambient clock read here. */
+  now: Date;
+}) {
   if (view.kind === "none") {
     return (
       <Shell>
@@ -89,13 +103,21 @@ export function NextRide({ view }: { view: NextRideView<TripListRow> }) {
   const pickupTime = formatPickupTime(trip.start_time);
   const priced = hasQuotedPrice(trip);
 
+  // All business-day display text comes from the one formatter (F1).
+  const dayLabel = businessDayLabelParts(tripDayKey(trip), now);
+  const dayLabelText = joinBusinessDayLabel(dayLabel);
+
+  // Headline + reason copy come from the tested business layer; this component
+  // only renders them.
+  const headline = nextRideHeadline(trip.customer?.name, dayLabel);
+
   // Status line: never colour alone — each state carries its own words.
   const statusLine = overdue
-    ? "Pickup time has passed — still open"
+    ? closeOutCopy(view.reason)
     : view.sameDay
       ? view.msUntil !== null
         ? `Departs ${timeUntilLabel(view.msUntil)}`
-        : "Today · no pickup time set"
+        : "No pickup time set"
       : "No more rides today · next is later";
 
   return (
@@ -112,12 +134,10 @@ export function NextRide({ view }: { view: NextRideView<TripListRow> }) {
         </span>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="text-3xl font-semibold tabular-nums text-obsidian-platinum">
-          {pickupTime ?? "No time set"}
-        </p>
+      <div className="mt-3">
+        <p className="text-3xl font-semibold text-obsidian-platinum">{headline}</p>
         <p
-          className={`text-sm ${
+          className={`mt-1 text-sm ${
             overdue ? "text-obsidian-negative" : "text-obsidian-cyan"
           }`}
         >
@@ -126,7 +146,12 @@ export function NextRide({ view }: { view: NextRideView<TripListRow> }) {
       </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Meta label="Customer" value={trip.customer?.name ?? "No customer"} muted={!trip.customer} />
+        {/* "No time set" belongs here, in the time field — never the headline. */}
+        <Meta
+          label="Pickup"
+          value={pickupTime ?? "No time set"}
+          muted={!pickupTime}
+        />
         <Meta
           label="Type"
           value={trip.trip_type ? labelize(trip.trip_type) : "Not set"}
@@ -137,7 +162,8 @@ export function NextRide({ view }: { view: NextRideView<TripListRow> }) {
           value={priced ? `$${centsToDollars(trip.revenue_cents)}` : "No price set"}
           muted={!priced}
         />
-        <Meta label="Date" value={trip.trip_date} />
+        {/* Formatted business-day label — never a raw YYYY-MM-DD. */}
+        <Meta label="Day" value={dayLabelText} />
       </dl>
 
       <RouteLine pickup={trip.pickup_location} dropoff={trip.dropoff_location} />

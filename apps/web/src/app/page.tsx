@@ -116,7 +116,7 @@ export default async function DashboardPage() {
 
         {/* 3 — NEXT RIDE (centerpiece; its primary action lives inside) */}
         <div className="order-2">
-          <NextRide view={nextRide} />
+          <NextRide view={nextRide} now={now} />
         </div>
 
         {/* 7 — ACTION REQUIRED (third on mobile, last on desktop) */}
