@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeCustomer, makeTrip } from "./__factories";
 import {
   RECENT_CUSTOMER_LIMIT,
+  initialTripTypeValue,
   mostCommonPaymentMethod,
   mostCommonTripType,
   recentCustomers,
@@ -205,5 +206,74 @@ describe("recentCustomers", () => {
       makeTrip({ status: "completed", customer_id: ashley.id, trip_date: "2026-07-01" }),
     ];
     expect(recentCustomers(trips, all).map((c) => c.name)).toEqual(["Ashley"]);
+  });
+});
+
+/**
+ * D1 Part 0 — the U5 edit-path trap.
+ *
+ * U5 made trip type required and preselected the org's most common type. On the
+ * EDIT path that would silently stamp a guessed classification onto a
+ * historical ride the operator never classified. The derived default is for new
+ * rides only.
+ */
+describe("initialTripTypeValue — editing never inherits the derived default", () => {
+  it("opens EMPTY when editing a ride whose trip type is null", () => {
+    expect(
+      initialTripTypeValue({
+        editing: true,
+        storedTripType: null,
+        derivedDefault: "airport",
+      }),
+    ).toBe("");
+  });
+
+  it("opens empty when the stored value is undefined too", () => {
+    expect(
+      initialTripTypeValue({ editing: true, derivedDefault: "airport" }),
+    ).toBe("");
+  });
+
+  it("keeps the ride's OWN type when editing a ride that has one", () => {
+    expect(
+      initialTripTypeValue({
+        editing: true,
+        storedTripType: "nightlife",
+        derivedDefault: "airport",
+      }),
+    ).toBe("nightlife");
+  });
+
+  it("ignores a parsed value when editing — the stored record wins", () => {
+    expect(
+      initialTripTypeValue({
+        editing: true,
+        storedTripType: null,
+        parsedTripType: "prom",
+        derivedDefault: "airport",
+      }),
+    ).toBe("");
+  });
+
+  it("DOES apply the derived default on a new ride", () => {
+    expect(
+      initialTripTypeValue({ editing: false, derivedDefault: "airport" }),
+    ).toBe("airport");
+  });
+
+  it("prefers a parsed value over the derived default on a new ride", () => {
+    expect(
+      initialTripTypeValue({
+        editing: false,
+        parsedTripType: "prom",
+        derivedDefault: "airport",
+      }),
+    ).toBe("prom");
+  });
+
+  it("opens empty on a new ride when the org has no history", () => {
+    expect(
+      initialTripTypeValue({ editing: false, derivedDefault: null }),
+    ).toBe("");
   });
 });

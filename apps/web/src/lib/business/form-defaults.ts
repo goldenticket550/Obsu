@@ -79,6 +79,34 @@ export function mostCommonPaymentMethod(trips: Trip[]): PaymentMethod | null {
   return mostCommonBy(trips, "payment_method") as PaymentMethod | null;
 }
 
+export interface TripTypeFieldInput {
+  /** True when editing an existing ride rather than creating one. */
+  editing: boolean;
+  /** The stored value on the ride being edited. */
+  storedTripType?: TripType | null;
+  /** A value parsed from a free-text note (M8), if any. */
+  parsedTripType?: string | null;
+  /** The org's most common type. NEW rides only — see below. */
+  derivedDefault?: TripType | null;
+}
+
+/**
+ * D1 Part 0 — the value the trip-type field OPENS with.
+ *
+ * The history-derived default applies to NEW rides only. When editing a ride
+ * whose type is null, the field opens EMPTY and the operator chooses: silently
+ * preselecting the org's most common type would write a *guessed*
+ * classification onto a historical record, which is fabrication — the same
+ * failure as backfilling a column with an assumed value.
+ *
+ * Encoded here rather than left implicit in the component so it cannot be
+ * undone by wiring a default into the edit page later.
+ */
+export function initialTripTypeValue(input: TripTypeFieldInput): string {
+  if (input.editing) return input.storedTripType ?? "";
+  return input.parsedTripType || input.derivedDefault || "";
+}
+
 /** How many quick-pick customer chips the form offers. */
 export const RECENT_CUSTOMER_LIMIT = 5;
 

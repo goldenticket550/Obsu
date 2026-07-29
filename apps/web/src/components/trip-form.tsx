@@ -11,6 +11,7 @@ import {
   TextInput,
 } from "@/components/form";
 import { hasQuotedPrice, requiresRevenue } from "@/lib/business/trip-status";
+import { initialTripTypeValue } from "@/lib/business/form-defaults";
 import { toTimeInputValue } from "@/lib/business/pickup-time";
 import type { PaymentMethod, TripStatus, TripType } from "@/lib/types";
 import {
@@ -94,7 +95,12 @@ export function TripForm({
         status: trip.status ?? "completed",
         pickup_location: trip.pickup_location ?? "",
         dropoff_location: trip.dropoff_location ?? "",
-        trip_type: trip.trip_type ?? "",
+        // D1 Part 0: editing NEVER preselects the history-derived default —
+        // that would write a guessed classification onto a historical record.
+        trip_type: initialTripTypeValue({
+          editing: true,
+          storedTripType: trip.trip_type,
+        }),
         payment_method: trip.payment_method ?? "",
         // A scheduled trip stored as 0 has no price set yet — show it blank
         // rather than a fabricated "0.00".
@@ -123,7 +129,11 @@ export function TripForm({
         dropoff_location: d.dropoff_location ?? "",
         // U5: preselect the org's own most common values. Where the org has no
         // history these are null and the field opens empty — never guessed.
-        trip_type: d.trip_type ?? defaultTripType ?? "",
+        trip_type: initialTripTypeValue({
+          editing: false,
+          parsedTripType: d.trip_type,
+          derivedDefault: defaultTripType,
+        }),
         payment_method: d.payment_method ?? defaultPaymentMethod ?? "",
         revenue: d.revenue ?? "",
         hours: d.hours ?? "",
