@@ -5,6 +5,7 @@ import {
   validateAction,
   type Proposal,
   type ProposalAction,
+  type ProposalActionKind,
 } from "./proposal";
 
 /**
@@ -22,9 +23,18 @@ export interface TripSnapshot {
   status: TripStatus;
 }
 
+/** What a create actually produced — a ride, and whether its costs landed. */
+export interface CreatedTrip {
+  tripId: string;
+  costsRequested: number;
+  costsWritten: boolean;
+}
+
 /** The allowlist. There is no dynamic dispatch and no string-to-function. */
 export interface ProposalWrites {
-  createTrip(action: Extract<ProposalAction, { kind: "create_trip" }>): Promise<string>;
+  createTrip(
+    action: Extract<ProposalAction, { kind: "create_trip" }>,
+  ): Promise<CreatedTrip>;
   updateTrip(action: Extract<ProposalAction, { kind: "update_trip" }>): Promise<void>;
   completeTrip(action: Extract<ProposalAction, { kind: "complete_trip" }>): Promise<void>;
   cancelTrip(action: Extract<ProposalAction, { kind: "cancel_trip" }>): Promise<void>;
@@ -51,6 +61,8 @@ export interface ExecutionContext {
    */
   claimExecution(proposalId: string): boolean;
   writes: ProposalWrites;
+  /** Absent means no log at all — every outcome then reports logged: false. */
+  log?: ActionLog;
 }
 
 export type RefusalReason =
@@ -67,21 +79,63 @@ export type RefusalReason =
 /**
  * Outcomes are typed and there is no default-to-success path.
  *
- * There is deliberately NO "partially applied" variant. Every action in scope
- * is a single-row write — the executor's create does not also insert linked
- * expense rows the way the form's createTrip does — so a half-applied result
- * is unreachable given this write shape. Carrying a case that can never
- * happen would be a lie in the type, and would invite callers to write
- * handling that is never exercised. If a multi-write action is ever added,
- * the variant comes back with it.
+ * V3 dropped "partially applied" because every action then in scope was a
+ * single-row write, and a case that cannot happen is a lie in the type.
+ * V3.1 reinstates it, because that premise no longer holds: creating a ride
+ * now writes the trip AND its linked expense rows (matching the form), and
+ * Supabase's client cannot open a multi-statement transaction — so the trip
+ * can land while its costs do not. The variant came back with the multi-write
+ * action, exactly as V3 said it would.
  */
 export type ExecutionOutcome =
-  | { kind: "succeeded"; tripId: string; summary: string }
-  | { kind: "refused"; reason: RefusalReason; message: string }
-  | { kind: "failed"; message: string };
+  | { kind: "succeeded"; tripId: string; summary: string; logged: boolean }
+  | {
+      kind: "partially_applied";
+      tripId: string;
+      summary: string;
+      /** What landed and what did not, in the owner's words. */
+      message: string;
+      logged: boolean;
+    }
+  | { kind: "refused"; reason: RefusalReason; message: string; logged: boolean }
+  | { kind: "failed"; message: string; logged: boolean };
 
-function refuse(reason: RefusalReason, message: string): ExecutionOutcome {
+/** An outcome before the log attempt — `logged` is decided by the recorder. */
+type PendingOutcome =
+  | Omit<Extract<ExecutionOutcome, { kind: "succeeded" }>, "logged">
+  | Omit<Extract<ExecutionOutcome, { kind: "partially_applied" }>, "logged">
+  | Omit<Extract<ExecutionOutcome, { kind: "refused" }>, "logged">
+  | Omit<Extract<ExecutionOutcome, { kind: "failed" }>, "logged">;
+
+function refuse(reason: RefusalReason, message: string): PendingOutcome {
   return { kind: "refused", reason, message };
+}
+
+/** One row of the action log — what was approved, and what came of it. */
+export interface ActionLogEntry {
+  proposalId: string;
+  actionKind: ProposalActionKind;
+  /** The exact words the owner approved, not a re-description. */
+  approvedSummary: string;
+  outcome: ExecutionOutcome["kind"];
+  /** Set only for refusals, so "why not" is queryable. */
+  refusalReason: RefusalReason | null;
+  detail: string | null;
+  tripId: string | null;
+  actorUserId: string;
+  organizationId: string;
+  occurredAt: string;
+}
+
+/**
+ * The append-only record. Injected like every other dependency.
+ *
+ * `isAvailable` gates the write on the table existing, so this code is safe to
+ * commit and run before the migration is applied.
+ */
+export interface ActionLog {
+  isAvailable(): Promise<boolean>;
+  append(entry: ActionLogEntry): Promise<void>;
 }
 
 /**
@@ -93,6 +147,59 @@ export async function executeProposal(
   proposal: Proposal,
   context: ExecutionContext,
 ): Promise<ExecutionOutcome> {
+  const pending = await decideOutcome(proposal, context);
+  const logged = await recordOutcome(proposal, context, pending);
+  return { ...pending, logged } as ExecutionOutcome;
+}
+
+/**
+ * Writes the log row, returning whether it landed.
+ *
+ * A failure to log NEVER changes the outcome. The database write has already
+ * happened by this point; reporting failure afterwards would tell the owner
+ * something didn't happen when it did, and would invite a retry that creates a
+ * second ride. But an unlogged action is not silently swallowed either — the
+ * outcome carries `logged: false` so callers can say so out loud. Recorded and
+ * tolerated, never hidden.
+ *
+ * Refusals raised before the session and org are known cannot be attributed to
+ * an actor, so they are not written; RLS would reject them anyway. Those report
+ * logged: false, which is accurate: there is no row.
+ */
+async function recordOutcome(
+  proposal: Proposal,
+  context: ExecutionContext,
+  pending: PendingOutcome,
+): Promise<boolean> {
+  const log = context.log;
+  if (!log || !context.userId || !context.orgId) return false;
+  try {
+    if (!(await log.isAvailable())) return false;
+    await log.append({
+      proposalId: proposal.proposalId,
+      actionKind: proposal.action.kind,
+      approvedSummary: proposal.humanReadableSummary,
+      outcome: pending.kind,
+      refusalReason: pending.kind === "refused" ? pending.reason : null,
+      detail: pending.kind === "succeeded" ? null : pending.message,
+      tripId:
+        pending.kind === "succeeded" || pending.kind === "partially_applied"
+          ? pending.tripId
+          : null,
+      actorUserId: context.userId,
+      organizationId: context.orgId,
+      occurredAt: context.now.toISOString(),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function decideOutcome(
+  proposal: Proposal,
+  context: ExecutionContext,
+): Promise<PendingOutcome> {
   // Approval is explicit, per-proposal, and read from THIS proposal. It does
   // not generalize to the next one, does not persist, and cannot be inferred
   // from anything the model produced.
@@ -168,10 +275,21 @@ export async function executeProposal(
     const action = proposal.action;
     switch (action.kind) {
       case "create_trip": {
-        const tripId = await context.writes.createTrip(action);
+        const created = await context.writes.createTrip(action);
+        if (!created.costsWritten) {
+          // The ride exists but its costs do not. Reporting this as success
+          // would leave profit overstated with nothing on screen to say why.
+          return {
+            kind: "partially_applied",
+            tripId: created.tripId,
+            summary: proposal.humanReadableSummary,
+            message:
+              "The ride was saved, but its costs weren't. Add them on the Expenses screen — profit is high until you do.",
+          };
+        }
         return {
           kind: "succeeded",
-          tripId,
+          tripId: created.tripId,
           summary: proposal.humanReadableSummary,
         };
       }
@@ -215,6 +333,9 @@ export function outcomeCopy(outcome: ExecutionOutcome): {
   switch (outcome.kind) {
     case "succeeded":
       return { label: "Done", detail: outcome.summary, ok: true };
+    case "partially_applied":
+      // Not ok. Part of it landed, and the owner has to finish it by hand.
+      return { label: "Partly done", detail: outcome.message, ok: false };
     case "refused":
       return { label: "Not done", detail: outcome.message, ok: false };
     case "failed":

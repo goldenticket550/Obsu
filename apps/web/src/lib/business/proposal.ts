@@ -28,6 +28,18 @@ export type ProposalAction =
       pickup: string | null;
       dropoff: string | null;
       paymentMethod: PaymentMethod | null;
+      /**
+       * V3.1: costs captured with the ride, written as linked expense rows —
+       * the same thing the form writes. Without these a proposed ride would
+       * drop its gas and tolls and OVERSTATE profit by exactly that amount,
+       * silently, against a summary that never mentioned them.
+       */
+      costs: {
+        gasCents: number | null;
+        tollsCents: number | null;
+        otherCents: number | null;
+        otherLabel: string | null;
+      };
     }
   | {
       kind: "update_trip";
@@ -139,7 +151,21 @@ export function summarizeProposal(action: ProposalAction, now: Date): string {
       const fare =
         action.revenueCents !== null ? ` for ${money(action.revenueCents)}` : "";
       const verb = action.status === "scheduled" ? "Schedule" : "Log";
-      return `${verb} a ${action.tripType} ride for ${who} on ${when}${route}${fare}.`;
+
+      // Costs are named in the summary, because they are written with the ride
+      // and they change profit. Approving must never hide a cost.
+      const costParts: string[] = [];
+      if (action.costs.gasCents) costParts.push(`${money(action.costs.gasCents)} gas`);
+      if (action.costs.tollsCents) costParts.push(`${money(action.costs.tollsCents)} tolls`);
+      if (action.costs.otherCents) {
+        costParts.push(
+          `${money(action.costs.otherCents)} ${action.costs.otherLabel ?? "other"}`,
+        );
+      }
+      const costs =
+        costParts.length > 0 ? ` Also record ${costParts.join(", ")}.` : "";
+
+      return `${verb} a ${action.tripType} ride for ${who} on ${when}${route}${fare}.${costs}`;
     }
     case "update_trip": {
       const parts: string[] = [];

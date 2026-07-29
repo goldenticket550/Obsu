@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
 import { getCurrentOrgId } from "@/lib/db/org";
 import { findOrCreateCustomerByName } from "@/lib/db/customers";
+import { createTripWithCosts } from "@/lib/db/trips";
 import { optionalDollarsToCents } from "@/lib/money";
 import {
   blockingFormErrors,
@@ -106,41 +107,28 @@ export async function createTrip(formData: FormData) {
     );
 
     const { fields, tripDate } = readTripFields(formData);
-    const { data: trip, error } = await supabase
-      .from("trips")
-      .insert({ organization_id, customer_id, ...fields })
-      .select("id")
-      .single();
-    if (error) throw error;
-    const trip_id = (trip as { id: string }).id;
 
-    // Inline costs -> linked expense rows (only amounts > $0).
-    const inline: { key: string; category: string }[] = [
-      { key: "cost_gas", category: "gas" },
-      { key: "cost_tolls", category: "tolls" },
-      { key: "cost_other", category: "other" },
-    ];
-    const rows: Record<string, unknown>[] = [];
-    for (const item of inline) {
-      const amount_cents = optionalDollarsToCents(str(formData, item.key));
-      if (amount_cents && amount_cents > 0) {
-        const row: Record<string, unknown> = {
-          organization_id,
-          trip_id,
-          category: item.category,
-          amount_cents,
-          description:
-            item.category === "other"
-              ? optStr(formData, "cost_other_label") ?? "Other"
-              : null,
-        };
-        if (tripDate) row.expense_date = tripDate;
-        rows.push(row);
-      }
-    }
-    if (rows.length) {
-      const { error: expErr } = await supabase.from("expenses").insert(rows);
-      if (expErr) throw expErr;
+    // V3.1: one definition of "create a trip", shared with the proposal
+    // executor, so the two paths cannot drift into writing different shapes.
+    const result = await createTripWithCosts(supabase, {
+      organizationId: organization_id,
+      customerId: customer_id,
+      tripRow: fields,
+      tripDate: tripDate || null,
+      costs: {
+        gasCents: optionalDollarsToCents(str(formData, "cost_gas")),
+        tollsCents: optionalDollarsToCents(str(formData, "cost_tolls")),
+        otherCents: optionalDollarsToCents(str(formData, "cost_other")),
+        otherLabel: optStr(formData, "cost_other_label"),
+      },
+    });
+
+    // The ride saved but its costs did not — say so rather than reporting a
+    // clean save, because profit would be overstated until they are added.
+    if (!result.costsWritten) {
+      throw new Error(
+        "The ride was saved, but its costs weren't. Add them on the Expenses screen.",
+      );
     }
   } catch (e) {
     failure = errorMessage(e);

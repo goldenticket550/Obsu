@@ -256,6 +256,25 @@ When V2 unfreezes the voice files it MUST, in the same change:
 - and drop the caption-suppression rule, which exists only because the legacy caller renders
   its own label.
 
+### Resolved in V3.1: the two definitions of "create a trip"
+
+V3 shipped an executor whose `create_trip` wrote **only the trips row**, while the ride form
+wrote the trips row **plus up to three linked `expenses` rows** (gas, tolls, other). Approving
+"log a ride for Ashley, $240, $18 gas, $12 tolls" would have created the ride and silently
+dropped the $30 — and because `estimatedTripProfitCents` filters expenses by `trip_id`, the
+result was **profit overstated by exactly the costs that were discarded**, with nothing on
+screen to say so.
+
+The form's behaviour was correct, and not because it was older: dropping costs corrupts a
+number the owner makes decisions on. Both paths now call one function,
+`createTripWithCosts` in `src/lib/db/trips.ts`.
+
+V3 also dropped the `partially_applied` outcome, on the stated grounds that every action in
+scope was a single-row write, and said the variant would return if a multi-write action was
+ever added. **V3.1 added one.** Creating a ride is now two writes, Supabase's client cannot
+open a multi-statement transaction, so the trip can land while its costs do not —
+`partially_applied` is reachable and is back.
+
 ---
 
 ## V3 — Approval-gated action proposals
