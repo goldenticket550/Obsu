@@ -261,12 +261,28 @@ Naming the second source keeps the machine total instead of letting typing fake 
 never performed. It is accepted only from a resting state, so typing while the microphone is
 live or while an action is executing does not discard what is happening.
 
-### Unbuilt: deliberate tenant erasure
+### Unbuilt: deliberate tenant and user erasure
+
+**Applied to production 2026-07-29.** `0005_action_log.sql` is live: 12 columns, RLS on,
+`org_fk_rule = 'r'`, 2 policies, 1 non-internal trigger — verified by query.
 
 `action_log` is append-only — enforced by policy, by grant, and by a trigger that raises on
 any UPDATE or DELETE — and its `organization_id` is `ON DELETE RESTRICT`. Together those mean
 **an organization that has history cannot currently be deleted at all.** That is intentional:
 erasing a tenant should never happen implicitly, as a side effect of removing some parent row.
+
+**The same is true of users, and by accident rather than by design.** `actor_user_id`
+references `auth.users(id)` with **no delete rule stated**, so PostgreSQL defaults it to
+`NO ACTION` — which behaves like `RESTRICT` here. A user who has ever approved an action
+cannot be deleted either, and Supabase's own account-deletion path will fail on that foreign
+key. That outcome is correct; it just was not chosen, and a default is a poor place to keep a
+policy this consequential. Whatever procedure resolves the tenant case must resolve this one
+in the same breath, and should then state the rule explicitly in the schema rather than
+inheriting it.
+
+Note the asymmetry the procedure has to face: a right-to-erasure request usually concerns a
+**person**, not a business. So the user case is the one likely to arrive first, and it is the
+one currently governed by an unstated default.
 
 It also means there is a genuine tension with no code behind it yet. An append-only audit log
 and a right-to-erasure request pull in opposite directions: one exists precisely so the past
@@ -285,9 +301,30 @@ before any code:
 - what is kept for financial and tax obligations, which typically outlast an erasure request
   and are a separate legal duty from the one prompting it.
 
-Until that exists, deleting an organization fails loudly at the foreign key. A loud failure is
-the correct behaviour here — far better than a cascade that quietly destroys the audit trail,
-or a trigger error that makes an organization delete look like a bug in the logging code.
+Until that exists, deleting an organization or a user fails loudly at the foreign key. A loud
+failure is the correct behaviour here — far better than a cascade that quietly destroys the
+audit trail, or a trigger error that makes an organization delete look like a bug in the
+logging code.
+
+### Unbuilt, and the largest risk on the project: there is no second copy
+
+**`git remote` is empty.** Nothing has ever been pushed. This repository — every commit, the
+`paused/voice-pre-v2` recovery branch, the migration files, `TASK_RULES.md`, and this
+roadmap — exists on one disk and nowhere else.
+
+That outranks every other open item here. The voice hardware, the unapplied `0004`, the
+unbuilt erasure procedure: each is a bounded problem with a known shape. A failed drive is
+unbounded and silent until the moment it isn't, and it takes the recovery branch with it —
+the branch that exists specifically so paused work is recoverable is on the same disk as the
+thing it protects.
+
+It is also worth naming what a backup does *not* cover, so the fix is not mistaken for more
+than it is: the production Supabase database is a separate system with its own durability
+story, and two of the four migrations have been applied by hand rather than by any tool that
+tracks them. The schema of record therefore lives partly in files on this disk and partly in
+a database, with nothing reconciling the two automatically.
+
+Not built, deliberately. To be scoped as its own task.
 
 ### Resolved in V3.1: the two definitions of "create a trip"
 

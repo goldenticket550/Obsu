@@ -1,6 +1,24 @@
 -- V3.1 — the action log. Every approved proposal that reaches the executor
 -- leaves a row here, whatever happened to it.
 --
+-- APPLIED BY HAND TO PRODUCTION ON 2026-07-29, in the Supabase SQL Editor,
+-- from this file in its corrected form (organization_id ON DELETE RESTRICT).
+-- Verified against the live schema by query, all five as expected:
+--
+--     columns      12
+--     rls_on       true
+--     org_fk_rule  'r'      -- restrict, not cascade
+--     policies     2        -- select + insert, no update, no delete
+--     triggers     1        -- non-internal: action_log_no_rewrite
+--
+-- The cascade→restrict reconciliation block below is therefore already a
+-- no-op against production (org_fk_rule is already 'r'). It stays because it
+-- is what makes this file correct in an environment built from the earlier
+-- draft — a rebuild, a second business, or a local copy.
+--
+-- Re-running this whole file against production changes nothing. Every
+-- statement is guarded; see the per-statement reasoning in TASK_RULES.
+--
 -- NUMBERED 0005, NOT 0004: the task said 0004, but 0004 is already taken by
 -- 0004_drop_redundant_trip_note.sql, which is written and NOT YET APPLIED.
 -- Reusing the number would give two different files the same identity and make
