@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { TripForm } from "@/components/trip-form";
+import { TripCloseOut } from "@/components/trip-close-out";
 import { TopBar } from "@/components/form";
 import { getTrip } from "@/lib/db/trips";
-import { updateTrip } from "../../actions";
+import { cancelTrip, markTripCompleted, updateTrip } from "../../actions";
 
 export default async function EditTripPage({
   params,
@@ -24,6 +25,15 @@ export default async function EditTripPage({
         submitLabel="Save changes"
         showInlineCosts={false}
       />
+
+      {/* S1 — a booked ride can be closed out or canceled from here. */}
+      {trip.status === "scheduled" ? (
+        <TripCloseOut
+          trip={trip}
+          markCompletedAction={markTripCompleted}
+          cancelAction={cancelTrip}
+        />
+      ) : null}
     </main>
   );
 }

@@ -6,6 +6,7 @@
  * and out. Wired into the dashboard in M6, not here.
  */
 export * from "./revenue";
+export * from "./trip-status";
 export * from "./expenses";
 export * from "./profit";
 export * from "./trip-rates";

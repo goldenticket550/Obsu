@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   CancelLink,
   Field,
@@ -9,6 +10,9 @@ import {
   TextArea,
   TextInput,
 } from "@/components/form";
+import { requiresRevenue } from "@/lib/business/trip-status";
+import { toTimeInputValue } from "@/lib/business/pickup-time";
+import type { TripStatus } from "@/lib/types";
 import {
   PAYMENT_METHODS,
   TRIP_STATUSES,
@@ -39,7 +43,8 @@ export type TripFormDefaults = Partial<
     | "cost_gas"
     | "cost_tolls"
     | "cost_other"
-    | "cost_other_label",
+    | "cost_other_label"
+    | "pickup_time",
     string
   >
 >;
@@ -75,7 +80,12 @@ export function TripForm({
         dropoff_location: trip.dropoff_location ?? "",
         trip_type: trip.trip_type ?? "",
         payment_method: trip.payment_method ?? "",
-        revenue: centsToDollars(trip.revenue_cents),
+        // A scheduled trip stored as 0 has no price set yet — show it blank
+        // rather than a fabricated "0.00".
+        revenue:
+          trip.status !== "completed" && trip.revenue_cents === 0
+            ? ""
+            : centsToDollars(trip.revenue_cents),
         hours: trip.hours != null ? String(trip.hours) : "",
         hourly_rate:
           trip.hourly_rate_cents != null
@@ -83,6 +93,7 @@ export function TripForm({
             : "",
         mileage: trip.mileage != null ? String(trip.mileage) : "",
         notes: trip.notes ?? "",
+        pickup_time: toTimeInputValue(trip.start_time),
         cost_gas: "",
         cost_tolls: "",
         cost_other: "",
@@ -101,11 +112,19 @@ export function TripForm({
         hourly_rate: d.hourly_rate ?? "",
         mileage: d.mileage ?? "",
         notes: d.notes ?? "",
+        pickup_time: d.pickup_time ?? "",
         cost_gas: d.cost_gas ?? "",
         cost_tolls: d.cost_tolls ?? "",
         cost_other: d.cost_other ?? "",
         cost_other_label: d.cost_other_label ?? "",
       };
+
+  // Status drives the form's mode: a SCHEDULED ride is a booking (pickup time
+  // matters, price may not be known yet), a COMPLETED one is a logbook entry
+  // (revenue is the point). Tracked in state so the fields react immediately.
+  const [status, setStatus] = useState<TripStatus>(v.status as TripStatus);
+  const scheduling = status === "scheduled";
+  const revenueRequired = requiresRevenue(status);
 
   return (
     <form action={action} className="mt-8 flex flex-col gap-3">
@@ -123,11 +142,15 @@ export function TripForm({
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Trip date">
+        <Field label={scheduling ? "Pickup date" : "Trip date"}>
           <TextInput name="trip_date" type="date" defaultValue={v.trip_date} />
         </Field>
         <Field label="Status">
-          <Select name="status" defaultValue={v.status}>
+          <Select
+            name="status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as TripStatus)}
+          >
             {TRIP_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {labelize(s)}
@@ -136,6 +159,18 @@ export function TripForm({
           </Select>
         </Field>
       </div>
+
+      {/* Scheduling mode: when the ride is booked for, not when it was driven. */}
+      {scheduling ? (
+        <Field
+          label="Pickup time"
+          hint="Optional — New York time. Add it when the hour is settled."
+        >
+          <TextInput name="pickup_time" type="time" defaultValue={v.pickup_time} />
+        </Field>
+      ) : (
+        <input type="hidden" name="pickup_time" value={v.pickup_time} />
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Pickup">
@@ -177,11 +212,18 @@ export function TripForm({
         </Field>
       </div>
 
-      <Field label="Revenue ($)" hint="Total you charged — the source of truth.">
+      <Field
+        label={revenueRequired ? "Revenue ($)" : "Quoted price ($) — optional"}
+        hint={
+          revenueRequired
+            ? "Total you charged — the source of truth."
+            : "Leave blank if the price isn't set yet. A scheduled ride counts toward your totals only once you mark it completed."
+        }
+      >
         <TextInput
           name="revenue"
           inputMode="decimal"
-          required
+          required={revenueRequired}
           defaultValue={v.revenue}
           placeholder="240"
         />

@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
 import { getCurrentOrgId } from "@/lib/db/org";
 import { findOrCreateCustomerByName } from "@/lib/db/customers";
-import { dollarsToCents, optionalDollarsToCents } from "@/lib/money";
+import { optionalDollarsToCents } from "@/lib/money";
+import { validateTripSubmission } from "@/lib/business/trip-status";
 import { PAYMENT_METHODS, TRIP_STATUSES, TRIP_TYPES } from "@/lib/enums";
 import {
   enumOrNull,
@@ -17,20 +18,57 @@ import {
 import { parseTripFromText } from "@/lib/ai/parse-trip";
 import type { TripFormDefaults } from "@/components/trip-form";
 
+/**
+ * Combines the trip date with an optional "HH:MM" pickup time into a timestamp
+ * for `trips.start_time`. Returns null when no time was given — a scheduled
+ * ride may be booked for a day before the hour is settled.
+ *
+ * The value is built in America/New_York (this business's operating timezone)
+ * so an 11pm pickup never lands on the wrong calendar day.
+ */
+function pickupTimestamp(tripDate: string, time: string): string | null {
+  if (!tripDate || !time) return null;
+  const [hh, mm] = time.split(":");
+  const hours = Number(hh);
+  const minutes = Number(mm);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+
+  // Resolve the New York UTC offset for that date, then encode it explicitly.
+  const naive = new Date(`${tripDate}T${time}:00Z`);
+  if (Number.isNaN(naive.getTime())) return null;
+  const inNy = new Date(
+    naive.toLocaleString("en-US", { timeZone: "America/New_York" }),
+  );
+  const offsetMs = naive.getTime() - inNy.getTime();
+  return new Date(naive.getTime() + offsetMs).toISOString();
+}
+
 /** Fields shared by create + update. Throws on invalid money/number input. */
 function readTripFields(formData: FormData) {
   const tripDate = str(formData, "trip_date");
+  const status =
+    enumOrNull(str(formData, "status"), TRIP_STATUSES) ?? "completed";
+  const revenue = str(formData, "revenue");
+
+  // S1: revenue is required to COMPLETE a trip and optional while it is only
+  // scheduled. The rule itself lives in the tested business module.
+  const [firstError] = validateTripSubmission({ status, revenue });
+  if (firstError) throw new Error(firstError.message);
+
   const fields: Record<string, unknown> = {
     pickup_location: optStr(formData, "pickup_location"),
     dropoff_location: optStr(formData, "dropoff_location"),
     trip_type: enumOrNull(str(formData, "trip_type"), TRIP_TYPES),
     payment_method: enumOrNull(str(formData, "payment_method"), PAYMENT_METHODS),
-    status: enumOrNull(str(formData, "status"), TRIP_STATUSES) ?? "completed",
-    revenue_cents: dollarsToCents(str(formData, "revenue")), // required
+    status,
+    // Blank is only reachable for a non-completed trip (validated above); it is
+    // stored as 0, which for a scheduled trip means "no price set".
+    revenue_cents: optionalDollarsToCents(revenue) ?? 0,
     hours: optionalNonNegativeNumber(str(formData, "hours")),
     hourly_rate_cents: optionalDollarsToCents(str(formData, "hourly_rate")),
     mileage: optionalNonNegativeNumber(str(formData, "mileage")),
     notes: optStr(formData, "notes"),
+    start_time: pickupTimestamp(tripDate, str(formData, "pickup_time")),
   };
   // Only set trip_date when provided so the DB default (today) applies otherwise.
   if (tripDate) fields.trip_date = tripDate;
@@ -122,6 +160,75 @@ export async function updateTrip(formData: FormData) {
   revalidatePath("/trips");
   revalidatePath("/");
   redirect("/trips");
+}
+
+/**
+ * S1 — close out a scheduled trip. This is the moment the ride starts counting
+ * toward revenue/profit/trip totals, so a final revenue amount is mandatory
+ * here (enforced by the same tested rule the form uses). Status is the only
+ * other thing that changes; nothing else about the trip is rewritten.
+ *
+ * `returnTo` lets the Upcoming list (S2) send the owner back where they were.
+ */
+export async function markTripCompleted(formData: FormData) {
+  const id = str(formData, "id");
+  if (!id) redirect("/trips");
+  const returnTo = str(formData, "return_to") || "/trips";
+  const revenue = str(formData, "revenue");
+
+  let failure: string | null = null;
+  try {
+    const [firstError] = validateTripSubmission({ status: "completed", revenue });
+    if (firstError) throw new Error(firstError.message);
+
+    const supabase = createSupabaseServerClient();
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        status: "completed",
+        revenue_cents: optionalDollarsToCents(revenue) ?? 0,
+      })
+      .eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    failure = errorMessage(e);
+  }
+  if (failure) {
+    redirect(`/trips/${id}/edit?error=` + encodeURIComponent(failure));
+  }
+
+  revalidatePath("/trips");
+  revalidatePath("/");
+  redirect(returnTo);
+}
+
+/**
+ * S1 — cancel a trip. Sets status to `canceled`; never a hard delete, so the
+ * record stays auditable. A canceled trip counts toward nothing.
+ */
+export async function cancelTrip(formData: FormData) {
+  const id = str(formData, "id");
+  if (!id) redirect("/trips");
+  const returnTo = str(formData, "return_to") || "/trips";
+
+  let failure: string | null = null;
+  try {
+    const supabase = createSupabaseServerClient();
+    const { error } = await supabase
+      .from("trips")
+      .update({ status: "canceled" })
+      .eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    failure = errorMessage(e);
+  }
+  if (failure) {
+    redirect(`/trips/${id}/edit?error=` + encodeURIComponent(failure));
+  }
+
+  revalidatePath("/trips");
+  revalidatePath("/");
+  redirect(returnTo);
 }
 
 /**

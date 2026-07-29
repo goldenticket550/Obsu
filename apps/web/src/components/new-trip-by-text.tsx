@@ -10,10 +10,17 @@ import { createTrip, parseTripText } from "@/app/trips/actions";
  * the owner review/edit before submitting. The parse writes nothing; the only
  * write is the normal form submit (createTrip). Leaving the page cancels.
  */
-export function NewTripByText({ initialError }: { initialError?: string }) {
+export function NewTripByText({
+  initialError,
+  initialStatus,
+}: {
+  initialError?: string;
+  /** "scheduled" opens the form in scheduling mode (S1). */
+  initialStatus?: "scheduled";
+}) {
   const [text, setText] = useState("");
   const [defaults, setDefaults] = useState<TripFormDefaults | undefined>(
-    undefined,
+    initialStatus ? { status: initialStatus } : undefined,
   );
   const [parsed, setParsed] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -33,7 +40,11 @@ export function NewTripByText({ initialError }: { initialError?: string }) {
         setParseError(res.error);
         return;
       }
-      setDefaults(res.defaults);
+      // Keep scheduling mode if that's how the page was opened — parsing a note
+      // fills fields, it doesn't change what kind of trip you're entering.
+      setDefaults(
+        initialStatus ? { ...res.defaults, status: initialStatus } : res.defaults,
+      );
       setParsed(true);
       setSubmitError(undefined);
       setFormKey((k) => k + 1); // remount TripForm so new defaultValues take effect
