@@ -415,6 +415,111 @@ exist:
 
 ---
 
+## External design specification — reconciliation (received 2026-07-30)
+
+A design specification for "Skyline Command + Midnight Pulse + Obsidian Intelligence" was
+supplied from an outside tool. It is recorded here as a **reference document, not a task
+list**, and reconciled against what this repository already contains.
+
+**It was written without knowledge of this codebase.** Most of what it asks for in its Phases
+2, 3 and 4 was built in V1, V2, V3 and V3.1 and is tested; parts of its Phase 1 shipped in U2.
+Read as a fresh plan it would re-derive existing work and, in three places, actively regress
+verified behaviour. Read as a *checklist against which to audit*, it is useful: it names real
+gaps this roadmap had not written down.
+
+### Status of every capability it requests
+
+**Built and verified against production**
+
+- Approval-gated proposals end to end — `lib/business/proposal.ts`, `execute-proposal.ts`,
+  `lib/voice/proposal-store.ts`, `components/proposal-card.tsx`,
+  `app/ask/assistant-actions.ts`. Proven by an `action_log` row on 2026-07-30 and an
+  independent expenses total of $758.50.
+- The action log — `supabase/migrations/0005_action_log.sql`, applied to production,
+  append-only by policy, grant and trigger; written by `lib/db/action-log.ts`.
+- Business-day rollover at 04:00 America/New_York — `lib/business/schedule.ts`.
+
+**Built and tested, but the audio path is unverified**
+
+- Orb state machine, 12 states — `lib/business/orb.ts`, rendered by `components/obsidian-orb.tsx`.
+- Microphone permission, capture, lifecycle, browser adapters, capture diagnosis —
+  `lib/voice/mic-permission.ts`, `audio-capture.ts`, `mic-lifecycle.ts`, `browser-audio.ts`,
+  `capture-assessment.ts`.
+- Transcription client (one attempt, no retries) — `lib/voice/transcribe-client.ts`;
+  server route `app/api/voice/transcribe/route.ts`.
+- Orchestration and intent — `lib/voice/orchestrator.ts`, `intent.ts`.
+- Read-only tool registry, 7 tools — `lib/ai/tools.ts` via `lib/ai/ask.ts`.
+- Honest speech degradation — `lib/voice/speech-outcome.ts`.
+
+**Partially built**
+
+- Command Center sections — `components/command/next-ride.tsx`, `tonights-flow.tsx`,
+  `business-pulse.tsx`, `action-required.tsx`, `route-line.tsx`, `trip-quick-actions.tsx`,
+  composed by `app/page.tsx`. Structure and hierarchy exist; the visual token set does not.
+- Conversation history — session-only in component state; no bounded, clearable model.
+
+**Not started**
+
+- A semantic design-token set. Colours are literal Tailwind classes across ~20 components.
+- A trip-type label helper. Every surface renders raw enum values (`special_occasion`).
+- A shared "value missing" presentation. Each component invents its own fallback.
+- Voice-output controls: toggle, volume, speed, replay.
+- Vehicle assignment, vehicle reminders, driver assignment (see contradictions below).
+
+### Where the specification contradicts this codebase
+
+1. **"Handle midnight boundaries."** The business day rolls at 04:00 America/New_York
+   (`BUSINESS_DAY_ROLLOVER_HOUR`). Verified on screen: the log row written 04:18 UTC reads
+   *tonight (Wednesday, July 29)*. Midnight boundaries would render that as July 30 and are a
+   regression. **Rejected.**
+2. **Phase 4: "keep proposals non-persistent, disable real execution pending a migration."**
+   `0005` is applied and execution is proven. This clause would disable a working audited
+   path. **Rejected as written; obsolete.**
+3. **"Do not commit."** This repo has no git remote and exists on one disk. Not committing is
+   the risk, not the safeguard. **Rejected — commit at the end of every phase.**
+4. **Entities that do not exist.** `drivers`: no table, no `trips.driver_id` — `0003` records
+   why ("a column that lies"). `vehicles`: table exists, entirely unused, no `trips.vehicle_id`.
+   Vehicle reminders: nothing at all. `mileage`: exists and is wired. "Next Mission": the
+   concept exists as `selectNextRide`. Any Next Ride field list drawn from the spec must drop
+   driver and vehicle or accept that it is proposing schema work.
+5. **"No military terminology" alongside "Command Center" and "Skyline Command."** No ADR in
+   this repository bans military language — ADR-007 is about keeping the Trading Scanner and
+   Towing codebases separate. "Command Center" is established in `docs/ARCHITECTURE.md`,
+   `docs/ROADMAP.md` and `docs/PRODUCT_STRATEGY.md`. **Resolution: keep "Command Center",
+   drop "Mission".** "Command centre" is ordinary operations English; "mission" applied to a
+   $240 airport run inflates the register on a screen that reports money.
+6. **`get_upcoming_vehicle_reminders`** is listed as an initial read-only tool. The spec's own
+   rule — "do not expose a tool when the underlying data does not exist" — forbids it.
+7. **"Do not create or edit migration files without explicit approval"** conflicts with its own
+   instruction to document a required future migration; and `0004` remains written-and-
+   unapplied, which the spec has no model for.
+8. **Proposal model field names** (`actionType` + `structuredPayload`) were deliberately fused
+   into one typed `action` union in V3, because a string plus an opaque blob is the seam where
+   a proposal and its execution drift apart. Not reverting.
+9. **`proposedBy` / `approvedBy`** are absent by design: `action_log` records `actor_user_id`
+   and the approval is the act of calling the server action. Adding separate fields would give
+   two answers to who approved.
+10. **"Send customer message" / "Draft customer message"** as proposal categories. There is no
+    messaging infrastructure, and TASK_RULES forbids auto-sending anything. Unrepresentable in
+    the action union by construction, which is the correct state.
+11. **Silence-threshold auto-stop** appears in the interaction sequence. V2 removed it with the
+    monolith; capture now stops on an explicit act. Re-adding it needs a decision, not a
+    default.
+12. **"Reauthenticate"** as execution step 1. The executor re-reads the session; it does not
+    re-prompt for credentials, and should not.
+
+### What the specification is right about, that this roadmap had not recorded
+
+- No semantic design-token layer.
+- No shared treatment for missing values.
+- No trip-type label helper.
+- Voice-output controls (toggle, volume, replay) do not exist.
+- Conversation history is unbounded and not cleared on sign-out.
+- Responsive verification has never been done at any width.
+- No rate limiting on the assistant endpoints.
+
+---
+
 ## Standing engineering rules (apply to every phase)
 
 - No new dependencies without the owner's approval.
