@@ -306,6 +306,23 @@ failure is the correct behaviour here — far better than a cascade that quietly
 audit trail, or a trigger error that makes an organization delete look like a bug in the
 logging code.
 
+### Open: a repeat approval is refused but never recorded
+
+`approveProposal` calls `takeProposal`, which deletes on read; when it returns null the action
+returns early with "That suggestion has expired or was already handled" and **writes no
+`action_log` row**. So the most likely refusal there is — a second click on Approve — leaves
+no trace, and the executor's `already_executed` branch is unreachable through the deployed
+path, because the store consumes the proposal before `claimExecution` is ever consulted. The
+V3.1 test *"a double tap writes one ride, and leaves one success plus one refusal"* is true of
+`executeProposal` in isolation and **false of the path that actually runs**; the log therefore
+under-records exactly the refusal it exists to show. Two constraints bind the fix. Delete-on-
+read must stay — it is what makes a double-click race-safe, and moving the one-shot check
+behind the executor would trade a silent gap for a real double-write window. And
+`approved_summary` is `not null`, so the store cannot simply log an id: it has to retain
+something about what it handed out (the summary, or enough to reconstruct it) past the point
+the proposal itself is consumed, which is a change to what the store keeps and for how long.
+Its own task, its own tests. Discovered 2026-07-30 from the first row the table ever held.
+
 ### Unbuilt, and the largest risk on the project: there is no second copy
 
 **`git remote` is empty.** Nothing has ever been pushed. This repository — every commit, the
