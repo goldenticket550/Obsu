@@ -46,11 +46,11 @@ export function BusinessPulse({
   return (
     <section
       aria-labelledby="pulse-heading"
-      className="rounded-2xl border border-obsidian-line bg-obsidian-graphite/60 p-5 shadow-panel"
+      className="rounded-2xl border border-line bg-surface-raised/60 p-5 shadow-panel"
     >
       <h2
         id="pulse-heading"
-        className="text-[11px] font-medium uppercase tracking-[0.18em] text-obsidian-silver"
+        className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-secondary"
       >
         Business pulse · this month
       </h2>
@@ -58,21 +58,21 @@ export function BusinessPulse({
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-3">
         {stats.map((s) => (
           <div key={s.label} className="min-w-0">
-            <dt className="text-[10px] uppercase tracking-[0.14em] text-obsidian-muted">
+            <dt className="text-[10px] uppercase tracking-[0.14em] text-content-muted">
               {s.label}
             </dt>
             <dd
               className={`mt-1 truncate text-xl font-semibold tabular-nums ${
                 s.tone === "negative"
-                  ? "text-obsidian-negative"
-                  : "text-obsidian-platinum"
+                  ? "text-state-danger"
+                  : "text-content-primary"
               }`}
               title={s.value}
             >
               {s.value}
             </dd>
             {s.hint ? (
-              <p className="mt-0.5 text-[10px] leading-tight text-obsidian-muted">
+              <p className="mt-0.5 text-[10px] leading-tight text-content-muted">
                 {s.hint}
               </p>
             ) : null}
@@ -80,7 +80,7 @@ export function BusinessPulse({
         ))}
       </dl>
 
-      <p className="mt-4 text-[10px] leading-relaxed text-obsidian-muted">
+      <p className="mt-4 text-[10px] leading-relaxed text-content-muted">
         Scheduled rides are not counted here — a ride starts counting when you
         mark it completed.
       </p>

@@ -4,6 +4,7 @@ import type { ReactNode, SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/app/login/actions";
+import { announceSignOut } from "@/lib/conversation";
 import { CreateMenu } from "@/components/create-menu";
 import {
   NAV_DESTINATIONS,
@@ -150,7 +151,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="border-t border-obsidian-line px-3 py-3">
-          <form action={signOut}>
+          {/* Clears any on-screen conversation BEFORE the server action
+              navigates — transcripts name real customers, so they must not
+              outlive the session even briefly. */}
+          <form action={signOut} onSubmit={announceSignOut}>
             <button
               type="submit"
               className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-sm text-obsidian-silver transition-colors hover:bg-obsidian-slate/50 hover:text-obsidian-platinum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian-black"

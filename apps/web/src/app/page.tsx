@@ -103,13 +103,13 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-5">
         {/* 2 — GREETING + operational status */}
         <header className="order-1">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-obsidian-muted">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-content-muted">
             {businessDateLabel(now)}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold text-obsidian-platinum">
+          <h1 className="mt-1 text-2xl font-semibold text-content-primary">
             {greetingFor(now)}.
           </h1>
-          <p className="mt-1 text-sm text-obsidian-silver">
+          <p className="mt-1 text-sm text-content-secondary">
             {businessName} · {operationalSummary(allTrips, now)}
           </p>
         </header>
@@ -129,11 +129,11 @@ export default async function DashboardPage() {
             shipped here, but the section is where it will live. */}
         <section
           aria-labelledby="intelligence-heading"
-          className="order-4 rounded-2xl border border-obsidian-line bg-gradient-to-b from-obsidian-graphite to-obsidian-black p-5 shadow-panel lg:order-3"
+          className="order-4 rounded-2xl border border-line bg-gradient-to-b from-surface-raised to-surface-base p-5 shadow-panel lg:order-3"
         >
           <h2
             id="intelligence-heading"
-            className="text-[11px] font-medium uppercase tracking-[0.18em] text-obsidian-silver"
+            className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-secondary"
           >
             Obsidian intelligence
           </h2>

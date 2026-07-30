@@ -17,7 +17,8 @@ import {
 import { formatPickupTime } from "@/lib/business/pickup-time";
 import { hasQuotedPrice } from "@/lib/business/trip-status";
 import { centsToDollars } from "@/lib/money";
-import { labelize } from "@/lib/enums";
+import { tripTypeHeading } from "@/lib/business/trip-type";
+import { absenceLabel } from "@/lib/business/missing";
 import type { TripListRow } from "@/lib/db/trips";
 
 /**
@@ -32,12 +33,12 @@ import type { TripListRow } from "@/lib/db/trips";
 function Meta({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[10px] uppercase tracking-[0.14em] text-obsidian-muted">
+      <dt className="text-[10px] uppercase tracking-[0.14em] text-content-muted">
         {label}
       </dt>
       <dd
         className={`truncate text-sm ${
-          muted ? "text-obsidian-muted" : "text-obsidian-platinum"
+          muted ? "text-content-muted" : "text-content-primary"
         }`}
         title={value}
       >
@@ -57,8 +58,8 @@ function Shell({
   return (
     <section
       aria-labelledby="next-ride-heading"
-      className={`rounded-2xl border bg-gradient-to-b from-obsidian-graphite to-obsidian-black p-5 shadow-panel ${
-        tone === "alert" ? "border-obsidian-negative/50" : "border-obsidian-line"
+      className={`rounded-2xl border bg-gradient-to-b from-surface-raised to-surface-base p-5 shadow-panel ${
+        tone === "alert" ? "border-state-danger/50" : "border-line"
       }`}
     >
       {children}
@@ -79,17 +80,17 @@ export function NextRide({
       <Shell>
         <h2
           id="next-ride-heading"
-          className="text-[11px] font-medium uppercase tracking-[0.18em] text-obsidian-silver"
+          className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-secondary"
         >
           Next ride
         </h2>
-        <p className="mt-3 text-sm text-obsidian-silver">
+        <p className="mt-3 text-sm text-content-secondary">
           Nothing scheduled. Book a ride and it appears here.
         </p>
         <div className="mt-4">
           <Link
             href="/trips/new?status=scheduled"
-            className="inline-flex min-h-[44px] items-center rounded-lg bg-obsidian-blue px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian-black"
+            className="inline-flex min-h-[44px] items-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base"
           >
             Schedule a ride
           </Link>
@@ -125,20 +126,20 @@ export function NextRide({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2
           id="next-ride-heading"
-          className="text-[11px] font-medium uppercase tracking-[0.18em] text-obsidian-silver"
+          className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-secondary"
         >
           {overdue ? "Needs closing out" : "Next ride"}
         </h2>
-        <span className="font-mono text-[11px] tabular-nums text-obsidian-muted">
+        <span className="font-mono text-[11px] tabular-nums text-content-muted">
           {shortRideId(trip.id)}
         </span>
       </div>
 
       <div className="mt-3">
-        <p className="text-3xl font-semibold text-obsidian-platinum">{headline}</p>
+        <p className="text-3xl font-semibold text-content-primary">{headline}</p>
         <p
           className={`mt-1 text-sm ${
-            overdue ? "text-obsidian-negative" : "text-obsidian-cyan"
+            overdue ? "text-state-danger" : "text-accent-soft"
           }`}
         >
           {statusLine}
@@ -154,7 +155,7 @@ export function NextRide({
         />
         <Meta
           label="Type"
-          value={trip.trip_type ? labelize(trip.trip_type) : "Not set"}
+          value={trip.trip_type ? tripTypeHeading(trip.trip_type) : absenceLabel("not_set")}
           muted={!trip.trip_type}
         />
         <Meta
@@ -171,7 +172,7 @@ export function NextRide({
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Link
           href={`/trips/${trip.id}/edit`}
-          className="inline-flex min-h-[44px] items-center rounded-lg bg-obsidian-blue px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian-black"
+          className="inline-flex min-h-[44px] items-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base"
         >
           View ride
         </Link>

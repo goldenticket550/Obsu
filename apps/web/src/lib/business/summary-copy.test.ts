@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { indefiniteArticle, withIndefiniteArticle } from "./english";
+import { tripTypeLabel } from "./trip-type";
 import { businessDayPhrase, businessDayLabelParts } from "./schedule";
 import { summarizeProposal, type ProposalAction } from "./proposal";
 import { TRIP_TYPES } from "@/lib/enums";
@@ -124,13 +125,21 @@ describe("the indefinite article is derived, not tabulated", () => {
   });
 
   it("no trip type ever produces a mismatched article in a real summary", () => {
+    // EXPECTATION UPDATED: this asserted the raw enum ("a special_occasion
+    // ride"). Phase 1 routes the summary through tripTypeLabel, so the sentence
+    // now reads "a special occasion ride". The article rule is unchanged and
+    // still checked — it is derived from the LABEL, which is the word actually
+    // spoken.
     for (const type of TRIP_TYPES) {
       const summary = summarizeProposal(rideOn("2026-07-28", type), NOW);
-      const article = indefiniteArticle(type);
-      expect(summary).toContain(`${article} ${type} ride`);
+      const label = tripTypeLabel(type);
+      const article = indefiniteArticle(label);
+      expect(summary).toContain(`${article} ${label} ride`);
       // The wrong article must not appear in front of this type anywhere.
       const wrong = article === "a" ? "an" : "a";
-      expect(summary).not.toContain(`${wrong} ${type} ride`);
+      expect(summary).not.toContain(`${wrong} ${label} ride`);
+      // And no raw enum reaches the sentence.
+      expect(summary).not.toContain("_");
     }
   });
 });

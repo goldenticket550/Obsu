@@ -29,7 +29,7 @@ export function TripQuickActions({
   const priced = hasQuotedPrice(trip);
 
   const secondary =
-    "inline-flex min-h-[44px] items-center rounded-lg border border-obsidian-line px-4 text-sm text-obsidian-silver transition-colors hover:border-obsidian-cyan hover:text-obsidian-platinum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian-black";
+    "inline-flex min-h-[44px] items-center rounded-lg border border-line px-4 text-sm text-content-secondary transition-colors hover:border-accent-soft hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base";
 
   if (mode === "idle") {
     return (
@@ -51,7 +51,7 @@ export function TripQuickActions({
         <input type="hidden" name="return_to" value={returnTo} />
         <label
           htmlFor={`next-ride-revenue-${trip.id}`}
-          className="block text-[10px] uppercase tracking-[0.14em] text-obsidian-muted"
+          className="block text-[10px] uppercase tracking-[0.14em] text-content-muted"
         >
           Final revenue ($)
         </label>
@@ -80,7 +80,7 @@ export function TripQuickActions({
     <form action={cancelAction} className="w-full">
       <input type="hidden" name="id" value={trip.id} />
       <input type="hidden" name="return_to" value={returnTo} />
-      <p className="text-[11px] text-obsidian-muted">
+      <p className="text-[11px] text-content-muted">
         Cancel this ride? It stays on record as canceled and counts toward nothing.
       </p>
       <div className="mt-2 flex flex-wrap gap-2">

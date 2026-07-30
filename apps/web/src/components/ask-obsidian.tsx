@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { ProposalCard } from "@/components/proposal-card";
 import type { Proposal } from "@/lib/business/proposal";
+import {
+  SIGN_OUT_EVENT,
+  appendRedacted,
+  clearConversation,
+  type ConversationTurn,
+} from "@/lib/conversation";
 import {
   approveProposal,
   rejectProposal,
@@ -32,35 +38,57 @@ const EXAMPLES = [
  */
 export function AskObsidian() {
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState<string | null>(null);
   const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The conversation is the ONLY record of what was said. Answers, notices and
+  // errors all live here as turns; keeping a separate `answer` beside it would
+  // be two values answering "what did OBSIDIAN last say".
+  const [history, setHistory] = useState<ConversationTurn[]>([]);
   const [pending, startTransition] = useTransition();
+
+  /**
+   * Sign-out drops the conversation immediately. Unmount clears it too — the
+   * redirect would do that anyway — but the explicit listener is what makes it
+   * a guarantee rather than a side effect of routing.
+   */
+  useEffect(() => {
+    const onSignOut = () => {
+      setHistory(clearConversation());
+      setProposal(null);
+    };
+    window.addEventListener(SIGN_OUT_EVENT, onSignOut);
+    return () => {
+      window.removeEventListener(SIGN_OUT_EVENT, onSignOut);
+      setHistory(clearConversation());
+    };
+  }, []);
+
+  /** Records a turn, bounded and credential-redacted. */
+  function remember(turn: ConversationTurn) {
+    setHistory((current) => appendRedacted(current, turn));
+  }
 
   function run(text: string) {
     const trimmed = text.trim();
     if (!trimmed || pending) return;
-    setError(null);
-    setNotice(null);
     setProposal(null);
-    setAnswer(null);
+    remember({ role: "user", text: trimmed });
 
     startTransition(async () => {
       const turn = await submitTranscript(trimmed);
       switch (turn.kind) {
         case "answer":
-          setAnswer(turn.text);
+          remember({ role: "assistant", text: turn.text });
           break;
         case "proposal":
           // NOTHING has been written. This only offers the decision.
           setProposal(turn.proposal);
+          remember({ role: "proposal", summary: turn.proposal.humanReadableSummary });
           break;
         case "declined":
-          setNotice(turn.message);
+          remember({ role: "assistant", text: turn.message });
           break;
         case "failed":
-          setError(turn.message);
+          remember({ role: "error", text: turn.message });
           break;
       }
     });
@@ -72,7 +100,8 @@ export function AskObsidian() {
       setProposal(null);
       const detail = result.detail ?? result.label;
       // A log that did not record is disclosed, never hidden.
-      setNotice(result.logged ? detail : `${detail} (not recorded in the log)`);
+      const text = result.logged ? detail : `${detail} (not recorded in the log)`;
+      remember({ role: "outcome", text, ok: result.ok });
     });
   }
 
@@ -80,7 +109,7 @@ export function AskObsidian() {
     startTransition(async () => {
       await rejectProposal(proposalId);
       setProposal(null);
-      setNotice("Discarded — nothing was changed.");
+      remember({ role: "outcome", text: "Discarded — nothing was changed.", ok: true });
     });
   }
 
@@ -114,7 +143,7 @@ export function AskObsidian() {
         </button>
       </form>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {EXAMPLES.map((ex) => (
           <button
             key={ex}
@@ -124,11 +153,23 @@ export function AskObsidian() {
               setQuestion(ex);
               run(ex);
             }}
-            className="rounded-lg border border-obsidian-line px-3 py-1.5 text-xs text-obsidian-silver transition-colors hover:border-obsidian-cyan hover:text-obsidian-platinum disabled:opacity-50"
+            className="rounded-lg border border-line px-3 py-1.5 text-xs text-content-secondary transition-colors hover:border-accent-soft hover:text-content-primary disabled:opacity-50"
           >
             {ex}
           </button>
         ))}
+        {history.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              setHistory(clearConversation());
+              setProposal(null);
+            }}
+            className="ml-auto rounded-lg px-3 py-1.5 text-xs text-content-muted underline-offset-2 transition-colors hover:text-content-secondary hover:underline"
+          >
+            Clear conversation
+          </button>
+        ) : null}
       </div>
 
       {/* Announces the result to screen readers when it arrives. Always in the
@@ -137,10 +178,41 @@ export function AskObsidian() {
       <div aria-live="polite" aria-atomic="true">
         {pending ? <p className="sr-only">Thinking…</p> : null}
 
-        {error ? (
-          <p className="mt-4 rounded-lg border border-obsidian-negative/40 bg-obsidian-negative/10 px-4 py-3 text-sm text-obsidian-negative">
-            {error}
-          </p>
+        {/* The conversation. Bounded to MAX_TURNS and cleared on sign-out —
+            these lines name real customers. Each role is labelled as well as
+            styled, so the distinction survives without colour. */}
+        {history.length > 0 ? (
+          <ol className="mt-4 space-y-2">
+            {history.map((turn, index) => (
+              <li
+                key={`${turn.role}-${index}`}
+                className="rounded-lg border border-line bg-surface-base/50 px-4 py-3"
+              >
+                <p className="text-[11px] uppercase tracking-wide text-content-muted">
+                  {turn.role === "user"
+                    ? "You"
+                    : turn.role === "proposal"
+                      ? "Proposed — not yet done"
+                      : turn.role === "outcome"
+                        ? turn.ok
+                          ? "Done"
+                          : "Not done"
+                        : turn.role === "error"
+                          ? "Problem"
+                          : "OBSIDIAN"}
+                </p>
+                <p
+                  className={`mt-1 whitespace-pre-wrap text-sm leading-relaxed ${
+                    turn.role === "error"
+                      ? "text-state-danger"
+                      : "text-content-primary"
+                  }`}
+                >
+                  {turn.role === "proposal" ? turn.summary : turn.text}
+                </p>
+              </li>
+            ))}
+          </ol>
         ) : null}
 
         {proposal ? (
@@ -154,22 +226,9 @@ export function AskObsidian() {
           </div>
         ) : null}
 
-        {notice ? (
-          <p className="mt-4 rounded-lg border border-obsidian-line bg-obsidian-black/50 px-4 py-3 text-sm text-obsidian-silver">
-            {notice}
-          </p>
-        ) : null}
-
-        {answer !== null && !error ? (
-          <div className="mt-4 rounded-xl border border-obsidian-line bg-obsidian-black/50 p-4">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-obsidian-platinum">
-              {answer}
-            </p>
-          </div>
-        ) : null}
       </div>
 
-      <p className="mt-4 text-[11px] leading-relaxed text-obsidian-muted">
+      <p className="mt-4 text-[11px] leading-relaxed text-content-muted">
         OBSIDIAN answers only from your verified business data — every figure
         comes from a tool that queries your records. It never guesses numbers.
         Anything that would change your records is shown for your approval first.

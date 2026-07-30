@@ -2,6 +2,7 @@ import type { PaymentMethod, TripStatus, TripType } from "@/lib/types";
 import { formatUsd } from "@/lib/money";
 import { businessDayLabelParts, businessDayPhrase } from "./schedule";
 import { indefiniteArticle } from "./english";
+import { tripTypeLabel } from "./trip-type";
 
 /**
  * V3 — the proposal model. PURE.
@@ -154,8 +155,11 @@ export function summarizeProposal(action: ProposalAction, now: Date): string {
       // dangling as "for Ashley  , Brooklyn to JFK".
       const phrase = day(action.tripDate, now);
       const when = phrase ? ` ${phrase}` : "";
-      // Derived from the trip type, which is data the owner can extend.
-      const article = indefiniteArticle(action.tripType);
+      // The label, not the raw enum: "special occasion", never
+      // "special_occasion". The article is derived from the LABEL, since that
+      // is the word actually spoken in the sentence.
+      const typeLabel = tripTypeLabel(action.tripType);
+      const article = indefiniteArticle(typeLabel);
       const route =
         action.pickup && action.dropoff
           ? `, ${action.pickup} to ${action.dropoff}`
@@ -177,7 +181,7 @@ export function summarizeProposal(action: ProposalAction, now: Date): string {
       const costs =
         costParts.length > 0 ? ` Also record ${costParts.join(", ")}.` : "";
 
-      return `${verb} ${article} ${action.tripType} ride for ${who}${when}${route}${fare}.${costs}`;
+      return `${verb} ${article} ${typeLabel} ride for ${who}${when}${route}${fare}.${costs}`;
     }
     case "update_trip": {
       const parts: string[] = [];
