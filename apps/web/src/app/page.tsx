@@ -6,11 +6,9 @@ import { listCustomers } from "@/lib/db/customers";
 import {
   averageTripValueCents,
   buildActionRequired,
-  businessDateLabel,
   currentMonthRange,
   estimatedOperatingProfitCents,
   filterByDateRange,
-  greetingFor,
   operationalSummary,
   profitMarginPercent,
   selectNextRide,
@@ -21,6 +19,15 @@ import {
   tripCount,
 } from "@/lib/business";
 import { ObsidianIntelligence } from "@/components/command/obsidian-intelligence";
+import {
+  SkylineAtmosphere,
+  SkylineGrid,
+  SkylineMain,
+  SkylineMainColumn,
+  SkylinePanel,
+  SkylineSideColumn,
+  SkylineTopBar,
+} from "@/components/command/skyline-shell";
 import { NextRide } from "@/components/command/next-ride";
 import { TonightsFlow } from "@/components/command/tonights-flow";
 import { BusinessPulse } from "@/components/command/business-pulse";
@@ -64,7 +71,8 @@ export default async function DashboardPage() {
     .eq("id", membership.organization_id)
     .single();
 
-  const businessName: string = org?.name ?? "Your business";
+  // No fallback literal: an unnamed business renders an empty eyebrow rather
+  // than a placeholder name its owner never chose.
 
   const [allTrips, allExpenses, customers] = await Promise.all([
     listTrips(),
@@ -99,69 +107,67 @@ export default async function DashboardPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-5 pb-16 pt-6">
-      <div className="flex flex-col gap-5">
-        {/* 2 — GREETING + operational status */}
-        <header className="order-1">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-content-muted">
-            {businessDateLabel(now)}
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold text-content-primary">
-            {greetingFor(now)}.
-          </h1>
-          <p className="mt-1 text-sm text-content-secondary">
-            {businessName} · {operationalSummary(allTrips, now)}
-          </p>
-        </header>
+    <>
+      {/* Fixed behind everything. */}
+      <SkylineAtmosphere />
 
-        {/* 3 — NEXT RIDE (centerpiece; its primary action lives inside) */}
-        <div className="order-2">
-          <NextRide view={nextRide} now={now} />
-        </div>
-
-        {/* 7 — ACTION REQUIRED (third on mobile, last on desktop) */}
-        <div className="order-3 lg:order-6">
-          <ActionRequired items={actionItems} />
-        </div>
-
-        {/* 4 — OBSIDIAN INTELLIGENCE. Phase 2: the orb is the centerpiece,
-            driven by the real typed flow. Every state it shows corresponds to
-            something actually happening; the voice states are unreachable from
-            here until Phase 3. */}
-        <section
-          aria-labelledby="intelligence-heading"
-          className="order-4 rounded-2xl border border-line bg-gradient-to-b from-surface-raised to-surface-base p-5 shadow-panel lg:order-3"
-        >
-          <h2
-            id="intelligence-heading"
-            className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-secondary"
-          >
-            Obsidian intelligence
-          </h2>
-          <div className="mt-3">
-            {/* The orb's amber state comes from the SAME list that renders
-                Action Required below — one calculation, two presentations. */}
-            <ObsidianIntelligence needsAttention={actionItems.length > 0} />
-          </div>
-        </section>
-
-        {/* 5 — TONIGHT'S FLOW */}
-        <div className="order-5 lg:order-4">
-          <TonightsFlow entries={flow} />
-        </div>
-
-        {/* 6 — BUSINESS PULSE */}
-        <div className="order-6 lg:order-5">
-          <BusinessPulse
-            revenueCents={revenueCents}
-            expensesCents={expensesCents}
-            profitCents={profitCents}
-            marginPercent={marginPercent}
-            completedRides={completedRides}
-            averageRideCents={averageRideCents}
+      <SkylineMain>
+        <main className="mx-auto w-full max-w-6xl px-5 pb-16 pt-6">
+          {/* 1 — TOP BAR. The eyebrow is the org's own name; nothing here is
+              hard-coded, so a second operator sees their own business. */}
+          <SkylineTopBar
+            businessName={org?.name ?? null}
+            now={now}
+            actionItems={actionItems}
           />
-        </div>
-      </div>
-    </main>
+
+          <p className="mt-2 text-sm text-content-secondary">
+            {operationalSummary(allTrips, now)}
+          </p>
+
+          {/* The two-column fold: dominant card left, intelligence right. */}
+          <div className="mt-6">
+            <SkylineGrid>
+              <SkylineMainColumn>
+                {/* 3 — NEXT RIDE (its primary action lives inside) */}
+                <NextRide view={nextRide} now={now} />
+              </SkylineMainColumn>
+
+              <SkylineSideColumn>
+                {/* 4 — OBSIDIAN INTELLIGENCE. The orb is the centerpiece,
+                    driven by the real typed flow. */}
+                <SkylinePanel className="h-full p-5" labelledBy="intelligence-heading">
+                  <h2
+                    id="intelligence-heading"
+                    className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-secondary"
+                  >
+                    Obsidian intelligence
+                  </h2>
+                  <div className="mt-3">
+                    {/* Amber comes from the SAME list Action Required renders —
+                        one calculation, two presentations. */}
+                    <ObsidianIntelligence needsAttention={actionItems.length > 0} />
+                  </div>
+                </SkylinePanel>
+              </SkylineSideColumn>
+            </SkylineGrid>
+          </div>
+
+          {/* Below the fold, unchanged in this task. */}
+          <div className="mt-5 flex flex-col gap-5">
+            <ActionRequired items={actionItems} />
+            <TonightsFlow entries={flow} />
+            <BusinessPulse
+              revenueCents={revenueCents}
+              expensesCents={expensesCents}
+              profitCents={profitCents}
+              marginPercent={marginPercent}
+              completedRides={completedRides}
+              averageRideCents={averageRideCents}
+            />
+          </div>
+        </main>
+      </SkylineMain>
+    </>
   );
 }

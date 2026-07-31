@@ -69,6 +69,13 @@ const config: Config = {
           positive: "#4ade80", // completed / paid / confirmed ONLY
           warning: "#f59e0b", // warnings ONLY
           danger: "#f87171", // failures / destructive / urgent ONLY
+          /**
+           * Warning text sitting ON a warning-tinted surface. `warning` is
+           * calibrated against the near-black page; on an amber wash it loses
+           * contrast, so the Skyline attention pill needs a lighter step. Added
+           * for that pill rather than pasted into it as a hex.
+           */
+          "warning-strong": "#fbbf24",
         },
       },
       fontFamily: {
