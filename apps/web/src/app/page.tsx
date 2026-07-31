@@ -139,7 +139,9 @@ export default async function DashboardPage() {
             Obsidian intelligence
           </h2>
           <div className="mt-3">
-            <ObsidianIntelligence />
+            {/* The orb's amber state comes from the SAME list that renders
+                Action Required below — one calculation, two presentations. */}
+            <ObsidianIntelligence needsAttention={actionItems.length > 0} />
           </div>
         </section>
 

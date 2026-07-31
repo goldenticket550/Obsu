@@ -1,0 +1,426 @@
+/*
+ * Eclipse Iris — a black glass sphere with instrument dials turning inside it
+ * and a light lance passing through and out both sides.
+ *
+ * CSS MODULE, deliberately. Every class below is compiled to a hashed name, so
+ * a layer called `.sphere` or `.rim` cannot collide with a page-layout class of
+ * the same name. That collision is not hypothetical: a `.shell` orb layer once
+ * inherited `display:flex; min-height:100vh` from a layout rule, and with
+ * border-radius:50% and the parent's overflow:hidden it painted a 100vh ellipse
+ * across the sphere's face. A descendant selector does not protect you — it
+ * only wins the properties it declares. A module removes the shared namespace
+ * entirely, which is the only fix that cannot be reintroduced by accident.
+ *
+ * The sphere clips its contents, so the lance and the floor bounce are SIBLINGS
+ * of the sphere, not children of it.
+ */
+
+/*
+ * The container. `--iris-size` is a MAXIMUM, not a fixed width.
+ *
+ * Two layers reach outside the sphere: the lance (168% wide, so 34% beyond
+ * each side) and the ambient glow (180%, so 40% beyond each side — the wider
+ * of the two, and the one that actually governs). At a fixed 196px inside a
+ * 320px viewport the glow would push past the panel and give the page a
+ * horizontal scrollbar.
+ *
+ * Capping at 44vw keeps the widest layer inside the panel at every width, so
+ * NO overflow rule is needed here, on the panel, or on <body>:
+ *
+ *   320px viewport → panel content ≈ 240px → orb 140.8px
+ *                  → glow reaches 56.3px per side, 49.6px of room, and the
+ *                    remaining 6.7px sits inside the panel's own 20px padding
+ *   768px+         → 44vw exceeds 196px, so the cap stops applying
+ *
+ * Clipping instead would have cut the lance, which is the one layer that is
+ * supposed to leave the sphere.
+ */
+.root {
+  position: relative;
+  display: block;
+  width: min(var(--iris-size, 196px), 44vw);
+  height: min(var(--iris-size, 196px), 44vw);
+  isolation: isolate;
+}
+
+/* 1 — ambient glow. Sits behind everything, 180% of the sphere. */
+.ambientGlow {
+  position: absolute;
+  left: -40%;
+  top: -40%;
+  width: 180%;
+  height: 180%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(37, 99, 235, 0.34) 0%,
+    rgba(56, 189, 248, 0.14) 32%,
+    transparent 66%
+  );
+  filter: blur(6px);
+  animation: irisBreathe 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* 2 — the sphere body. Clips layers 3-9. */
+.sphere {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(
+    circle at 36% 22%,
+    #323b4e 0%,
+    #0f131c 12%,
+    #05070d 42%,
+    #020408 74%,
+    #010203 100%
+  );
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.9);
+}
+
+/* 3 — the two dial layers, counter-rotating. */
+.dialLayer {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.55))
+    drop-shadow(0 0 12px rgba(37, 99, 235, 0.35));
+  pointer-events: none;
+}
+
+.dialA {
+  animation: irisSpin 72s linear infinite;
+}
+
+.dialB {
+  animation: irisSpin 104s linear infinite reverse;
+}
+
+.dialSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 4 — core bloom. */
+.coreBloom {
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(147, 197, 253, 0.55) 0%,
+    rgba(56, 189, 248, 0.2) 38%,
+    transparent 70%
+  );
+  filter: blur(14px);
+  mix-blend-mode: screen;
+  animation: irisBreathe 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* 5 — the core itself. */
+.core {
+  position: absolute;
+  inset: 38%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    #ffffff 0%,
+    #dbeafe 22%,
+    #60a5fa 46%,
+    rgba(37, 99, 235, 0.35) 68%,
+    transparent 82%
+  );
+  filter: blur(3px);
+  animation: irisBreathe 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* 6 — gloss. */
+.gloss {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      70% 46% at 36% 12%,
+      rgba(255, 255, 255, 0.3),
+      rgba(255, 255, 255, 0.07) 44%,
+      transparent 72%
+    ),
+    linear-gradient(184deg, rgba(255, 255, 255, 0.1) 0%, transparent 26%);
+  pointer-events: none;
+}
+
+/*
+ * 7 — terminator shade. Twelve eased stops, not three: three would band
+ * visibly across the sphere's lower right and read as a printing error.
+ */
+.terminator {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    125% 125% at 72% 84%,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.53) 9%,
+    rgba(0, 0, 0, 0.5) 18%,
+    rgba(0, 0, 0, 0.455) 27%,
+    rgba(0, 0, 0, 0.4) 36%,
+    rgba(0, 0, 0, 0.34) 45%,
+    rgba(0, 0, 0, 0.275) 54%,
+    rgba(0, 0, 0, 0.21) 63%,
+    rgba(0, 0, 0, 0.15) 72%,
+    rgba(0, 0, 0, 0.095) 81%,
+    rgba(0, 0, 0, 0.045) 90%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* 8 — specular highlight. */
+.specular {
+  position: absolute;
+  left: 22%;
+  top: 13%;
+  width: 22%;
+  height: 13%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(226, 240, 255, 0.42) 46%,
+    transparent 76%
+  );
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+/* 9 — rim light. */
+.rim {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    inset -1px -2px 16px rgba(56, 189, 248, 0.34),
+    inset 1px 2px 12px rgba(255, 255, 255, 0.1),
+    inset 0 0 0 1px rgba(125, 211, 252, 0.14);
+  pointer-events: none;
+}
+
+/* 10 — lance bloom. OUTSIDE the sphere, or the clip would cut it. */
+.lanceBloom {
+  position: absolute;
+  left: -34%;
+  width: 168%;
+  top: 50%;
+  height: 16px;
+  margin-top: -8px;
+  filter: blur(7px);
+  opacity: 0.75;
+  mix-blend-mode: screen;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(37, 99, 235, 0.3) 22%,
+    rgba(96, 165, 250, 0.75) 48%,
+    rgba(37, 99, 235, 0.3) 78%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* 11 — the lance. */
+.lance {
+  position: absolute;
+  left: -34%;
+  width: 168%;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  mix-blend-mode: screen;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.55) 26%,
+    rgba(191, 219, 254, 0.95) 46%,
+    #ffffff 50%,
+    rgba(191, 219, 254, 0.95) 54%,
+    rgba(56, 189, 248, 0.55) 74%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* 12 — floor bounce. */
+.floorBounce {
+  position: absolute;
+  left: 8%;
+  width: 84%;
+  height: 16%;
+  bottom: -13%;
+  border-radius: 50%;
+  filter: blur(9px);
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    circle,
+    rgba(96, 165, 250, 0.55) 0%,
+    rgba(37, 99, 235, 0.18) 52%,
+    transparent 78%
+  );
+  animation: irisBreathe 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- */
+/* State treatments                                                   */
+/* ---------------------------------------------------------------- */
+
+/* working — dials speed up, core breathes faster. */
+.working .dialA {
+  animation-duration: 11s;
+}
+.working .dialB {
+  animation-duration: 16s;
+}
+.working .core,
+.working .coreBloom {
+  animation-duration: 2.6s;
+}
+
+/*
+ * attention — AMBER, and only here. Amber is the warning colour everywhere
+ * else in this app, so an amber orb at rest would claim something is wrong
+ * every second of the day.
+ */
+.attention .dialLayer {
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6))
+    drop-shadow(0 0 12px rgba(217, 119, 6, 0.4));
+}
+.attention .dialSvg circle {
+  stroke: rgba(252, 211, 77, var(--iris-ring-opacity, 1));
+}
+.attention .ambientGlow {
+  background: radial-gradient(
+    circle,
+    rgba(217, 119, 6, 0.34) 0%,
+    rgba(245, 158, 11, 0.14) 32%,
+    transparent 66%
+  );
+}
+.attention .lance {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(245, 158, 11, 0.55) 26%,
+    rgba(254, 240, 199, 0.95) 46%,
+    #ffffff 50%,
+    rgba(254, 240, 199, 0.95) 54%,
+    rgba(245, 158, 11, 0.55) 74%,
+    transparent 100%
+  );
+}
+.attention .lanceBloom {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(217, 119, 6, 0.3) 22%,
+    rgba(251, 191, 36, 0.75) 48%,
+    rgba(217, 119, 6, 0.3) 78%,
+    transparent 100%
+  );
+}
+.attention .floorBounce {
+  background: radial-gradient(
+    circle,
+    rgba(251, 191, 36, 0.55) 0%,
+    rgba(217, 119, 6, 0.18) 52%,
+    transparent 78%
+  );
+}
+.attention .core {
+  background: radial-gradient(
+    circle,
+    #ffffff 0%,
+    #fef3c7 22%,
+    #fbbf24 46%,
+    rgba(217, 119, 6, 0.35) 68%,
+    transparent 82%
+  );
+}
+.attention .coreBloom {
+  background: radial-gradient(
+    circle,
+    rgba(253, 230, 138, 0.55) 0%,
+    rgba(245, 158, 11, 0.2) 38%,
+    transparent 70%
+  );
+}
+
+/* unavailable — desaturated, everything stopped, lance almost gone. */
+.unavailable {
+  filter: saturate(0.15);
+}
+.unavailable .ambientGlow,
+.unavailable .core,
+.unavailable .coreBloom,
+.unavailable .floorBounce,
+.unavailable .dialA,
+.unavailable .dialB {
+  animation: none;
+}
+.unavailable .lance,
+.unavailable .lanceBloom {
+  opacity: 0.1;
+}
+
+/* ---------------------------------------------------------------- */
+/* Motion                                                            */
+/* ---------------------------------------------------------------- */
+
+@keyframes irisSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes irisBreathe {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.045);
+  }
+}
+
+/*
+ * Every continuous animation stops. The orb stays fully legible: colour,
+ * geometry, the terminator and the lance are all static properties, and the
+ * status is text regardless. Motion is never the only signal.
+ */
+.stillness .ambientGlow,
+.stillness .core,
+.stillness .coreBloom,
+.stillness .floorBounce,
+.stillness .dialA,
+.stillness .dialB {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambientGlow,
+  .core,
+  .coreBloom,
+  .floorBounce,
+  .dialA,
+  .dialB {
+    animation: none;
+  }
+}

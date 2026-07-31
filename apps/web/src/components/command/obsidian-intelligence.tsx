@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ObsidianOrb } from "@/components/obsidian-orb";
+import { ProposalCard } from "@/components/proposal-card";
+import { EclipseIris } from "@/components/command/eclipse-iris";
+import {
+  deriveIrisVisualState,
+  irisStatusText,
+  type CapabilityStatus,
+  type InteractionPhase,
+} from "@/lib/business/iris";
 import {
   orbCopy,
   transition,
@@ -51,7 +58,17 @@ import {
 /** How long a success rests on screen before the orb returns to idle. */
 const SUCCESS_DWELL_MS = 2400;
 
-export function ObsidianIntelligence() {
+export function ObsidianIntelligence({
+  needsAttention = false,
+}: {
+  /**
+   * Gate 1: the ONLY real-data input to the orb's amber treatment. Passed from
+   * the Command Center, derived from the same action-required list that
+   * produces "1 ride needs closing out" — not a second calculation of the same
+   * question.
+   */
+  needsAttention?: boolean;
+} = {}) {
   const [state, setState] = useState<OrbState>({ kind: "idle" });
   const [history, setHistory] = useState<ConversationTurn[]>([]);
   const [question, setQuestion] = useState("");
@@ -197,6 +214,28 @@ export function ObsidianIntelligence() {
   }
 
   const copy = orbCopy(state);
+
+  /**
+   * Gate 1 wiring. `capability` is "available" because the only capability the
+   * orb currently reflects is the typed path, which works. Voice is Gate 3 —
+   * when it lands, an unconfigured or denied microphone flows in here and the
+   * orb goes "unavailable" without any other change.
+   */
+  const capability: CapabilityStatus = "available";
+  const phase: InteractionPhase =
+    state.kind === "thinking" || state.kind === "executing"
+      ? "requesting_response"
+      : state.kind === "action_proposed" || state.kind === "success"
+        ? "presenting_response"
+        : "idle";
+  const visual = deriveIrisVisualState({ capability, phase, needsAttention });
+  const irisStatus = irisStatusText(visual);
+
+  const proposal =
+    state.kind === "action_proposed" || state.kind === "executing"
+      ? state.proposal
+      : null;
+
   const resting =
     state.kind === "idle" ||
     state.kind === "success" ||
@@ -208,13 +247,32 @@ export function ObsidianIntelligence() {
     <div className="flex flex-col items-center">
       {/* The orb. Embedded, never floating — it sits in the page flow so it
           cannot cover navigation, approval controls or an error message.
-          Its canvas animates on its own rAF loop against refs, so nothing
+          Animation is pure CSS on compositor-friendly properties, so nothing
           here re-renders per frame. */}
-      <ObsidianOrb
-        state={state}
-        onApproveProposal={approve}
-        onRejectProposal={reject}
-      />
+      <EclipseIris visual={visual} size={196} />
+
+      {/* The status, in words. The orb is decorative; this is the information,
+          and it is legible with no colour and no motion. */}
+      <p className="mt-4 text-sm text-content-secondary">{copy.label}</p>
+      {copy.detail && !proposal ? (
+        <p className="mt-1 max-w-sm text-center text-xs text-content-muted">
+          {copy.detail}
+        </p>
+      ) : null}
+      <span className="sr-only">{irisStatus}</span>
+
+      {/* V3's approval interface. `executing` shows the same summary with no
+          decision left to make. */}
+      {proposal ? (
+        <div className="mt-4 w-full">
+          <ProposalCard
+            proposal={proposal}
+            busy={state.kind === "executing"}
+            onApprove={approve}
+            onReject={reject}
+          />
+        </div>
+      ) : null}
 
       {/* Recovery is visible, not implied. Only offered where retrying can
           actually change the answer. */}

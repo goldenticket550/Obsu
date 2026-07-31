@@ -395,12 +395,18 @@ describe("the typed path stays fully functional", () => {
     expect(text).toContain("submitTranscript");
   });
 
-  it("approval and rejection both reach the server, through the orb's own card", () => {
+  it("approval and rejection both reach the server, through the proposal card", () => {
+    // EXPECTATION UPDATED: Gate 1 replaced the canvas orb with EclipseIris,
+    // which is purely decorative and renders no controls. The ProposalCard is
+    // therefore mounted by this component directly instead of being passed
+    // through the orb's props. Same two handlers, same server actions — only
+    // the owner of the card moved.
     const text = readFileSync(COMPONENT, "utf8");
     expect(text).toContain("approveProposal");
     expect(text).toContain("rejectProposal");
-    expect(text).toContain("onApproveProposal={approve}");
-    expect(text).toContain("onRejectProposal={reject}");
+    expect(text).toContain("<ProposalCard");
+    expect(text).toContain("onApprove={approve}");
+    expect(text).toContain("onReject={reject}");
   });
 
   it("a failed approval is never described as success", () => {
