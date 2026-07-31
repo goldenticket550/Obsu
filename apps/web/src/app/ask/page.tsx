@@ -1,4 +1,4 @@
-import { AskObsidian } from "@/components/ask-obsidian";
+import { ObsidianIntelligence } from "@/components/command/obsidian-intelligence";
 import { TopBar } from "@/components/form";
 import { SectionLabel } from "@/components/dashboard";
 
@@ -12,11 +12,11 @@ export default function AskPage() {
       <TopBar title="Ask OBSIDIAN" backHref="/" />
       <section className="mt-8">
         <SectionLabel>Ask OBSIDIAN</SectionLabel>
-        <p className="text-sm text-obsidian-silver">
+        <p className="text-sm text-content-secondary">
           Ask about revenue, expenses, trips, and customers. Answers come
           straight from your records.
         </p>
-        <AskObsidian />
+        <ObsidianIntelligence />
       </section>
     </main>
   );

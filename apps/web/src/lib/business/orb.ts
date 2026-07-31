@@ -81,6 +81,15 @@ export type OrbEvent =
    */
   | { type: "text_submitted"; transcript: string }
   | { type: "answer_ready" }
+  /**
+   * V2/Phase 2 — the answer was SHOWN, not spoken.
+   *
+   * `answer_ready` sends the orb to `speaking`, which is honest only when
+   * audio is actually playing. The typed path has no speech, so it needs a way
+   * to finish a turn without the orb claiming to talk. Separating the two
+   * keeps `speaking` reachable exclusively from something that really speaks.
+   */
+  | { type: "answer_shown" }
   | { type: "playback_finished" }
   /** V3 emits these; V1 defines them so the machine is total. */
   | { type: "proposal_received"; proposal: Proposal }
@@ -106,6 +115,7 @@ export const ORB_EVENT_TYPES: OrbEventType[] = [
   "transcript_ready",
   "text_submitted",
   "answer_ready",
+  "answer_shown",
   "playback_finished",
   "proposal_received",
   "proposal_approved",
@@ -221,6 +231,11 @@ export function transition(state: OrbState, event: OrbEvent): OrbState {
 
     case "answer_ready":
       return state.kind === "thinking" ? { kind: "speaking", level: 0 } : state;
+
+    case "answer_shown":
+      // Straight back to rest. The answer is on screen; nothing is speaking,
+      // so the orb must not pass through `speaking` to get here.
+      return state.kind === "thinking" ? IDLE : state;
 
     case "playback_finished":
       return state.kind === "speaking" ? IDLE : state;

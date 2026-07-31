@@ -46,14 +46,34 @@ describe("components reach the palette only through the vocabulary", () => {
   });
 
   it("no Command Center component names a palette colour directly", () => {
+    // Matches colour UTILITIES only. A bare /obsidian-[a-z]+/ also hits the
+    // import path "@/components/obsidian-orb", which is a module name, not a
+    // colour — a false positive that would make the guard unusable the moment
+    // a Command Center component imported the orb.
+    const PALETTE_UTILITY =
+      /\b(?:bg|text|border|ring|ring-offset|from|via|to|divide|outline|fill|stroke|shadow|decoration|accent|caret)-obsidian-[a-z]+/g;
     const offenders: string[] = [];
     for (const file of commandFiles()) {
       const text = readFileSync(file, "utf8");
-      for (const match of text.matchAll(/obsidian-[a-z]+/g)) {
+      for (const match of text.matchAll(PALETTE_UTILITY)) {
         offenders.push(`${file.split(/[\\/]/).pop()} → ${match[0]}`);
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  /** The regex above must still catch a real violation. */
+  it("that guard would catch a palette utility if one were introduced", () => {
+    const PALETTE_UTILITY =
+      /\b(?:bg|text|border|ring|ring-offset|from|via|to|divide|outline|fill|stroke|shadow|decoration|accent|caret)-obsidian-[a-z]+/g;
+    expect('className="text-obsidian-silver"'.match(PALETTE_UTILITY)).toEqual([
+      "text-obsidian-silver",
+    ]);
+    expect('className="bg-obsidian-graphite/60"'.match(PALETTE_UTILITY)).toEqual([
+      "bg-obsidian-graphite",
+    ]);
+    // …and must NOT flag a module path.
+    expect('from "@/components/obsidian-orb"'.match(PALETTE_UTILITY)).toBeNull();
   });
 
   it("no Command Center component hardcodes a hex value", () => {
@@ -260,7 +280,10 @@ describe("the conversation is bounded and clearable", () => {
     expect(shell).toContain("announceSignOut");
     expect(shell).toContain("onSubmit={announceSignOut}");
 
-    const ask = readFileSync(join(SRC, "components", "ask-obsidian.tsx"), "utf8");
+    const ask = readFileSync(
+      join(SRC, "components", "command", "obsidian-intelligence.tsx"),
+      "utf8",
+    );
     expect(ask).toContain("SIGN_OUT_EVENT");
     expect(ask).toContain("clearConversation()");
   });

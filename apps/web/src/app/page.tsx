@@ -20,7 +20,7 @@ import {
   totalRevenueCents,
   tripCount,
 } from "@/lib/business";
-import { AskObsidian } from "@/components/ask-obsidian";
+import { ObsidianIntelligence } from "@/components/command/obsidian-intelligence";
 import { NextRide } from "@/components/command/next-ride";
 import { TonightsFlow } from "@/components/command/tonights-flow";
 import { BusinessPulse } from "@/components/command/business-pulse";
@@ -124,9 +124,10 @@ export default async function DashboardPage() {
           <ActionRequired items={actionItems} />
         </div>
 
-        {/* 4 — OBSIDIAN INTELLIGENCE. Holds the existing, working Ask
-            OBSIDIAN. The orb arrives in V1 — nothing that does not work is
-            shipped here, but the section is where it will live. */}
+        {/* 4 — OBSIDIAN INTELLIGENCE. Phase 2: the orb is the centerpiece,
+            driven by the real typed flow. Every state it shows corresponds to
+            something actually happening; the voice states are unreachable from
+            here until Phase 3. */}
         <section
           aria-labelledby="intelligence-heading"
           className="order-4 rounded-2xl border border-line bg-gradient-to-b from-surface-raised to-surface-base p-5 shadow-panel lg:order-3"
@@ -138,7 +139,7 @@ export default async function DashboardPage() {
             Obsidian intelligence
           </h2>
           <div className="mt-3">
-            <AskObsidian />
+            <ObsidianIntelligence />
           </div>
         </section>
 

@@ -50,6 +50,7 @@ const SAMPLE_EVENTS: Record<OrbEvent["type"], OrbEvent> = {
   transcript_ready: { type: "transcript_ready", transcript: "hello" },
   text_submitted: { type: "text_submitted", transcript: "hello" },
   answer_ready: { type: "answer_ready" },
+  answer_shown: { type: "answer_shown" },
   playback_finished: { type: "playback_finished" },
   proposal_received: { type: "proposal_received", proposal: SAMPLE_PROPOSAL },
   proposal_approved: { type: "proposal_approved" },
