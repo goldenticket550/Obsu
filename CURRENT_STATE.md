@@ -2,8 +2,8 @@
 
 **As of:** OBSIDIAN RIDES MVP — M11.1 (Real Voice: server-side STT + ElevenLabs TTS) **built + statically verified** (2026-07-21). The RIDES MVP build (M1–M9) is complete; M11 added the voice/orb interface and M11.1 replaces the flaky browser SpeechRecognition with real server-side speech (see ADR-012, **ADR-013**).
 **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
-**Current sub-phase:** M11.1 — Real Voice. ✅ **Built & statically verified; owner adds `ELEVENLABS_API_KEY` and tests voice (any browser / phone).**
-**Next:** deploy to Vercel (so voice is live on the owner's phone), then M10 — Customer-Zero field test (real usage, NOT a build phase). Remaining queued follow-up: voice trip-logging (speech → the M8 parse flow).
+**Current sub-phase:** M11.1 plus the interactive Command Center design pass. ✅ **Built, verified, and deployed to production on 2026-08-02 at `https://obsidian-mvp.vercel.app`.**
+**Next:** M10 — Customer-Zero field test (real usage, NOT a build phase). Remaining queued follow-up: voice trip-logging (speech → the M8 parse flow).
 
 ## What exists right now
 
@@ -61,7 +61,7 @@ supabase/ migrations/0001, 0002 ; seed_dev.sql (NOT run)
 
 ## Next action
 
-**Deploy to Vercel** (so voice is live on the owner's phone) — set `ELEVENLABS_API_KEY` + the existing env in the Vercel project — then **M10 — Customer-Zero field test (NOT a build phase):** the owner (Midnight Rydes) runs OBSIDIAN on real business for ~30 days — logging trips/expenses, trusting the dashboard numbers, asking OBSIDIAN, and using follow-up drafts. Findings go in `CUSTOMER_ZERO_FEEDBACK.md`. This is the "prove on a real business before scaling" step (ROADMAP). **Before any second real user/business:** the deferred **negative second-user tenant-isolation test** (the HARD GATE above) must pass. Fixes/tweaks that surface during the field test are small follow-up changes, not a new milestone.
+**M10 — Customer-Zero field test (NOT a build phase):** use `https://obsidian-mvp.vercel.app` for real Midnight Rydes work for about 30 days — logging trips/expenses, trusting the dashboard numbers, asking OBSIDIAN, and using follow-up drafts. Findings go in `CUSTOMER_ZERO_FEEDBACK.md`. The production deployment completed on 2026-08-02, including the missing `NEXT_PUBLIC_SUPABASE_ANON_KEY` required by live sign-in. **Before any second real user/business:** the deferred **negative second-user tenant-isolation test** (the HARD GATE above) must pass.
 
 ## Git
 

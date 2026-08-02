@@ -23,8 +23,8 @@ Modular monolith. One deployable app (`apps/web`), internal modules in `src/lib/
 ## Current phase & milestone
 
 - **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`). This supersedes the old abstract "Phase 1 CORE MVP" — CORE is built *through* RIDES (ADR-010).
-- **Current sub-phase:** **M11.1 — Real Voice (server-side STT + ElevenLabs TTS). ✅ BUILT & statically verified (tsc + 41 tests + next build 15 routes + boot + client-bundle leak check, 2026-07-21); owner adds `ELEVENLABS_API_KEY` and tests voice on any browser/phone.** Supersedes M11's browser SpeechRecognition (ADR-013). RIDES MVP build (M1–M9) complete; voice is an owner-approved scope expansion (ADR-012/013).
-- **Next sub-phase:** **Deploy to Vercel (voice live on the owner's phone), then M10 — Customer-Zero field test (NOT a build phase). Remaining queued follow-up: voice trip-logging (speech → M8 parse).**
+- **Current sub-phase:** **M11.1 — Real Voice plus the interactive Command Center design pass. ✅ BUILT, verified, and deployed to production on 2026-08-02.** Supersedes M11's browser SpeechRecognition (ADR-013). RIDES MVP build (M1–M9) complete; voice is an owner-approved scope expansion (ADR-012/013).
+- **Next sub-phase:** **M10 — Customer-Zero field test (NOT a build phase). Remaining queued follow-up: voice trip-logging (speech → M8 parse).**
 
 ## Completed work
 
@@ -45,7 +45,7 @@ Modular monolith. One deployable app (`apps/web`), internal modules in `src/lib/
 
 - **Residual — negative second-user tenant-isolation test:** intentionally deferred (single-tenant MVP), but a **HARD GATE before multi-user** — see the "⛔ Deferred — must-do before going multi-user" section below.
 - **M10:** Customer-Zero 30-day field test — real usage + findings in `CUSTOMER_ZERO_FEEDBACK.md`. Not a build phase.
-- **Deploy to Vercel** — not done; the next step after M11.1 (set `ELEVENLABS_API_KEY` + existing env in the Vercel project so voice works on the owner's phone).
+- **Production deployment:** complete on 2026-08-02 at `https://obsidian-mvp.vercel.app`. The Vercel production environment includes the required Supabase, Anthropic, and ElevenLabs variables; the missing public Supabase anonymous key that blocked live sign-in was added before deployment.
 - Excluded (do NOT build without explicit approval): **ElevenLabs premium voice** — now APPROVED & built in M11.1 (ADR-013; server-side STT + TTS, key server-only); **auto-SMS / any message sending** (M9 does drafts only), social automation, trading/towing/beauty, native apps, complex fleet, accounting/banking, multi-agent.
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)
@@ -97,7 +97,7 @@ Requires Node 18.17+ (developed on Node 22–24). From M2 onward a live Supabase
 
 **The RIDES MVP build (M1–M9) is complete, plus M11 (Voice + Orb) and M11.1 (Real Voice — server-side STT + ElevenLabs TTS, ADR-013).**
 
-**EXACT next step — Deploy to Vercel** (owner-driven): push `master`, import the repo in Vercel (root `apps/web`), set env vars `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`, **`ELEVENLABS_API_KEY`** in the Vercel project (the two `NEXT_PUBLIC_*` mirror `.env.local`; the two secrets are server-only). Then voice works on the owner's phone (any mobile browser that records audio).
+**EXACT next step — M10 Customer-Zero field test:** use the production site at `https://obsidian-mvp.vercel.app` for real Midnight Rydes work, record findings in `CUSTOMER_ZERO_FEEDBACK.md`, and keep the deferred second-user isolation test as a hard gate before onboarding another business.
 
 **Before deploy works fully, the owner must add `ELEVENLABS_API_KEY` to `apps/web/.env.local`** (server-only, git-ignored) to test locally — without it STT returns a friendly error (typed box still works) and TTS falls back to the browser voice.
 
