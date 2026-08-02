@@ -88,6 +88,30 @@ export function SkylineSideColumn({ children }: { children: ReactNode }) {
   return <div className={styles.spanSide}>{children}</div>;
 }
 
+/** Mobile-first semantic order, rearranged into the cinematic desktop grid. */
+export function SkylineCommandLayout({ children }: { children: ReactNode }) {
+  return <div className={styles.commandLayout}>{children}</div>;
+}
+
+export function SkylineHeaderArea({ children }: { children: ReactNode }) {
+  return <div className={styles.areaHeader}>{children}</div>;
+}
+export function SkylineAttentionArea({ children }: { children: ReactNode }) {
+  return <div className={styles.areaAttention}>{children}</div>;
+}
+export function SkylineRideArea({ children }: { children: ReactNode }) {
+  return <div className={styles.areaRide}>{children}</div>;
+}
+export function SkylineIntelligenceArea({ children }: { children: ReactNode }) {
+  return <div className={styles.areaIntelligence}>{children}</div>;
+}
+export function SkylineFlowArea({ children }: { children: ReactNode }) {
+  return <div className={styles.areaFlow}>{children}</div>;
+}
+export function SkylinePulseArea({ children }: { children: ReactNode }) {
+  return <div className={styles.areaPulse}>{children}</div>;
+}
+
 /**
  * Panel chrome: the gradient, radius, border and the one-pixel top highlight.
  * Border colour comes from the `border-line` token, not from the module.

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ProposalCard } from "@/components/proposal-card";
 import { EclipseIris } from "@/components/command/eclipse-iris";
+import { IrisVisualizer } from "@/components/command/iris-visualizer";
+import ui from "./obsidian-intelligence.module.css";
 import {
   deriveIrisVisualState,
   irisStatusText,
@@ -73,9 +75,21 @@ export function ObsidianIntelligence({
   const [history, setHistory] = useState<ConversationTurn[]>([]);
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
+  const [askFocused, setAskFocused] = useState(false);
 
   const stateRef = useRef<OrbState>({ kind: "idle" });
   const dwellRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollToSurface = useCallback((id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({
+      behavior: reduced ? "auto" : "smooth",
+      block: "start",
+    });
+  }, []);
+
 
   /**
    * The ONLY way state changes. Callers report an EVENT; the centralized
@@ -249,17 +263,51 @@ export function ObsidianIntelligence({
           cannot cover navigation, approval controls or an error message.
           Animation is pure CSS on compositor-friendly properties, so nothing
           here re-renders per frame. */}
-      <EclipseIris visual={visual} size={196} />
+      <div className={ui.instrumentStage}>
+        <ul className={ui.controlCluster} aria-label="Command Center sections">
+          <li>
+            <button
+              type="button"
+              className={ui.controlButton}
+              aria-controls="tonights-flow"
+              onClick={() => scrollToSurface("tonights-flow")}
+            >
+              Tonight&apos;s Flow
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={ui.controlButton}
+              aria-controls="action-required"
+              onClick={() => scrollToSurface("action-required")}
+            >
+              Action Required
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={ui.controlButton}
+              aria-controls="business-pulse"
+              onClick={() => scrollToSurface("business-pulse")}
+            >
+              Business Pulse
+            </button>
+          </li>
+        </ul>
+        <EclipseIris visual={visual} size={196} focused={askFocused} />
+      </div>
+      <IrisVisualizer phase="unavailable" amplitude={null} />
 
       {/* The status, in words. The orb is decorative; this is the information,
           and it is legible with no colour and no motion. */}
-      <p className="mt-4 text-sm text-content-secondary">{copy.label}</p>
+      <p className={ui.status}>{irisStatus}</p>
       {copy.detail && !proposal ? (
         <p className="mt-1 max-w-sm text-center text-xs text-content-muted">
           {copy.detail}
         </p>
       ) : null}
-      <span className="sr-only">{irisStatus}</span>
 
       {/* V3's approval interface. `executing` shows the same summary with no
           decision left to make. */}
@@ -303,6 +351,8 @@ export function ObsidianIntelligence({
           type="text"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
+          onFocus={() => setAskFocused(true)}
+          onBlur={() => setAskFocused(false)}
           placeholder="Ask anything, or describe a ride to log…"
           className="min-h-[44px] flex-1 bg-transparent px-3 py-2 text-sm text-content-primary placeholder:text-content-muted focus:outline-none"
         />

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import styles from "./eclipse-iris.module.css";
+import motion from "./eclipse-iris-enhancements.module.css";
 import {
   DIAL_LAYER_A,
   DIAL_LAYER_B,
@@ -10,53 +11,40 @@ import {
   type IrisVisualState,
 } from "@/lib/business/iris";
 
-/**
- * Gate 1 — the Eclipse Iris orb.
- *
- * Pure CSS and inline SVG. No image, no canvas, no WebGL, no new dependency.
- *
- * The layer stack, outermost first. The sphere clips its contents, so the
- * lance and the floor bounce are its SIBLINGS, not its children — inside, the
- * border-radius would shear them off at the edge.
- *
- *   1 ambient glow · 2 sphere body · 3 dial layers A/B (counter-rotating)
- *   4 core bloom · 5 core · 6 gloss · 7 terminator · 8 specular · 9 rim
- *   10 lance bloom · 11 lance · 12 floor bounce
- *
- * The orb is DECORATIVE. It is `aria-hidden`; the status beside it is the
- * information, and it is text, so it survives colour-blindness, zero motion,
- * and a screen reader.
- */
+const WING_MARKS = [
+  { d: "M30 74h18", opacity: 0.36 },
+  { d: "M34 62h14", opacity: 0.52 },
+  { d: "M42 49h12", opacity: 0.68 },
+  { d: "M56 37h10", opacity: 0.42 },
+  { d: "M254 37h10", opacity: 0.42 },
+  { d: "M266 49h12", opacity: 0.68 },
+  { d: "M272 62h14", opacity: 0.52 },
+  { d: "M272 74h18", opacity: 0.36 },
+] as const;
 
-/**
- * CSS-module keys are `string | undefined` under `noUncheckedIndexedAccess`.
- * Joining them raw would put the literal "undefined" into a class attribute, so
- * absent keys are dropped rather than stringified.
- */
 function cx(...parts: (string | undefined | false)[]): string {
   return parts.filter((part): part is string => Boolean(part)).join(" ");
 }
 
-/** Renders one dial layer. Geometry comes from fixed literals — never random. */
 function DialLayer({
   rings,
   className,
+  motionClassName,
   titleId,
 }: {
   rings: readonly DialRing[];
   className: string | undefined;
+  motionClassName: string | undefined;
   titleId: string;
 }) {
   return (
-    <div className={cx(styles.dialLayer, className)}>
+    <div className={cx(styles.dialLayer, className, motion.dialLayer, motionClassName)}>
       <svg
         className={styles.dialSvg}
         viewBox="0 0 100 100"
-        aria-hidden
+        aria-hidden="true"
         focusable="false"
         role="presentation"
-        // The id is unique per instance via useId, so two orbs on one page
-        // cannot collide — a generated string would break hydration.
         id={titleId}
       >
         {rings.map((ring) => (
@@ -69,8 +57,6 @@ function DialLayer({
             stroke={`rgba(125, 211, 252, ${ring.o})`}
             strokeWidth={ring.w}
             {...(ring.dash ? { strokeDasharray: ring.dash } : {})}
-            // Lets the amber treatment restyle the stroke without restating
-            // each ring's opacity.
             style={{ ["--iris-ring-opacity" as string]: String(ring.o) }}
           />
         ))}
@@ -79,18 +65,8 @@ function DialLayer({
   );
 }
 
-/**
- * Reads the viewer's reduced-motion preference and keeps it current, so
- * toggling the OS setting takes effect without a reload.
- *
- * Starts false and corrects after mount: the server cannot know the
- * preference, and guessing would produce a hydration mismatch. The CSS media
- * query stops the animations regardless — this class is belt and braces, and
- * is what the tests assert against.
- */
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
-
   useEffect(() => {
     const query = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     if (!query) return;
@@ -99,21 +75,60 @@ function usePrefersReducedMotion(): boolean {
     query.addEventListener("change", onChange);
     return () => query.removeEventListener("change", onChange);
   }, []);
-
   return reduced;
 }
 
 export function EclipseIris({
   visual,
   size = 196,
+  focused = false,
 }: {
   visual: IrisVisualState;
-  /** Rendered size in px. The lance is 168% of this and stays contained. */
   size?: number;
+  focused?: boolean;
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const instanceId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
   const status = irisStatusText(visual);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const finePointer = window.matchMedia("(pointer: fine)");
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    const reset = () => {
+      root.style.setProperty("--iris-x", "0");
+      root.style.setProperty("--iris-y", "0");
+    };
+    const move = (event: PointerEvent) => {
+      if (document.visibilityState !== "visible") return;
+      if (!finePointer.matches) return;
+      if (reduced.matches) return;
+      const bounds = root.getBoundingClientRect();
+      const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
+      const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
+      root.style.setProperty("--iris-x", Math.max(-1, Math.min(1, x)).toFixed(3));
+      root.style.setProperty("--iris-y", Math.max(-1, Math.min(1, y)).toFixed(3));
+    };
+    const visibility = () => {
+      if (document.visibilityState !== "visible") reset();
+    };
+
+    root.addEventListener("pointermove", move, { passive: true });
+    root.addEventListener("pointerleave", reset, { passive: true });
+    document.addEventListener("visibilitychange", visibility);
+    finePointer.addEventListener("change", reset);
+    reduced.addEventListener("change", reset);
+    return () => {
+      root.removeEventListener("pointermove", move);
+      root.removeEventListener("pointerleave", reset);
+      document.removeEventListener("visibilitychange", visibility);
+      finePointer.removeEventListener("change", reset);
+      reduced.removeEventListener("change", reset);
+    };
+  }, []);
 
   const stateClass =
     visual === "working"
@@ -123,53 +138,88 @@ export function EclipseIris({
         : visual === "unavailable"
           ? styles.unavailable
           : undefined;
+  const motionStateClass =
+    visual === "working"
+      ? motion.working
+      : visual === "attention"
+        ? motion.attention
+        : visual === "unavailable"
+          ? motion.unavailable
+          : motion.ready;
+  const wingGradientId = `${instanceId}-wing-gradient`;
 
   return (
     <div
-      className={cx(styles.root, stateClass, reducedMotion && styles.stillness)}
+      ref={rootRef}
+      className={cx(
+        styles.root,
+        motion.root,
+        stateClass,
+        motionStateClass,
+        focused && motion.focused,
+        reducedMotion && styles.stillness,
+        reducedMotion && motion.stillness,
+      )}
       style={{ ["--iris-size" as string]: `${size}px` }}
       data-visual={visual}
       data-reduced-motion={reducedMotion ? "true" : "false"}
+      data-focused={focused ? "true" : "false"}
     >
-      {/* 1 */}
-      <div className={styles.ambientGlow} aria-hidden />
+      <svg
+        className={motion.wings}
+        viewBox="0 0 320 160"
+        aria-hidden="true"
+        focusable="false"
+        role="presentation"
+      >
+        <defs>
+          <linearGradient id={wingGradientId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="currentColor" stopOpacity="0" />
+            <stop offset="0.28" stopColor="currentColor" stopOpacity="0.72" />
+            <stop offset="0.5" stopColor="currentColor" stopOpacity="0.24" />
+            <stop offset="0.72" stopColor="currentColor" stopOpacity="0.72" />
+            <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path className={motion.wingBloom} d="M18 91C32 29 84 9 126 34" />
+        <path className={motion.wingBloom} d="M302 91C288 29 236 9 194 34" />
+        <path className={motion.wingArc} d="M18 91C32 29 84 9 126 34" stroke={`url(#${wingGradientId})`} />
+        <path className={motion.wingArc} d="M302 91C288 29 236 9 194 34" stroke={`url(#${wingGradientId})`} />
+        {WING_MARKS.map((mark) => (
+          <path
+            key={mark.d}
+            className={motion.wingMark}
+            d={mark.d}
+            opacity={mark.opacity}
+          />
+        ))}
+      </svg>
 
-      {/* 2 — clips 3 through 9 */}
-      <div className={styles.sphere} aria-hidden>
-        {/* 3 */}
+      <div className={cx(styles.ambientGlow, motion.ambientGlow)} aria-hidden="true" />
+      <div className={styles.sphere} aria-hidden="true">
         <DialLayer
           rings={DIAL_LAYER_A}
           className={styles.dialA}
+          motionClassName={motion.dialA}
           titleId={`${instanceId}-dial-a`}
         />
         <DialLayer
           rings={DIAL_LAYER_B}
           className={styles.dialB}
+          motionClassName={motion.dialB}
           titleId={`${instanceId}-dial-b`}
         />
-        {/* 4 */}
-        <div className={styles.coreBloom} />
-        {/* 5 */}
-        <div className={styles.core} />
-        {/* 6 */}
+        <div className={cx(styles.coreBloom, motion.coreBloom)} />
+        <div className={cx(styles.core, motion.core)} />
         <div className={styles.gloss} />
-        {/* 7 */}
         <div className={styles.terminator} />
-        {/* 8 */}
-        <div className={styles.specular} />
-        {/* 9 */}
+        <div className={cx(styles.specular, motion.specular)} />
         <div className={styles.rim} />
       </div>
-
-      {/* 10, 11, 12 — outside the sphere, or the clip would cut them */}
-      <div className={styles.lanceBloom} aria-hidden />
-      <div className={styles.lance} aria-hidden />
-      <div className={styles.floorBounce} aria-hidden />
-
-      {/* The information. Announced politely; never colour or motion alone. */}
-      <span className="sr-only" role="status">
-        {status}
-      </span>
+      <div className={styles.lanceBloom} aria-hidden="true" />
+      <div className={styles.lance} aria-hidden="true" />
+      <div className={cx(styles.floorBounce, motion.floorBounce)} aria-hidden="true" />
+      <span className="sr-only" role="status">{status}</span>
     </div>
   );
 }

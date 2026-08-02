@@ -16,8 +16,11 @@ const SEVERITY_STYLE: Record<ActionSeverity, { dot: string; word: string; label:
 export function ActionRequired({ items }: { items: ActionItem[] }) {
   return (
     <section
+      id="action-required"
+      tabIndex={-1}
+      data-scene-surface="attention"
       aria-labelledby="action-heading"
-      className="rounded-2xl border border-line bg-surface-raised/60 p-5 shadow-panel"
+      className="rounded-2xl border border-line bg-surface-raised/70 p-5 shadow-panel transition-colors duration-150 hover:border-accent-soft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2
@@ -42,7 +45,7 @@ export function ActionRequired({ items }: { items: ActionItem[] }) {
             return (
               <li
                 key={item.id}
-                className="rounded-lg border border-line bg-surface-base/40 p-3"
+                className="rounded-lg border border-line bg-surface-base/60 p-3 transition-colors duration-150 hover:border-accent-soft/45 hover:bg-surface-sunken/60 focus-within:border-accent-soft/55"
               >
                 <div className="flex items-baseline gap-2">
                   <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} aria-hidden="true" />

@@ -1,0 +1,143 @@
+.root {
+  --iris-x: 0;
+  --iris-y: 0;
+  color: rgb(56 189 248);
+  transition: filter 560ms ease, transform 560ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.wings {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 50%;
+  width: min(260%, calc(100vw - 52px));
+  height: 145%;
+  overflow: visible;
+  color: inherit;
+  transform: translate3d(
+    calc(-50% + var(--iris-x) * -2px),
+    calc(-50% + var(--iris-y) * -1px),
+    0
+  );
+  transition: color 560ms ease, filter 560ms ease, opacity 560ms ease;
+}
+
+.wingArc,
+.wingBloom {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.wingArc { stroke-width: 1.25; }
+.wingBloom {
+  stroke: currentColor;
+  stroke-width: 6;
+  opacity: 0.16;
+  filter: blur(4px);
+}
+.wingMark {
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.dialLayer {
+  translate: calc(var(--iris-x) * 1.6px) calc(var(--iris-y) * 1.2px);
+  transition: filter 560ms ease, translate 220ms ease-out;
+}
+.dialA { animation: irisTrackA 19.1s cubic-bezier(0.42, 0, 0.28, 1) infinite; }
+.dialB { animation: irisTrackB 28.7s cubic-bezier(0.36, 0, 0.22, 1) infinite; }
+.ambientGlow { animation: irisBreathWide 7.3s ease-in-out infinite; }
+.coreBloom { animation: irisBreathSoft 11s ease-in-out infinite; }
+.core { animation: irisBreathCore 4.7s ease-in-out infinite; }
+.floorBounce { animation: irisBreathWide 7.3s ease-in-out infinite reverse; }
+
+.specular {
+  translate: calc(var(--iris-x) * 3px) calc(var(--iris-y) * 2px);
+  transition: translate 180ms ease-out, opacity 560ms ease;
+}
+
+.focused {
+  filter: brightness(1.12) saturate(1.08);
+  transform: scale(1.012);
+}
+.focused .wings { filter: drop-shadow(0 0 10px rgb(56 189 248 / 30%)); }
+
+.working .dialA { animation-duration: 8.8s; }
+.working .dialB { animation-duration: 13.1s; }
+.working .wings { animation: wingAcquire 2.8s ease-in-out infinite; }
+
+.attention { color: rgb(245 158 11); }
+.attention .wings { animation: wingAttention 7.2s ease-out infinite; }
+
+.unavailable { color: rgb(128 136 151); }
+.unavailable .wings { opacity: 0.34; filter: saturate(0.2); }
+.unavailable .dialA,
+.unavailable .dialB,
+.unavailable .ambientGlow,
+.unavailable .core,
+.unavailable .coreBloom,
+.unavailable .floorBounce,
+.unavailable .wings,
+.stillness .dialA,
+.stillness .dialB,
+.stillness .ambientGlow,
+.stillness .core,
+.stillness .coreBloom,
+.stillness .floorBounce,
+.stillness .wings {
+  animation: none;
+}
+
+@keyframes irisTrackA {
+  0% { transform: rotate(0deg); }
+  18% { transform: rotate(72deg); }
+  28% { transform: rotate(72deg); }
+  57% { transform: rotate(204deg); }
+  66% { transform: rotate(204deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes irisTrackB {
+  0% { transform: rotate(360deg); }
+  22% { transform: rotate(276deg); }
+  34% { transform: rotate(276deg); }
+  63% { transform: rotate(142deg); }
+  72% { transform: rotate(142deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes irisBreathWide {
+  0%, 100% { opacity: 0.68; transform: scale(0.992); }
+  48% { opacity: 0.94; transform: scale(1.032); }
+}
+@keyframes irisBreathSoft {
+  0%, 100% { opacity: 0.72; transform: scale(0.98); }
+  55% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes irisBreathCore {
+  0%, 100% { opacity: 0.82; transform: scale(0.96); }
+  46% { opacity: 1; transform: scale(1.055); }
+}
+@keyframes wingAcquire {
+  0%, 76%, 100% { opacity: 0.78; }
+  84% { opacity: 1; }
+}
+@keyframes wingAttention {
+  0%, 5%, 100% { filter: brightness(1); }
+  2% { filter: brightness(1.25); }
+}
+
+@media (pointer: coarse) {
+  .dialLayer,
+  .specular { translate: 0 0; }
+  .wings { transform: translate3d(-50%, -50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialA,
+  .dialB,
+  .ambientGlow,
+  .core,
+  .coreBloom,
+  .floorBounce,
+  .wings { animation: none; }
+}

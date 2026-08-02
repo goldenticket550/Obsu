@@ -1,0 +1,97 @@
+.instrumentStage {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 286px;
+  place-items: center;
+  padding: 54px 58px 30px;
+}
+
+.controlCluster {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.controlCluster li {
+  position: absolute;
+  pointer-events: auto;
+}
+.controlCluster li:nth-child(1) { top: 0; left: 50%; transform: translateX(-50%); }
+.controlCluster li:nth-child(2) { bottom: 36px; left: 0; }
+.controlCluster li:nth-child(3) { right: 0; bottom: 36px; }
+
+.controlButton {
+  display: inline-flex;
+  min-width: 92px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(56 189 248 / 34%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(17 19 24 / 92%), rgb(8 9 11 / 94%));
+  box-shadow: inset 0 1px rgb(255 255 255 / 7%), 0 0 18px rgb(37 99 235 / 12%);
+  color: rgb(191 219 254);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+  transition: border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.controlButton:hover {
+  border-color: rgb(56 189 248 / 72%);
+  box-shadow: inset 0 1px rgb(255 255 255 / 9%), 0 0 22px rgb(37 99 235 / 24%);
+  color: rgb(231 233 238);
+  transform: translateY(-1px);
+}
+.controlButton:focus-visible {
+  outline: 2px solid rgb(56 189 248);
+  outline-offset: 3px;
+}
+.controlButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.status {
+  margin-top: 2px;
+  color: rgb(154 161 173);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+@media (max-width: 520px) {
+  .instrumentStage {
+    min-height: 250px;
+    padding: 40px 0 66px;
+  }
+  .controlCluster {
+    top: auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    height: auto;
+  }
+  .controlCluster li,
+  .controlCluster li:nth-child(1),
+  .controlCluster li:nth-child(2),
+  .controlCluster li:nth-child(3) {
+    position: static;
+    transform: none;
+  }
+  .controlButton {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 5px;
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controlButton { transition: none; }
+}

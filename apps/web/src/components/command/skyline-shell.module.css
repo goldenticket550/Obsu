@@ -166,7 +166,7 @@
  */
 .panel {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 20px;
   /* Border WIDTH and STYLE here; its colour is the `border-line` token applied
      on the element, so the palette stays in one place. */
@@ -193,6 +193,47 @@
   pointer-events: none;
 }
 
+/* Mobile DOM order is the operating priority. Desktop changes only placement. */
+.commandLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "header"
+    "attention"
+    "ride"
+    "intelligence"
+    "flow"
+    "pulse";
+  gap: 18px;
+}
+
+.areaHeader { grid-area: header; }
+.areaAttention { grid-area: attention; min-width: 0; }
+.areaRide { grid-area: ride; min-width: 0; }
+.areaIntelligence { grid-area: intelligence; min-width: 0; }
+.areaFlow { grid-area: flow; min-width: 0; }
+.areaPulse { grid-area: pulse; min-width: 0; }
+
+@media (min-width: 1181px) {
+  .commandLayout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 5fr) minmax(214px, 2.4fr);
+    grid-template-areas:
+      "header header header"
+      "intelligence ride attention"
+      "flow flow attention"
+      "pulse pulse pulse";
+    align-items: start;
+  }
+
+  .areaAttention {
+    position: sticky;
+    top: 24px;
+  }
+}
+
+@media (max-width: 560px) {
+  .commandLayout { gap: 14px; }
+}
 /* ---- the two-column grid --------------------------------------- */
 
 /*

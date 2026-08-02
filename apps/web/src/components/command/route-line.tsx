@@ -1,54 +1,48 @@
-/**
- * U2 — a schematic connection between pickup and destination.
- *
- * This is a STYLIZED DIAGRAM, not a map. There is no geography, no routing, no
- * GPS, and no moving vehicle — the app has no location data and must not imply
- * that it does. It is decorative structure around two text labels, so it is
- * marked aria-hidden and the accessible description lives in the text itself.
- */
-import { absenceLabel, isAbsent } from "@/lib/business/missing";
+import Link from "next/link";
+import {
+  deriveRouteVisualState,
+  type RouteVisualState,
+} from "./route-visual-state";
+import styles from "./route-line.module.css";
 
-export function RouteLine({
-  pickup,
-  dropoff,
-}: {
+export type { RouteVisualState };
+export { deriveRouteVisualState };
+
+export function RouteLine({ pickup, dropoff, editHref }: {
   pickup?: string | null;
   dropoff?: string | null;
+  editHref: string;
 }) {
-  // One vocabulary for absence — "Not set" means "should exist, doesn't yet",
-  // which is actionable, and is never rendered as if it were data.
-  const from = isAbsent(pickup) ? `Pickup ${absenceLabel("not_set").toLowerCase()}` : pickup!.trim();
-  const to = isAbsent(dropoff)
-    ? `Destination ${absenceLabel("not_set").toLowerCase()}`
-    : dropoff!.trim();
-
-  return (
-    <div className="mt-4">
-      {/* One accessible sentence describing the two ends. */}
-      <p className="sr-only">{`Route: from ${from} to ${to}. Schematic only, not a map.`}</p>
-
-      <div aria-hidden="true" className="flex items-stretch gap-3">
-        {/* The schematic rail */}
-        <div className="flex w-4 shrink-0 flex-col items-center pt-1">
-          <span className="h-2 w-2 rounded-full ring-2 ring-accent/30 bg-accent" />
-          <span className="my-1 w-px flex-1 bg-gradient-to-b from-accent/60 to-accent-soft/30" />
-          <span className="h-2 w-2 rounded-full border border-accent-soft bg-transparent" />
+  const state = deriveRouteVisualState(pickup, dropoff);
+  if (state === "empty") {
+    return (
+      <div className={styles.empty} data-route-state="empty">
+        <div>
+          <p className={styles.emptyTitle}>Route details are not set</p>
+          <p className={styles.emptyCopy}>Add pickup and destination before a route appears here.</p>
         </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm text-content-primary" title={from}>
-            {from}
-          </p>
-          <p
-            className={`mt-6 truncate text-sm ${
-              dropoff ? "text-content-primary" : "text-content-muted"
-            }`}
-            title={to}
-          >
-            {to}
-          </p>
-        </div>
+        <Link href={editHref} className={styles.routeAction}>Add route details</Link>
       </div>
+    );
+  }
+
+  const from = pickup?.trim() || "Pickup not set";
+  const to = dropoff?.trim() || "Destination not set";
+  const missingLabel = state === "pickup-only" ? "Add destination" : "Add pickup";
+  return (
+    <div className={styles.route} data-route-state={state}>
+      <p className="sr-only">{`Route: from ${from} to ${to}. Schematic only, not a map.`}</p>
+      <svg className={`${styles.ribbon} ${styles[state]}`} viewBox="0 0 520 72" preserveAspectRatio="none" aria-hidden="true" focusable="false" role="presentation">
+        <path className={styles.ribbonBloom} d="M8 38 C105 4 158 66 264 35 S414 12 512 34" />
+        <path className={styles.ribbonLine} d="M8 38 C105 4 158 66 264 35 S414 12 512 34" />
+        <circle className={styles.endpoint} cx="8" cy="38" r="4" />
+        <circle className={styles.endpoint} cx="512" cy="34" r="4" />
+      </svg>
+      <div className={styles.endpoints}>
+        <div className={styles.endpointCopy}><span>Pickup</span><strong title={from}>{from}</strong></div>
+        <div className={`${styles.endpointCopy} ${styles.endpointCopyRight}`}><span>Destination</span><strong title={to}>{to}</strong></div>
+      </div>
+      {state !== "complete" ? <Link href={editHref} className={styles.routeAction}>{missingLabel}</Link> : null}
     </div>
   );
 }

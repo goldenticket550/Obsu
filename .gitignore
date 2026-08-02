@@ -17,6 +17,9 @@ build/
 out/
 *.tsbuildinfo
 
+# Local deployment links
+.vercel/
+
 # Logs
 *.log
 npm-debug.log*

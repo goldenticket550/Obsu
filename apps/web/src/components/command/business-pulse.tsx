@@ -42,11 +42,16 @@ export function BusinessPulse({
     { label: "Completed rides", value: String(completedRides) },
     { label: "Average ride", value: formatUsd(averageRideCents) },
   ];
+  const emptyMonth = revenueCents === 0 && expensesCents === 0 && completedRides === 0;
+
 
   return (
     <section
+      id="business-pulse"
+      tabIndex={-1}
+      data-scene-surface="pulse"
       aria-labelledby="pulse-heading"
-      className="rounded-2xl border border-line bg-surface-raised/60 p-5 shadow-panel"
+      className="rounded-2xl border border-line bg-surface-raised/70 p-5 shadow-panel transition-colors duration-150 hover:border-accent-soft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
     >
       <h2
         id="pulse-heading"
@@ -54,6 +59,11 @@ export function BusinessPulse({
       >
         Business pulse · this month
       </h2>
+      {emptyMonth ? (
+        <p className="mt-3 text-sm text-content-secondary">
+          Nothing has been recorded this month yet.
+        </p>
+      ) : null}
 
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-3">
         {stats.map((s) => (

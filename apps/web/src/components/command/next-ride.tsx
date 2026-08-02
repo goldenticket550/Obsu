@@ -167,7 +167,11 @@ export function NextRide({
         <Meta label="Day" value={dayLabelText} />
       </dl>
 
-      <RouteLine pickup={trip.pickup_location} dropoff={trip.dropoff_location} />
+      <RouteLine
+        pickup={trip.pickup_location}
+        dropoff={trip.dropoff_location}
+        editHref={`/trips/${trip.id}/edit`}
+      />
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Link

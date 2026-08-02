@@ -38,8 +38,11 @@ function StatusMark({ kind }: { kind: FlowEntry["kind"] }) {
 export function TonightsFlow({ entries }: { entries: FlowEntry<TripListRow>[] }) {
   return (
     <section
+      id="tonights-flow"
+      tabIndex={-1}
+      data-scene-surface="flow"
       aria-labelledby="flow-heading"
-      className="rounded-2xl border border-line bg-surface-raised/60 p-5 shadow-panel"
+      className="rounded-2xl border border-line bg-surface-raised/70 p-5 shadow-panel transition-colors duration-150 hover:border-accent-soft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
     >
       <h2
         id="flow-heading"

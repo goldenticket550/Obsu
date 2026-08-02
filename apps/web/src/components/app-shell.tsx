@@ -105,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen lg:flex">
       {/* DESKTOP SIDEBAR */}
-      <aside className="hidden border-r border-obsidian-line bg-obsidian-graphite/40 lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-56 lg:flex-col">
+      <aside className="hidden border-r border-obsidian-line bg-obsidian-graphite/70 lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-56 lg:flex-col">
         <div className="px-5 py-5">
           <Link
             href="/"

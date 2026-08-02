@@ -17,7 +17,7 @@ const config: Config = {
           line: "#262a33",
           platinum: "#e7e9ee",
           silver: "#9aa1ad",
-          muted: "#6b7280",
+          muted: "#808897",
           // Semantic illumination. Each colour has exactly one meaning, and is
           // never the ONLY signal — always paired with a label or icon.
           blue: "#3b82f6", // primary illumination / primary action
@@ -59,7 +59,7 @@ const config: Config = {
         content: {
           primary: "#e7e9ee", // obsidian.platinum — headline and data
           secondary: "#9aa1ad", // obsidian.silver — labels, supporting text
-          muted: "#6b7280", // obsidian.muted — de-emphasised, absent values
+          muted: "#808897", // obsidian.muted — de-emphasised, absent values
         },
         accent: {
           DEFAULT: "#3b82f6", // obsidian.blue — primary action, one per view
