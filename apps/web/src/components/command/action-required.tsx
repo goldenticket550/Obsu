@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ActionItem, ActionSeverity } from "@/lib/business/action-required";
+import surfaces from "./command-surfaces.module.css";
 
 /**
  * U2 — Action Required. Renders the prioritized list produced by the pure
@@ -13,14 +14,20 @@ const SEVERITY_STYLE: Record<ActionSeverity, { dot: string; word: string; label:
   info: { dot: "bg-accent-soft", word: "text-accent-soft", label: "Review" },
 };
 
-export function ActionRequired({ items }: { items: ActionItem[] }) {
+export function ActionRequired({
+  items,
+  variant = "default",
+}: {
+  items: ActionItem[];
+  variant?: "default" | "command";
+}) {
   return (
     <section
       id="action-required"
       tabIndex={-1}
       data-scene-surface="attention"
       aria-labelledby="action-heading"
-      className="rounded-2xl border border-line bg-surface-raised/70 p-5 shadow-panel transition-colors duration-150 hover:border-accent-soft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
+      className={`rounded-2xl border border-line bg-surface-raised/70 p-5 shadow-panel transition-colors duration-150 hover:border-accent-soft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft ${variant === "command" ? surfaces.attentionRail : ""}`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2

@@ -26,14 +26,15 @@ import {
   SkylineFlowArea,
   SkylineHeaderArea,
   SkylineIntelligenceArea,
+  SkylineIntelligenceFrame,
   SkylineMain,
-  SkylinePanel,
   SkylinePulseArea,
   SkylineRideArea,
+  SkylineRouteArea,
   SkylineTopBar,
 } from "@/components/command/skyline-shell";
 import { NextRide } from "@/components/command/next-ride";
-import { deriveRouteVisualState } from "@/components/command/route-line";
+import { deriveRouteVisualState, RouteLine } from "@/components/command/route-line";
 import { TonightsFlow } from "@/components/command/tonights-flow";
 import { BusinessPulse } from "@/components/command/business-pulse";
 import { ActionRequired } from "@/components/command/action-required";
@@ -99,7 +100,7 @@ export default async function DashboardPage() {
       routeState={routeState}
     >
       <SkylineMain>
-        <main className="mx-auto w-full max-w-[90rem] px-5 pb-16 pt-6">
+        <main className="mx-auto w-full max-w-[96rem] px-6 pb-10 pt-5">
           <SkylineCommandLayout>
             <SkylineHeaderArea>
               <SkylineTopBar
@@ -113,29 +114,30 @@ export default async function DashboardPage() {
             </SkylineHeaderArea>
 
             <SkylineAttentionArea>
-              <ActionRequired items={actionItems} />
+              <ActionRequired items={actionItems} variant="command" />
             </SkylineAttentionArea>
 
             <SkylineRideArea>
-              <NextRide view={nextRide} now={now} />
+              <NextRide view={nextRide} now={now} variant="command" />
             </SkylineRideArea>
 
             <SkylineIntelligenceArea>
-              <SkylinePanel className="h-full p-5" labelledBy="intelligence-heading">
-                <h2
-                  id="intelligence-heading"
-                  className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-secondary"
-                >
-                  Obsidian intelligence
-                </h2>
-                <div className="mt-3">
-                  <ObsidianIntelligence needsAttention={actionItems.length > 0} />
-                </div>
-              </SkylinePanel>
+              <SkylineIntelligenceFrame>
+                <ObsidianIntelligence needsAttention={actionItems.length > 0} />
+              </SkylineIntelligenceFrame>
             </SkylineIntelligenceArea>
 
+            <SkylineRouteArea>
+              <RouteLine
+                pickup={nextRide.kind === "none" ? null : nextRide.trip.pickup_location}
+                dropoff={nextRide.kind === "none" ? null : nextRide.trip.dropoff_location}
+                editHref={nextRide.kind === "none" ? "/trips/new?status=scheduled" : `/trips/${nextRide.trip.id}/edit`}
+                variant="scene"
+              />
+            </SkylineRouteArea>
+
             <SkylineFlowArea>
-              <TonightsFlow entries={flow} />
+              <TonightsFlow entries={flow} variant="command" />
             </SkylineFlowArea>
 
             <SkylinePulseArea>
@@ -146,6 +148,7 @@ export default async function DashboardPage() {
                 marginPercent={marginPercent}
                 completedRides={completedRides}
                 averageRideCents={averageRideCents}
+                variant="command"
               />
             </SkylinePulseArea>
           </SkylineCommandLayout>

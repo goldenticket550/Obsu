@@ -5,6 +5,7 @@ import { hasQuotedPrice } from "@/lib/business/trip-status";
 import { centsToDollars } from "@/lib/money";
 import { tripTypeHeading } from "@/lib/business/trip-type";
 import type { TripListRow } from "@/lib/db/trips";
+import surfaces from "./command-surfaces.module.css";
 
 /**
  * U2 — the current business day as an ordered timeline. Ordering and day
@@ -35,14 +36,20 @@ function StatusMark({ kind }: { kind: FlowEntry["kind"] }) {
   );
 }
 
-export function TonightsFlow({ entries }: { entries: FlowEntry<TripListRow>[] }) {
+export function TonightsFlow({
+  entries,
+  variant = "default",
+}: {
+  entries: FlowEntry<TripListRow>[];
+  variant?: "default" | "command";
+}) {
   return (
     <section
       id="tonights-flow"
       tabIndex={-1}
       data-scene-surface="flow"
       aria-labelledby="flow-heading"
-      className="rounded-2xl border border-line bg-surface-raised/70 p-5 shadow-panel transition-colors duration-150 hover:border-accent-soft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
+      className={`rounded-2xl border border-line bg-surface-raised/70 p-5 shadow-panel transition-colors duration-150 hover:border-accent-soft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft ${variant === "command" ? surfaces.flowStrip : ""}`}
     >
       <h2
         id="flow-heading"
@@ -52,9 +59,26 @@ export function TonightsFlow({ entries }: { entries: FlowEntry<TripListRow>[] })
       </h2>
 
       {entries.length === 0 ? (
-        <p className="mt-3 text-sm text-content-muted">
-          Nothing on the books for today.
-        </p>
+        variant === "command" ? (
+          <div className={surfaces.flowEmpty}>
+            <div className={surfaces.flowNode}>
+              <span className={surfaces.flowIcon} aria-hidden="true">◔</span>
+              <span>Nothing on the books for today.</span>
+            </div>
+            <div className={surfaces.flowNode}>
+              <span className={surfaces.flowIcon} aria-hidden="true">◆</span>
+              <span>Ready for incoming requests.</span>
+            </div>
+            <div className={surfaces.flowNode}>
+              <span className={surfaces.flowIcon} aria-hidden="true">⚑</span>
+              <span>OBSIDIAN will guide each step.</span>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-content-muted">
+            Nothing on the books for today.
+          </p>
+        )
       ) : (
         <ol className="mt-3 space-y-1">
           {entries.map(({ trip, kind, isNext }) => {

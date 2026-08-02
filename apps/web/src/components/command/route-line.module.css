@@ -145,3 +145,88 @@
     stroke-dashoffset: 0;
   }
 }
+
+.sceneRoute {
+  min-height: 150px;
+  margin-top: 0;
+  padding-inline: 3%;
+}
+
+.sceneRoute .ribbon {
+  height: 112px;
+  transform: perspective(480px) rotateX(17deg) scaleX(1.06);
+  transform-origin: center bottom;
+}
+
+.sceneRoute .ribbonBloom {
+  opacity: 0.42;
+  stroke-width: 14;
+}
+
+.sceneRoute .ribbonLine {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 8px rgb(37 99 235 / 84%));
+}
+
+.sceneRoute .endpoints {
+  margin-top: -26px;
+}
+
+.sceneRoute .endpointCopy {
+  position: relative;
+  padding-left: 40px;
+}
+
+.sceneRoute .endpointCopy::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgb(56 189 248 / 42%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(56 189 248 / 22%), rgb(4 9 16 / 78%) 65%);
+  box-shadow: 0 0 18px rgb(37 99 235 / 18%);
+}
+
+.sceneRoute .endpointCopyRight {
+  padding-right: 40px;
+  padding-left: 0;
+}
+
+.sceneRoute .endpointCopyRight::before {
+  right: 0;
+  left: auto;
+}
+
+.sceneRoute .routeAction {
+  position: absolute;
+  top: 74px;
+  left: 50%;
+  min-height: 34px;
+  margin: 0;
+  padding-inline: 11px;
+  transform: translateX(-50%);
+  background: rgb(3 9 16 / 72%);
+  backdrop-filter: blur(10px);
+}
+
+@media (max-width: 760px) {
+  .sceneRoute {
+    min-height: 126px;
+    padding-inline: 0;
+  }
+
+  .sceneRoute .endpointCopy {
+    padding-left: 0;
+  }
+
+  .sceneRoute .endpointCopyRight {
+    padding-right: 0;
+  }
+
+  .sceneRoute .endpointCopy::before {
+    display: none;
+  }
+}

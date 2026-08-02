@@ -1,0 +1,212 @@
+.rideShell {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgb(56 189 248 / 42%);
+  border-radius: 18px;
+  padding: 18px 20px;
+  background:
+    linear-gradient(140deg, rgb(4 12 22 / 88%), rgb(8 18 31 / 72%)),
+    rgb(4 9 16 / 78%);
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 8%),
+    0 0 0 1px rgb(37 99 235 / 8%),
+    0 18px 54px rgb(0 0 0 / 36%),
+    0 0 34px rgb(37 99 235 / 11%);
+  backdrop-filter: blur(18px) saturate(1.18);
+}
+
+.rideShell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgb(56 189 248 / 48%), transparent 22%) top left / 42% 1px no-repeat,
+    radial-gradient(circle at 8% 0%, rgb(56 189 248 / 18%), transparent 32%);
+}
+
+.rideAlert {
+  border-color: rgb(248 113 113 / 48%);
+}
+
+.rideArrow {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(56 189 248 / 46%);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgb(37 99 235), rgb(2 132 199));
+  box-shadow: 0 0 22px rgb(37 99 235 / 36%);
+  color: white;
+  font-size: 25px;
+  line-height: 1;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.rideArrow:hover {
+  transform: translateX(2px);
+  box-shadow: 0 0 30px rgb(37 99 235 / 52%);
+}
+
+.attentionRail {
+  min-height: 100%;
+  border-color: rgb(245 158 11 / 28%);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgb(7 12 20 / 88%), rgb(4 8 14 / 76%)),
+    rgb(5 8 13 / 82%);
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 6%),
+    0 18px 56px rgb(0 0 0 / 30%),
+    0 0 30px rgb(245 158 11 / 7%);
+  backdrop-filter: blur(17px);
+}
+
+.attentionRail li {
+  background: rgb(3 8 14 / 62%);
+  box-shadow: inset 0 1px rgb(255 255 255 / 3%);
+}
+
+.flowStrip,
+.pulseStrip {
+  position: relative;
+  overflow: hidden;
+  border-radius: 17px;
+  background:
+    linear-gradient(180deg, rgb(5 12 21 / 78%), rgb(3 8 14 / 84%)),
+    rgb(4 8 14 / 80%);
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 8%),
+    0 14px 46px rgb(0 0 0 / 28%);
+  backdrop-filter: blur(17px);
+}
+
+.flowStrip::after,
+.pulseStrip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(56 189 248 / 8%), transparent);
+  transform: translateX(-100%);
+  animation: surfaceSweep 10s ease-in-out infinite;
+}
+
+.flowEmpty {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 11px;
+}
+
+.flowNode {
+  position: relative;
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 11px;
+  padding: 0 16px;
+  color: rgb(154 161 173);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.flowNode + .flowNode {
+  border-left: 1px solid rgb(56 189 248 / 15%);
+}
+
+.flowIcon,
+.pulseIcon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(56 189 248 / 28%);
+  border-radius: 50%;
+  background: rgb(5 12 20 / 72%);
+  box-shadow: 0 0 16px rgb(37 99 235 / 12%);
+  color: rgb(191 219 254);
+  font-size: 15px;
+}
+
+.pulseGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.pulseStat {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  min-width: 0;
+  padding: 2px 20px;
+}
+
+.pulseStat + .pulseStat {
+  border-left: 1px solid rgb(56 189 248 / 15%);
+}
+
+.pulseIcon {
+  grid-row: 1 / 3;
+  width: 38px;
+  height: 38px;
+  color: rgb(251 191 36);
+  border-color: rgb(245 158 11 / 30%);
+  box-shadow: 0 0 18px rgb(245 158 11 / 10%);
+}
+
+.pulseLabel {
+  color: rgb(128 136 151);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.pulseValue {
+  overflow: hidden;
+  color: rgb(231 233 238);
+  font-size: clamp(18px, 1.65vw, 25px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes surfaceSweep {
+  0%, 72%, 100% { transform: translateX(-110%); }
+  86% { transform: translateX(110%); }
+}
+
+@media (max-width: 760px) {
+  .flowEmpty,
+  .pulseGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .flowNode + .flowNode,
+  .pulseStat + .pulseStat {
+    border-top: 1px solid rgb(56 189 248 / 15%);
+    border-left: 0;
+  }
+
+  .pulseStat {
+    padding-block: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flowStrip::after,
+  .pulseStrip::after {
+    animation: none;
+  }
+}

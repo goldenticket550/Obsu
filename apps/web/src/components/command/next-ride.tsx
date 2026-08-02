@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { RouteLine } from "./route-line";
+import surfaces from "./command-surfaces.module.css";
 import { TripQuickActions } from "./trip-quick-actions";
 import { cancelTrip, markTripCompleted } from "@/app/trips/actions";
 import {
@@ -50,11 +51,24 @@ function Meta({ label, value, muted }: { label: string; value: string; muted?: b
 
 function Shell({
   tone = "normal",
+  variant = "default",
   children,
 }: {
   tone?: "normal" | "alert";
+  variant?: "default" | "command";
   children: React.ReactNode;
 }) {
+  if (variant === "command") {
+    return (
+      <section
+        aria-labelledby="next-ride-heading"
+        className={`${surfaces.rideShell} ${tone === "alert" ? surfaces.rideAlert : ""}`}
+      >
+        {children}
+      </section>
+    );
+  }
+
   return (
     <section
       aria-labelledby="next-ride-heading"
@@ -70,14 +84,17 @@ function Shell({
 export function NextRide({
   view,
   now,
+  variant = "default",
 }: {
   view: NextRideView<TripListRow>;
   /** Injected so day labels are deterministic — no ambient clock read here. */
   now: Date;
+  variant?: "default" | "command";
 }) {
+  const command = variant === "command";
   if (view.kind === "none") {
     return (
-      <Shell>
+      <Shell variant={variant}>
         <h2
           id="next-ride-heading"
           className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-secondary"
@@ -122,7 +139,7 @@ export function NextRide({
       : "No more rides today · next is later";
 
   return (
-    <Shell tone={overdue ? "alert" : "normal"}>
+    <Shell tone={overdue ? "alert" : "normal"} variant={variant}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2
           id="next-ride-heading"
@@ -135,8 +152,20 @@ export function NextRide({
         </span>
       </div>
 
+      {command ? (
+        <Link
+          href={`/trips/${trip.id}/edit`}
+          className={surfaces.rideArrow}
+          aria-label={`Open ride for ${headline}`}
+        >
+          <span aria-hidden="true">→</span>
+        </Link>
+      ) : null}
+
       <div className="mt-3">
-        <p className="text-3xl font-semibold text-content-primary">{headline}</p>
+        <p className={`font-semibold text-content-primary ${command ? "max-w-[78%] text-3xl" : "text-3xl"}`}>
+          {headline}
+        </p>
         <p
           className={`mt-1 text-sm ${
             overdue ? "text-state-danger" : "text-accent-soft"
@@ -167,13 +196,15 @@ export function NextRide({
         <Meta label="Day" value={dayLabelText} />
       </dl>
 
-      <RouteLine
-        pickup={trip.pickup_location}
-        dropoff={trip.dropoff_location}
-        editHref={`/trips/${trip.id}/edit`}
-      />
+      {!command ? (
+        <RouteLine
+          pickup={trip.pickup_location}
+          dropoff={trip.dropoff_location}
+          editHref={`/trips/${trip.id}/edit`}
+        />
+      ) : null}
 
-      <div className="mt-5 flex flex-wrap items-center gap-2">
+      {!command ? <div className="mt-5 flex flex-wrap items-center gap-2">
         <Link
           href={`/trips/${trip.id}/edit`}
           className="inline-flex min-h-[44px] items-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base"
@@ -186,7 +217,7 @@ export function NextRide({
           cancelAction={cancelTrip}
           returnTo="/"
         />
-      </div>
+      </div> : null}
     </Shell>
   );
 }

@@ -258,7 +258,7 @@ export function ObsidianIntelligence({
   const canRecover = state.kind === "warning" || state.kind === "error";
 
   return (
-    <div className="flex flex-col items-center">
+    <div className={ui.root}>
       {/* The orb. Embedded, never floating — it sits in the page flow so it
           cannot cover navigation, approval controls or an error message.
           Animation is pure CSS on compositor-friendly properties, so nothing
@@ -296,7 +296,7 @@ export function ObsidianIntelligence({
             </button>
           </li>
         </ul>
-        <EclipseIris visual={visual} size={196} focused={askFocused} />
+        <EclipseIris visual={visual} size={282} focused={askFocused} />
       </div>
       <IrisVisualizer phase="unavailable" amplitude={null} />
 
@@ -341,7 +341,7 @@ export function ObsidianIntelligence({
           e.preventDefault();
           void run(question);
         }}
-        className="mt-5 flex w-full items-center gap-2 rounded-xl border border-line bg-surface-base/50 p-2"
+        className={ui.commandDock}
       >
         <label htmlFor="obsidian-ask" className="sr-only">
           Ask a question about your business, or describe a ride to record
@@ -368,7 +368,7 @@ export function ObsidianIntelligence({
       {/* No microphone control. Voice is Phase 3, and a button that opened
           nothing would be exactly the dishonesty the orb is built to avoid.
           Saying so plainly is the honest affordance. */}
-      <p className="mt-2 text-[11px] text-content-muted">
+      <p className={ui.inputNote}>
         Typing is the only input for now — voice isn&apos;t enabled yet.
       </p>
 
@@ -418,7 +418,7 @@ export function ObsidianIntelligence({
         </button>
       ) : null}
 
-      <p className="mt-4 text-[11px] leading-relaxed text-content-muted">
+      <p className={ui.trust}>
         OBSIDIAN answers only from your verified business data — every figure
         comes from a tool that queries your records. It never guesses numbers.
         Anything that would change your records is shown for your approval first.

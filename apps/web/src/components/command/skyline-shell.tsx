@@ -102,8 +102,22 @@ export function SkylineAttentionArea({ children }: { children: ReactNode }) {
 export function SkylineRideArea({ children }: { children: ReactNode }) {
   return <div className={styles.areaRide}>{children}</div>;
 }
+export function SkylineRouteArea({ children }: { children: ReactNode }) {
+  return <div className={styles.areaRoute}>{children}</div>;
+}
 export function SkylineIntelligenceArea({ children }: { children: ReactNode }) {
   return <div className={styles.areaIntelligence}>{children}</div>;
+}
+
+export function SkylineIntelligenceFrame({ children }: { children: ReactNode }) {
+  return (
+    <section className={styles.intelligenceFrame} aria-labelledby="intelligence-heading">
+      <h2 id="intelligence-heading" className={styles.intelligenceTitle}>
+        Eclipse Iris
+      </h2>
+      {children}
+    </section>
+  );
 }
 export function SkylineFlowArea({ children }: { children: ReactNode }) {
   return <div className={styles.areaFlow}>{children}</div>;

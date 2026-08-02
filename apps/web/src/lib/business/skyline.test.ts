@@ -160,7 +160,7 @@ describe("the shell hard-codes no business identity", () => {
   it("the pill and Action Required read the same array", () => {
     const page = readFileSync(join(SRC, "app", "page.tsx"), "utf8");
     expect(page).toContain("actionItems={actionItems}");
-    expect(page).toContain("<ActionRequired items={actionItems} />");
+    expect(page).toContain("<ActionRequired items={actionItems}");
     expect(page).toContain("needsAttention={actionItems.length > 0}");
   });
 });
