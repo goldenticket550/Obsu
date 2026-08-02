@@ -2,7 +2,7 @@
 
 **As of:** OBSIDIAN RIDES MVP — M11.1 (Real Voice: server-side STT + ElevenLabs TTS) **built + statically verified** (2026-07-21). The RIDES MVP build (M1–M9) is complete; M11 added the voice/orb interface and M11.1 replaces the flaky browser SpeechRecognition with real server-side speech (see ADR-012, **ADR-013**).
 **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`).
-**Current sub-phase:** M11.1 plus the interactive Command Center design pass. ✅ **Built, verified, and deployed to production on 2026-08-02 at `https://obsidian-mvp.vercel.app`.**
+**Current sub-phase:** M11.1 plus the interactive Command Center and secure password recovery. ✅ **Built, verified, and deployed to production on 2026-08-02 at `https://obsidian-mvp.vercel.app`.**
 **Next:** M10 — Customer-Zero field test (real usage, NOT a build phase). Remaining queued follow-up: voice trip-logging (speech → the M8 parse flow).
 
 ## What exists right now
@@ -61,7 +61,7 @@ supabase/ migrations/0001, 0002 ; seed_dev.sql (NOT run)
 
 ## Next action
 
-**M10 — Customer-Zero field test (NOT a build phase):** use `https://obsidian-mvp.vercel.app` for real Midnight Rydes work for about 30 days — logging trips/expenses, trusting the dashboard numbers, asking OBSIDIAN, and using follow-up drafts. Findings go in `CUSTOMER_ZERO_FEEDBACK.md`. The production deployment completed on 2026-08-02; live auth was repaired by adding `NEXT_PUBLIC_SUPABASE_ANON_KEY` and correcting the stale Supabase project URL. **Before any second real user/business:** the deferred **negative second-user tenant-isolation test** (the HARD GATE above) must pass.
+**M10 — Customer-Zero field test (NOT a build phase):** use `https://obsidian-mvp.vercel.app` for real Midnight Rydes work for about 30 days — logging trips/expenses, trusting the dashboard numbers, asking OBSIDIAN, and using follow-up drafts. Findings go in `CUSTOMER_ZERO_FEEDBACK.md`. The production deployment completed on 2026-08-02; live auth now has the correct Supabase configuration and a deployed SSR/PKCE password-recovery flow. **Before any second real user/business:** the deferred **negative second-user tenant-isolation test** (the HARD GATE above) must pass.
 
 ## Git
 

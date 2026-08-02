@@ -23,7 +23,7 @@ Modular monolith. One deployable app (`apps/web`), internal modules in `src/lib/
 ## Current phase & milestone
 
 - **Active track:** OBSIDIAN RIDES MVP (see `docs/ROADMAP.md`). This supersedes the old abstract "Phase 1 CORE MVP" — CORE is built *through* RIDES (ADR-010).
-- **Current sub-phase:** **M11.1 — Real Voice plus the interactive Command Center design pass. ✅ BUILT, verified, and deployed to production on 2026-08-02.** Supersedes M11's browser SpeechRecognition (ADR-013). RIDES MVP build (M1–M9) complete; voice is an owner-approved scope expansion (ADR-012/013).
+- **Current sub-phase:** **M11.1 — Real Voice plus the interactive Command Center and secure password recovery. ✅ BUILT, verified, and deployed to production on 2026-08-02.** Supersedes M11's browser SpeechRecognition (ADR-013). RIDES MVP build (M1–M9) complete; voice is an owner-approved scope expansion (ADR-012/013).
 - **Next sub-phase:** **M10 — Customer-Zero field test (NOT a build phase). Remaining queued follow-up: voice trip-logging (speech → M8 parse).**
 
 ## Completed work
@@ -45,7 +45,7 @@ Modular monolith. One deployable app (`apps/web`), internal modules in `src/lib/
 
 - **Residual — negative second-user tenant-isolation test:** intentionally deferred (single-tenant MVP), but a **HARD GATE before multi-user** — see the "⛔ Deferred — must-do before going multi-user" section below.
 - **M10:** Customer-Zero 30-day field test — real usage + findings in `CUSTOMER_ZERO_FEEDBACK.md`. Not a build phase.
-- **Production deployment:** complete on 2026-08-02 at `https://obsidian-mvp.vercel.app`. The Vercel production environment includes the required Supabase, Anthropic, and ElevenLabs variables. Live auth was repaired by adding the missing public Supabase anonymous key and replacing an obsolete, non-resolving Supabase project URL with the current project URL.
+- **Production deployment:** complete on 2026-08-02 at `https://obsidian-mvp.vercel.app`. The Vercel production environment includes the required Supabase, Anthropic, and ElevenLabs variables. Live auth was repaired by adding the missing public Supabase anonymous key, replacing an obsolete Supabase project URL, and deploying an SSR/PKCE password-recovery flow with a one-time callback, authenticated password update, and open-redirect protection.
 - Excluded (do NOT build without explicit approval): **ElevenLabs premium voice** — now APPROVED & built in M11.1 (ADR-013; server-side STT + TTS, key server-only); **auto-SMS / any message sending** (M9 does drafts only), social automation, trading/towing/beauty, native apps, complex fleet, accounting/banking, multi-agent.
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)
