@@ -45,7 +45,7 @@ Modular monolith. One deployable app (`apps/web`), internal modules in `src/lib/
 
 - **Residual — negative second-user tenant-isolation test:** intentionally deferred (single-tenant MVP), but a **HARD GATE before multi-user** — see the "⛔ Deferred — must-do before going multi-user" section below.
 - **M10:** Customer-Zero 30-day field test — real usage + findings in `CUSTOMER_ZERO_FEEDBACK.md`. Not a build phase.
-- **Production deployment:** complete on 2026-08-02 at `https://obsidian-mvp.vercel.app`. The Vercel production environment includes the required Supabase, Anthropic, and ElevenLabs variables; the missing public Supabase anonymous key that blocked live sign-in was added before deployment.
+- **Production deployment:** complete on 2026-08-02 at `https://obsidian-mvp.vercel.app`. The Vercel production environment includes the required Supabase, Anthropic, and ElevenLabs variables. Live auth was repaired by adding the missing public Supabase anonymous key and replacing an obsolete, non-resolving Supabase project URL with the current project URL.
 - Excluded (do NOT build without explicit approval): **ElevenLabs premium voice** — now APPROVED & built in M11.1 (ADR-013; server-side STT + TTS, key server-only); **auto-SMS / any message sending** (M9 does drafts only), social automation, trading/towing/beauty, native apps, complex fleet, accounting/banking, multi-agent.
 
 ## ⛔ Deferred — must-do before going multi-user (HARD GATE)

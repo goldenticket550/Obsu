@@ -61,7 +61,7 @@ supabase/ migrations/0001, 0002 ; seed_dev.sql (NOT run)
 
 ## Next action
 
-**M10 — Customer-Zero field test (NOT a build phase):** use `https://obsidian-mvp.vercel.app` for real Midnight Rydes work for about 30 days — logging trips/expenses, trusting the dashboard numbers, asking OBSIDIAN, and using follow-up drafts. Findings go in `CUSTOMER_ZERO_FEEDBACK.md`. The production deployment completed on 2026-08-02, including the missing `NEXT_PUBLIC_SUPABASE_ANON_KEY` required by live sign-in. **Before any second real user/business:** the deferred **negative second-user tenant-isolation test** (the HARD GATE above) must pass.
+**M10 — Customer-Zero field test (NOT a build phase):** use `https://obsidian-mvp.vercel.app` for real Midnight Rydes work for about 30 days — logging trips/expenses, trusting the dashboard numbers, asking OBSIDIAN, and using follow-up drafts. Findings go in `CUSTOMER_ZERO_FEEDBACK.md`. The production deployment completed on 2026-08-02; live auth was repaired by adding `NEXT_PUBLIC_SUPABASE_ANON_KEY` and correcting the stale Supabase project URL. **Before any second real user/business:** the deferred **negative second-user tenant-isolation test** (the HARD GATE above) must pass.
 
 ## Git
 
