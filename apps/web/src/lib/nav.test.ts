@@ -18,7 +18,6 @@ describe("NAV_DESTINATIONS", () => {
   });
 
   it("contains no placeholder or dead destinations", () => {
-    // Guards the "no coming soon, no dead links" rule.
     for (const d of NAV_DESTINATIONS) {
       expect(d.href.startsWith("/")).toBe(true);
       expect(d.href).not.toContain("#");
@@ -34,28 +33,35 @@ describe("NAV_DESTINATIONS", () => {
 });
 
 describe("isChromeless", () => {
-  it("renders /login and /onboarding standalone", () => {
+  it("renders authentication, recovery, and onboarding standalone", () => {
     expect(isChromeless("/login")).toBe(true);
+    expect(isChromeless("/forgot-password")).toBe(true);
+    expect(isChromeless("/reset-password")).toBe(true);
     expect(isChromeless("/onboarding")).toBe(true);
-    expect(CHROMELESS_ROUTES).toEqual(["/login", "/onboarding"]);
+    expect(CHROMELESS_ROUTES).toEqual([
+      "/login",
+      "/forgot-password",
+      "/reset-password",
+      "/onboarding",
+    ]);
   });
 
   it("covers subpaths of those routes", () => {
     expect(isChromeless("/login/callback")).toBe(true);
+    expect(isChromeless("/forgot-password/sent")).toBe(true);
+    expect(isChromeless("/reset-password/confirm")).toBe(true);
     expect(isChromeless("/onboarding/step-2")).toBe(true);
   });
 
   it("wraps every signed-in destination in the shell", () => {
-    for (const d of NAV_DESTINATIONS) {
-      expect(isChromeless(d.href)).toBe(false);
-    }
+    for (const d of NAV_DESTINATIONS) expect(isChromeless(d.href)).toBe(false);
     expect(isChromeless("/trips/abc-123/edit")).toBe(false);
   });
 
   it("does not match a route that merely contains the word", () => {
-    // "/logbook" must not be mistaken for "/login".
     expect(isChromeless("/logbook")).toBe(false);
     expect(isChromeless("/onboarding-notes")).toBe(false);
+    expect(isChromeless("/forgot-password-notes")).toBe(false);
   });
 });
 

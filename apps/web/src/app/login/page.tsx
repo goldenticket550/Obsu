@@ -1,9 +1,9 @@
+import Link from "next/link";
 import { signIn, signUp } from "./actions";
 
 /**
- * OBSIDIAN RIDES — sign in / create account (M2).
- * One form, two buttons: "Sign in" and "Create account" post to different
- * server actions via formAction. No client-side JavaScript required.
+ * OBSIDIAN RIDES sign in / create account.
+ * One form, two buttons: Sign in and Create account post to separate actions.
  */
 export default function LoginPage({
   searchParams,
@@ -51,6 +51,13 @@ export default function LoginPage({
             placeholder="••••••••"
           />
         </label>
+
+        <Link
+          href="/forgot-password"
+          className="self-end rounded text-xs text-obsidian-silver underline decoration-obsidian-line underline-offset-4 transition-colors hover:text-obsidian-platinum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan"
+        >
+          Forgot password?
+        </Link>
 
         <button
           formAction={signIn}

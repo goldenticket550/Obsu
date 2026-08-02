@@ -1,15 +1,11 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicAuthRoute } from "@/lib/auth/recovery";
 import { getSupabaseEnv } from "./env";
 
-/**
- * Runs on every request (via src/middleware.ts). It refreshes the Supabase
- * auth session cookie and redirects unauthenticated users to /login.
- * This is the standard Supabase + Next.js App Router SSR pattern.
- */
+/** Refreshes the Supabase auth session and protects signed-in routes. */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
-
   const { url, anonKey } = getSupabaseEnv();
 
   const supabase = createServerClient(url, anonKey, {
@@ -31,15 +27,11 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // IMPORTANT: getUser() revalidates the token with Supabase on every request.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
-  const isPublicRoute = path.startsWith("/login") || path.startsWith("/auth");
-
-  if (!user && !isPublicRoute) {
+  if (!user && !isPublicAuthRoute(request.nextUrl.pathname)) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);
