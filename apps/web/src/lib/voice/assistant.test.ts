@@ -376,6 +376,20 @@ describe("a missing voice is not a failed answer", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("invokes the browser fetch with the global receiver", async () => {
+    const fetchMock = vi.fn(function (this: unknown) {
+      expect(this).toBe(globalThis);
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ text: "hello" }),
+      });
+    }) as unknown as typeof fetch;
+
+    const result = await transcribe(new Blob(["fake-audio"], { type: "audio/webm" }), {
+      fetch: fetchMock,
+    });
+    expect(result).toEqual({ kind: "transcribed", text: "hello" });
+  });
   it("reports a network failure and waits, rather than retrying", async () => {
     const fetchMock = vi.fn(async () => {
       throw new Error("offline");

@@ -58,7 +58,7 @@ export async function transcribe(
 
   let response: Response;
   try {
-    response = await deps.fetch("/api/voice/transcribe", {
+    response = await deps.fetch.call(globalThis, "/api/voice/transcribe", {
       method: "POST",
       body: form,
     });

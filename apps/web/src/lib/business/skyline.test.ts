@@ -192,6 +192,14 @@ describe("shell class scoping", () => {
     }
   });
 
+  it("lets the intelligence row grow before the route begins", () => {
+    const css = readFileSync(
+      join(SRC, "components", "command", "skyline-shell.module.css"),
+      "utf8",
+    );
+    expect(css).toContain("minmax(460px, auto)");
+    expect(css).not.toContain("margin-top: -42px");
+  });
   it("the module pastes no raw hex for semantic colour", () => {
     const css = readFileSync(
       join(SRC, "components", "command", "skyline-shell.module.css"),
