@@ -296,7 +296,7 @@ export function ObsidianIntelligence({
             </button>
           </li>
         </ul>
-        <EclipseIris visual={visual} size={282} focused={askFocused} />
+        <EclipseIris visual={visual} size={236} focused={askFocused} />
       </div>
       <IrisVisualizer phase="unavailable" amplitude={null} />
 

@@ -9,10 +9,10 @@
 .instrumentStage {
   position: relative;
   display: grid;
-  width: 100%;
-  min-height: 306px;
+  width: min(100%, 480px);
+  min-height: 318px;
   place-items: center;
-  padding: 42px 74px 6px;
+  padding: 48px 78px 10px;
 }
 
 .controlCluster {
@@ -30,8 +30,8 @@
   pointer-events: auto;
 }
 .controlCluster li:nth-child(1) { top: 0; left: 50%; transform: translateX(-50%); }
-.controlCluster li:nth-child(2) { bottom: 42px; left: 2px; }
-.controlCluster li:nth-child(3) { right: 2px; bottom: 42px; }
+.controlCluster li:nth-child(2) { bottom: 44px; left: 4px; }
+.controlCluster li:nth-child(3) { right: 4px; bottom: 44px; }
 
 .controlButton {
   display: inline-flex;

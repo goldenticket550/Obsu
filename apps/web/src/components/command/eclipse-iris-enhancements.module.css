@@ -141,3 +141,203 @@
   .floorBounce,
   .wings { animation: none; }
 }
+
+/* Layered mechanical halo from the approved Eclipse Iris concept. */
+.instrumentHalo {
+  position: absolute;
+  inset: -13%;
+  z-index: -1;
+  border: 1px solid rgb(56 189 248 / 42%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 48%, rgb(37 99 235 / 12%) 49% 50%, transparent 51% 100%),
+    radial-gradient(circle, transparent 0 67%, rgb(56 189 248 / 14%) 68% 69%, transparent 70% 100%);
+  box-shadow:
+    inset 0 0 22px rgb(37 99 235 / 17%),
+    0 0 18px rgb(37 99 235 / 22%),
+    0 0 44px rgb(14 116 194 / 12%);
+  filter: drop-shadow(0 0 7px rgb(56 189 248 / 16%));
+  transition: border-color 420ms ease, filter 420ms ease, transform 420ms ease;
+}
+
+.instrumentHalo::before,
+.instrumentHalo::after,
+.haloRingA,
+.haloRingB,
+.haloTicks,
+.haloNodes {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.instrumentHalo::before {
+  content: "";
+  inset: 5%;
+  border: 1px solid rgb(125 211 252 / 28%);
+  box-shadow:
+    inset 0 0 0 5px rgb(37 99 235 / 4%),
+    0 0 10px rgb(56 189 248 / 16%);
+}
+
+.instrumentHalo::after {
+  content: "";
+  inset: 12%;
+  border: 1px dashed rgb(56 189 248 / 52%);
+  box-shadow: 0 0 9px rgb(37 99 235 / 24%);
+  animation: haloCounterSpin 28s linear infinite;
+}
+
+.haloRingA {
+  inset: 2.5%;
+  background: repeating-conic-gradient(
+    from 4deg,
+    rgb(56 189 248 / 88%) 0 1.1deg,
+    transparent 1.1deg 7deg
+  );
+  mask: radial-gradient(circle, transparent 0 88%, black 89% 92%, transparent 93%);
+  animation: haloSpin 34s linear infinite;
+}
+
+.haloRingB {
+  inset: 17%;
+  background:
+    repeating-conic-gradient(
+      from 12deg,
+      rgb(96 165 250 / 76%) 0 3deg,
+      transparent 3deg 12deg
+    );
+  mask: radial-gradient(circle, transparent 0 77%, black 78% 84%, transparent 85%);
+  animation: haloCounterSpin 22s linear infinite;
+}
+
+.haloTicks {
+  inset: 8%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgb(191 219 254 / 58%) 0 0.7deg,
+    transparent 0.7deg 4.5deg
+  );
+  mask: radial-gradient(circle, transparent 0 91%, black 92% 95%, transparent 96%);
+  animation: haloTrack 18s cubic-bezier(0.42, 0, 0.24, 1) infinite;
+}
+
+.haloNodes {
+  inset: 0;
+}
+
+.haloNode {
+  --node-angle: calc(var(--halo-node) * 45deg);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgb(191 219 254 / 88%);
+  border-radius: 50%;
+  background: rgb(37 99 235);
+  box-shadow:
+    0 0 0 3px rgb(37 99 235 / 16%),
+    0 0 9px rgb(56 189 248 / 92%),
+    0 0 18px rgb(37 99 235 / 64%);
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--node-angle))
+    translateY(calc((var(--iris-size, 196px) * -0.63)))
+    rotate(calc(var(--node-angle) * -1));
+  animation: nodePulse 4.8s ease-in-out infinite;
+  animation-delay: calc(var(--halo-node) * -0.37s);
+}
+
+.wings {
+  z-index: -2;
+  width: 152%;
+  height: 152%;
+  opacity: 0.58;
+}
+
+.wingArc {
+  stroke-width: 0.85;
+}
+
+.wingBloom {
+  stroke-width: 3;
+  opacity: 0.12;
+}
+
+.working .instrumentHalo {
+  filter: brightness(1.22) drop-shadow(0 0 12px rgb(56 189 248 / 28%));
+  transform: scale(1.018);
+}
+
+.working .haloRingA {
+  animation-duration: 8.8s;
+}
+
+.working .haloRingB {
+  animation-duration: 12.4s;
+}
+
+.attention .instrumentHalo {
+  border-color: rgb(245 158 11 / 52%);
+  box-shadow:
+    inset 0 0 22px rgb(217 119 6 / 12%),
+    0 0 18px rgb(245 158 11 / 22%),
+    0 0 44px rgb(37 99 235 / 12%);
+}
+
+.attention .haloNode:nth-child(3n + 1) {
+  border-color: rgb(254 240 199 / 92%);
+  background: rgb(245 158 11);
+  box-shadow:
+    0 0 0 3px rgb(245 158 11 / 16%),
+    0 0 10px rgb(251 191 36 / 92%),
+    0 0 18px rgb(217 119 6 / 62%);
+}
+
+.unavailable .instrumentHalo,
+.unavailable .haloRingA,
+.unavailable .haloRingB,
+.unavailable .haloTicks,
+.unavailable .haloNode,
+.stillness .instrumentHalo,
+.stillness .haloRingA,
+.stillness .haloRingB,
+.stillness .haloTicks,
+.stillness .haloNode {
+  animation: none;
+}
+
+.unavailable .instrumentHalo {
+  opacity: 0.48;
+  filter: grayscale(0.74);
+}
+
+@keyframes haloSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes haloCounterSpin {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes haloTrack {
+  0%, 18% { transform: rotate(0deg); }
+  26%, 58% { transform: rotate(74deg); }
+  66%, 100% { transform: rotate(154deg); }
+}
+
+@keyframes nodePulse {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instrumentHalo,
+  .haloRingA,
+  .haloRingB,
+  .haloTicks,
+  .haloNode {
+    animation: none;
+  }
+}

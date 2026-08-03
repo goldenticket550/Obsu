@@ -22,6 +22,8 @@ const WING_MARKS = [
   { d: "M272 74h18", opacity: 0.36 },
 ] as const;
 
+const HALO_NODES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+
 function cx(...parts: (string | undefined | false)[]): string {
   return parts.filter((part): part is string => Boolean(part)).join(" ");
 }
@@ -165,6 +167,21 @@ export function EclipseIris({
       data-reduced-motion={reducedMotion ? "true" : "false"}
       data-focused={focused ? "true" : "false"}
     >
+      <div className={motion.instrumentHalo} aria-hidden="true">
+        <div className={motion.haloRingA} />
+        <div className={motion.haloRingB} />
+        <div className={motion.haloTicks} />
+        <div className={motion.haloNodes}>
+          {HALO_NODES.map((node) => (
+            <span
+              key={node}
+              className={motion.haloNode}
+              style={{ ["--halo-node" as string]: String(node) }}
+            />
+          ))}
+        </div>
+      </div>
+
       <svg
         className={motion.wings}
         viewBox="0 0 320 160"
@@ -219,7 +236,7 @@ export function EclipseIris({
       <div className={styles.lanceBloom} aria-hidden="true" />
       <div className={styles.lance} aria-hidden="true" />
       <div className={cx(styles.floorBounce, motion.floorBounce)} aria-hidden="true" />
-      <span className="sr-only" role="status">{status}</span>
+      <span className={cx("sr-only", styles.statusText)} role="status">{status}</span>
     </div>
   );
 }
