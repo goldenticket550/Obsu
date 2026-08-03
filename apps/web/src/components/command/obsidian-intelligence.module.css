@@ -136,3 +136,80 @@
     margin-top: -2px;
   }
 }
+.irisButton {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: filter 180ms ease, transform 180ms ease;
+}
+
+.irisButton:hover:not(:disabled) {
+  filter: brightness(1.12);
+  transform: scale(1.012);
+}
+
+.irisButton:focus-visible {
+  outline: 2px solid rgb(56 189 248);
+  outline-offset: 12px;
+}
+
+.irisButton:disabled {
+  cursor: wait;
+}
+
+.voiceButton {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgb(56 189 248 / 34%);
+  border-radius: 10px;
+  padding-inline: 10px;
+  color: rgb(191 219 254);
+  font-size: 11px;
+  font-weight: 600;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.voiceButton svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.65;
+}
+
+.voiceButton:hover:not(:disabled),
+.voiceButton[aria-pressed="true"] {
+  border-color: rgb(56 189 248 / 78%);
+  background: rgb(14 116 144 / 18%);
+  box-shadow: 0 0 18px rgb(37 99 235 / 22%);
+}
+
+.voiceButton[aria-pressed="true"] {
+  color: rgb(254 202 202);
+  border-color: rgb(248 113 113 / 70%);
+  box-shadow: 0 0 18px rgb(239 68 68 / 18%);
+}
+
+.voiceButton:focus-visible {
+  outline: 2px solid rgb(56 189 248);
+  outline-offset: 2px;
+}
+
+.voiceButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+@media (max-width: 520px) {
+  .voiceButton span { display: none; }
+}

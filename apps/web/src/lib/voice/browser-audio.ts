@@ -91,7 +91,7 @@ export function createBrowserLevelMeter(stream: MediaStream): LevelMeterLike {
   if (!AudioContextCtor) {
     // No Web Audio: report no measurement rather than a fake zero, which
     // capture-assessment would otherwise read as silence.
-    return { peak: () => 0, close: () => {} };
+    return { level: () => 0, peak: () => 0, close: () => {} };
   }
 
   const context = new AudioContextCtor();
@@ -100,17 +100,22 @@ export function createBrowserLevelMeter(stream: MediaStream): LevelMeterLike {
   context.createMediaStreamSource(stream).connect(analyser);
   const samples = new Uint8Array(analyser.frequencyBinCount);
   let peak = 0;
+  const sample = () => {
+    analyser.getByteTimeDomainData(samples);
+    let sum = 0;
+    for (let i = 0; i < samples.length; i += 1) {
+      const value = ((samples[i] ?? 128) - 128) / 128;
+      sum += value * value;
+    }
+    const rms = Math.min(1, Math.sqrt(sum / samples.length) * 3.2);
+    peak = Math.max(peak, rms);
+    return rms;
+  };
 
   return {
+    level: sample,
     peak: () => {
-      analyser.getByteTimeDomainData(samples);
-      let sum = 0;
-      for (let i = 0; i < samples.length; i += 1) {
-        const value = ((samples[i] ?? 128) - 128) / 128;
-        sum += value * value;
-      }
-      const rms = Math.min(1, Math.sqrt(sum / samples.length) * 3.2);
-      peak = Math.max(peak, rms);
+      sample();
       return peak;
     },
     close: () => {

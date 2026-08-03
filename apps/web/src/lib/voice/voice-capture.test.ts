@@ -307,6 +307,13 @@ describe("capturing and releasing", () => {
     rig.emit(1_000);
   });
 
+  it("exposes the real live level while capture is active", () => {
+    const rig = makeRig();
+    const session = startCapture(rig.deps);
+    expect(session.level()).toBe(0.5);
+    session.abandon();
+    expect(session.level()).toBeNull();
+  });
   it("counts what it recorded and assesses it", async () => {
     const rig = makeRig();
     const session = startCapture(rig.deps);

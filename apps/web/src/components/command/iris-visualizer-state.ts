@@ -2,6 +2,7 @@ export type IrisVisualizerPhase =
   | "unavailable"
   | "idle"
   | "listening"
+  | "speaking"
   | "processing"
   | "error";
 
@@ -25,6 +26,8 @@ export function deriveIrisVisualizerView(
       return { label: "Voice ready", detail: "Start voice input when you are ready.", level, hasSignal };
     case "listening":
       return { label: "Listening", detail: "Voice input is active.", level, hasSignal };
+    case "speaking":
+      return { label: "Speaking", detail: "Playing the verified answer.", level, hasSignal };
     case "processing":
       return { label: "Processing audio", detail: "Preparing the captured request.", level, hasSignal };
     case "error":

@@ -7,12 +7,12 @@ import { IrisVisualizer } from "@/components/command/iris-visualizer";
 import ui from "./obsidian-intelligence.module.css";
 import {
   deriveIrisVisualState,
-  irisStatusText,
   type CapabilityStatus,
   type InteractionPhase,
 } from "@/lib/business/iris";
 import {
   orbCopy,
+  orbLevel,
   transition,
   type OrbEvent,
   type OrbState,
@@ -28,37 +28,24 @@ import {
   rejectProposal,
   submitTranscript,
 } from "@/app/ask/assistant-actions";
+import { requestMicrophone, userGesture, micPermissionCopy } from "@/lib/voice/mic-permission";
+import { startCapture, type CaptureSession } from "@/lib/voice/audio-capture";
+import { createBrowserLevelMeter, createBrowserRecorder } from "@/lib/voice/browser-audio";
+import { captureCopy } from "@/lib/voice/capture-assessment";
+import { transcribe } from "@/lib/voice/transcribe-client";
+import { createDefaultTts, type ObsidianTts } from "@/lib/voice/tts";
+import { shouldReleaseMicrophone } from "@/lib/voice/mic-lifecycle";
 
 /**
- * Phase 2 — OBSIDIAN Intelligence, with the orb as the centerpiece.
+ * Command Center intelligence controller.
  *
- * THE RULE THIS COMPONENT EXISTS TO KEEP: the orb tells the truth about what
- * is actually happening. It is not decoration and it is not a preview of
- * voice. Every state it can reach from here corresponds to something the
- * application is really doing on the verified typed path:
- *
- *   resting                      → idle
- *   request in flight            → thinking
- *   proposal returned            → action_proposed
- *   approval pressed             → executing
- *   write succeeded              → success, then back to idle
- *   refusal / failure            → warning / error, recovery visible
- *   connection lost              → offline
- *
- * The four voice states — requesting_permission, listening, transcribing,
- * speaking — are implemented in the machine and covered by tests, and are
- * DELIBERATELY UNREACHABLE from this component. Nothing here dispatches
- * `permission_requested`, `capture_stopped`, `transcript_ready`,
- * `level_changed` or `answer_ready`. An orb that showed "Listening…" while no
- * microphone was open would be the exact lie this design forbids, and on this
- * machine the microphone records silence anyway.
- *
- * The typed path is DEMOTED, never removed. It is the path verified against
- * production, and if voice never works, OBSIDIAN still works.
+ * Typed and spoken requests share one verified assistant path. Voice begins
+ * only after an explicit tap, microphone state is released on every terminal
+ * path, and record-changing actions still require an approval button.
  */
-
 /** How long a success rests on screen before the orb returns to idle. */
 const SUCCESS_DWELL_MS = 2400;
+const MAX_RECORDING_MS = 30_000;
 
 export function ObsidianIntelligence({
   needsAttention = false,
@@ -78,7 +65,26 @@ export function ObsidianIntelligence({
   const [askFocused, setAskFocused] = useState(false);
 
   const stateRef = useRef<OrbState>({ kind: "idle" });
+  const mountedRef = useRef(true);
   const dwellRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionRef = useRef<CaptureSession | null>(null);
+  const ttsRef = useRef<ObsidianTts | null>(null);
+  const levelTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const releaseMic = useCallback(() => {
+    if (levelTimerRef.current) {
+      clearInterval(levelTimerRef.current);
+      levelTimerRef.current = null;
+    }
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    sessionRef.current?.abandon();
+    sessionRef.current = null;
+  }, []);
+
   const scrollToSurface = useCallback((id: string) => {
     const target = document.getElementById(id);
     if (!target) return;
@@ -100,8 +106,9 @@ export function ObsidianIntelligence({
     const next = transition(stateRef.current, event);
     stateRef.current = next;
     setState(next);
+    if (shouldReleaseMicrophone(next)) releaseMic();
     return next;
-  }, []);
+  }, [releaseMic]);
 
   const clearDwell = useCallback(() => {
     if (dwellRef.current) {
@@ -123,6 +130,8 @@ export function ObsidianIntelligence({
 
   /** Connection state is real and worth showing; both listeners are removed. */
   useEffect(() => {
+    mountedRef.current = true;
+    ttsRef.current = createDefaultTts();
     const goOffline = () => send({ type: "went_offline" });
     const goOnline = () => send({ type: "came_online" });
     window.addEventListener("offline", goOffline);
@@ -135,26 +144,33 @@ export function ObsidianIntelligence({
     window.addEventListener(SIGN_OUT_EVENT, onSignOut);
 
     return () => {
+      mountedRef.current = false;
       window.removeEventListener("offline", goOffline);
       window.removeEventListener("online", goOnline);
       window.removeEventListener(SIGN_OUT_EVENT, onSignOut);
       clearDwell();
+      releaseMic();
+      ttsRef.current?.cancel();
       setHistory(clearConversation());
     };
-  }, [send, clearDwell]);
+  }, [send, clearDwell, releaseMic]);
 
   function remember(turn: ConversationTurn) {
     setHistory((current) => appendRedacted(current, turn));
   }
 
-  async function run(text: string) {
+  async function run(text: string, source: "typed" | "voice" = "typed") {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
 
-    // Refused by the machine (mid-execution, offline) — leave the box alone so
-    // nothing the user typed is thrown away.
-    const started = send({ type: "text_submitted", transcript: trimmed });
-    if (started.kind !== "thinking") return;
+    // Spoken text has already moved through transcribing -> thinking. Typed text
+    // enters thinking here. Both then share the same verified assistant path.
+    if (source === "typed") {
+      const started = send({ type: "text_submitted", transcript: trimmed });
+      if (started.kind !== "thinking") return;
+    } else if (stateRef.current.kind !== "thinking") {
+      return;
+    }
 
     setQuestion("");
     remember({ role: "user", text: trimmed });
@@ -164,8 +180,12 @@ export function ObsidianIntelligence({
       switch (turn.kind) {
         case "answer":
           remember({ role: "assistant", text: turn.text });
-          // Shown, not spoken — see `answer_shown` in orb.ts.
-          send({ type: "answer_shown" });
+          if (source === "voice") {
+            send({ type: "answer_ready" });
+            await speak(turn.text);
+          } else {
+            send({ type: "answer_shown" });
+          }
           break;
         case "proposal":
           remember({ role: "proposal", summary: turn.proposal.humanReadableSummary });
@@ -196,6 +216,128 @@ export function ObsidianIntelligence({
     }
   }
 
+  async function speak(text: string) {
+    let started = false;
+    try {
+      await ttsRef.current?.speak(text, {
+        onStart: () => {
+          started = true;
+          send({ type: "answer_ready" });
+        },
+        onLevel: (level) => send({ type: "level_changed", level }),
+      });
+    } finally {
+      // Speaking is entered only from the audio backend's real onStart event.
+      // If no backend could start, the verified text remains visible without
+      // the Iris falsely claiming that sound played.
+      send({ type: started ? "playback_finished" : "answer_shown" });
+    }
+  }
+
+  async function stopListening() {
+    const session = sessionRef.current;
+    if (!session) return;
+    if (levelTimerRef.current) {
+      clearInterval(levelTimerRef.current);
+      levelTimerRef.current = null;
+    }
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    // Detach before the transition: transcribing may not hold a live mic, but
+    // this session still needs to finish cleanly and return its recording.
+    sessionRef.current = null;
+    send({ type: "capture_stopped" });
+
+    const result = await session.stop();
+    const assessment = captureCopy(result.assessment);
+    if (!assessment.usable || !result.audio) {
+      const message = assessment.suggestion
+        ? `${assessment.message ?? "That did not record."} ${assessment.suggestion}`
+        : (assessment.message ?? "That did not record.");
+      send({ type: "failed", message });
+      return;
+    }
+
+    const transcription = await transcribe(result.audio, { fetch });
+    if (transcription.kind === "failed") {
+      send({ type: "failed", message: transcription.message });
+      return;
+    }
+    if (transcription.kind === "no_speech") {
+      send({ type: "failed", message: "I did not catch any words. Try again." });
+      return;
+    }
+
+    send({ type: "transcript_ready", transcript: transcription.text });
+    await run(transcription.text, "voice");
+  }
+
+  async function startListening() {
+    if (busy) return;
+    const current = stateRef.current.kind;
+    if (current === "success" || current === "warning" || current === "error") {
+      send({ type: "dismissed" });
+    }
+    if (stateRef.current.kind !== "idle") return;
+
+    send({ type: "permission_requested" });
+    const permission = await requestMicrophone(userGesture(), {
+      getUserMedia: navigator.mediaDevices?.getUserMedia
+        ? navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
+        : null,
+      isSecureContext: window.isSecureContext,
+    });
+
+    if (!mountedRef.current) {
+      if (permission.kind === "granted") {
+        permission.stream.getTracks().forEach((track) => track.stop());
+      }
+      return;
+    }
+    if (permission.kind !== "granted") {
+      const copy = micPermissionCopy(permission);
+      const message = copy.suggestion ? `${copy.message} ${copy.suggestion}` : copy.message;
+      send({ type: "failed", message });
+      return;
+    }
+
+    try {
+      const session = startCapture({
+        stream: permission.stream,
+        createRecorder: createBrowserRecorder,
+        createLevelMeter: createBrowserLevelMeter,
+        now: () => Date.now(),
+      });
+      sessionRef.current = session;
+      send({ type: "permission_granted" });
+      levelTimerRef.current = setInterval(() => {
+        if (stateRef.current.kind === "listening") {
+          send({ type: "level_changed", level: session.level() ?? 0 });
+        }
+      }, 80);
+      recordingTimerRef.current = setTimeout(() => {
+        void stopListening();
+      }, MAX_RECORDING_MS);
+    } catch (error) {
+      permission.stream.getTracks().forEach((track) => track.stop());
+      const message = error instanceof Error ? error.message : "Voice could not start.";
+      send({ type: "failed", message });
+    }
+  }
+
+  function onVoiceControl() {
+    const kind = stateRef.current.kind;
+    if (kind === "idle" || kind === "success" || kind === "warning" || kind === "error") {
+      void startListening();
+    } else if (kind === "listening") {
+      void stopListening();
+    } else if (kind === "speaking") {
+      ttsRef.current?.cancel();
+      send({ type: "playback_finished" });
+    }
+  }
   async function approve(proposalId: string) {
     if (busy) return;
     send({ type: "proposal_approved" });
@@ -229,21 +371,21 @@ export function ObsidianIntelligence({
 
   const copy = orbCopy(state);
 
-  /**
-   * Gate 1 wiring. `capability` is "available" because the only capability the
-   * orb currently reflects is the typed path, which works. Voice is Gate 3 —
-   * when it lands, an unconfigured or denied microphone flows in here and the
-   * orb goes "unavailable" without any other change.
-   */
-  const capability: CapabilityStatus = "available";
+  /** Current failures desaturate the Iris until the operator dismisses them. */
+  const capability: CapabilityStatus =
+    state.kind === "error" ? "temporarily_unavailable" : "available";
   const phase: InteractionPhase =
-    state.kind === "thinking" || state.kind === "executing"
+    state.kind === "requesting_permission" ||
+    state.kind === "listening" ||
+    state.kind === "transcribing" ||
+    state.kind === "thinking" ||
+    state.kind === "speaking" ||
+    state.kind === "executing"
       ? "requesting_response"
       : state.kind === "action_proposed" || state.kind === "success"
         ? "presenting_response"
         : "idle";
   const visual = deriveIrisVisualState({ capability, phase, needsAttention });
-  const irisStatus = irisStatusText(visual);
 
   const proposal =
     state.kind === "action_proposed" || state.kind === "executing"
@@ -256,6 +398,26 @@ export function ObsidianIntelligence({
     state.kind === "warning" ||
     state.kind === "error";
   const canRecover = state.kind === "warning" || state.kind === "error";
+  const voiceControlEnabled = resting || state.kind === "listening" || state.kind === "speaking";
+  const visualizerPhase =
+    state.kind === "listening"
+      ? "listening"
+      : state.kind === "speaking"
+        ? "speaking"
+        : state.kind === "requesting_permission" ||
+            state.kind === "transcribing" ||
+            state.kind === "thinking" ||
+            state.kind === "executing"
+          ? "processing"
+          : state.kind === "error"
+            ? "error"
+            : "idle";
+  const voiceLabel =
+    state.kind === "listening"
+      ? "Stop listening"
+      : state.kind === "speaking"
+        ? "Stop speaking"
+        : "Start voice input";
 
   return (
     <div className={ui.root}>
@@ -296,13 +458,26 @@ export function ObsidianIntelligence({
             </button>
           </li>
         </ul>
-        <EclipseIris visual={visual} size={236} focused={askFocused} />
+        <button
+          type="button"
+          className={ui.irisButton}
+          onClick={onVoiceControl}
+          aria-label={voiceLabel}
+          disabled={!voiceControlEnabled}
+        >
+          <EclipseIris
+            visual={visual}
+            size={236}
+            focused={askFocused || state.kind === "listening" || state.kind === "speaking"}
+            amplitude={orbLevel(state)}
+          />
+        </button>
       </div>
-      <IrisVisualizer phase="unavailable" amplitude={null} />
+      <IrisVisualizer phase={visualizerPhase} amplitude={orbLevel(state)} />
 
       {/* The status, in words. The orb is decorative; this is the information,
           and it is legible with no colour and no motion. */}
-      <p className={ui.status}>{irisStatus}</p>
+      <p className={ui.status}>{copy.label}</p>
       {copy.detail && !proposal ? (
         <p className="mt-1 max-w-sm text-center text-xs text-content-muted">
           {copy.detail}
@@ -357,6 +532,21 @@ export function ObsidianIntelligence({
           className="min-h-[44px] flex-1 bg-transparent px-3 py-2 text-sm text-content-primary placeholder:text-content-muted focus:outline-none"
         />
         <button
+          type="button"
+          onClick={onVoiceControl}
+          disabled={!voiceControlEnabled}
+          className={ui.voiceButton}
+          aria-label={voiceLabel}
+          aria-pressed={state.kind === "listening"}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z" />
+            <path d="M5.5 10.5v.5a6.5 6.5 0 0 0 13 0v-.5M12 17.5V21M8.5 21h7" />
+          </svg>
+          <span>{state.kind === "listening" ? "Stop" : "Voice"}</span>
+        </button>
+
+        <button
           type="submit"
           disabled={busy || !question.trim() || !resting}
           className="min-h-[44px] rounded-lg bg-accent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base disabled:cursor-not-allowed disabled:opacity-50"
@@ -364,12 +554,10 @@ export function ObsidianIntelligence({
           {busy ? "Working…" : "Ask"}
         </button>
       </form>
-
-      {/* No microphone control. Voice is Phase 3, and a button that opened
-          nothing would be exactly the dishonesty the orb is built to avoid.
-          Saying so plainly is the honest affordance. */}
       <p className={ui.inputNote}>
-        Typing is the only input for now — voice isn&apos;t enabled yet.
+        {state.kind === "listening"
+          ? "Recording now — tap the Iris or Stop when you are finished."
+          : "Tap the Iris or Voice to speak. Every change still requires your approval."}
       </p>
 
       {/* Conversation. Bounded and cleared on sign-out; these lines name real

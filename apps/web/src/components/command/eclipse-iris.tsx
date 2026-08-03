@@ -84,15 +84,18 @@ export function EclipseIris({
   visual,
   size = 196,
   focused = false,
+  amplitude = 0,
 }: {
   visual: IrisVisualState;
   size?: number;
   focused?: boolean;
+  amplitude?: number;
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const instanceId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const status = irisStatusText(visual);
+  const level = Number.isFinite(amplitude) ? Math.max(0, Math.min(1, amplitude)) : 0;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -162,14 +165,19 @@ export function EclipseIris({
         reducedMotion && styles.stillness,
         reducedMotion && motion.stillness,
       )}
-      style={{ ["--iris-size" as string]: `${size}px` }}
+      style={{
+        ["--iris-size" as string]: `${size}px`,
+        ["--iris-level" as string]: String(level),
+      }}
       data-visual={visual}
       data-reduced-motion={reducedMotion ? "true" : "false"}
       data-focused={focused ? "true" : "false"}
+      data-has-signal={level > 0.015 ? "true" : "false"}
     >
       <div className={motion.instrumentHalo} aria-hidden="true">
         <div className={motion.haloRingA} />
         <div className={motion.haloRingB} />
+        <div className={motion.haloRingC} />
         <div className={motion.haloTicks} />
         <div className={motion.haloNodes}>
           {HALO_NODES.map((node) => (

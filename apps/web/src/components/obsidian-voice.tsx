@@ -186,7 +186,7 @@ export function ObsidianVoice() {
     // there is no second source of "am I recording".
     levelTimerRef.current = setInterval(() => {
       if (stateRef.current.kind === "listening") {
-        send({ type: "level_changed", level: 0 });
+        send({ type: "level_changed", level: session.level() ?? 0 });
       }
     }, 100);
   }

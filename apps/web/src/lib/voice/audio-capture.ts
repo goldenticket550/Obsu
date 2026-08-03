@@ -48,6 +48,8 @@ export interface RecorderLike {
 
 /** A live amplitude source, and the means to shut it down. */
 export interface LevelMeterLike {
+  /** Current amplitude, 0..1. Optional for older/test adapters. */
+  level?(): number;
   /** Highest amplitude seen so far, 0..1. */
   peak(): number;
   close(): void;
@@ -74,6 +76,8 @@ export interface CaptureSession {
   abandon(): void;
   /** True while the microphone is live — drives the visible recording indicator. */
   isActive(): boolean;
+  /** Current live amplitude while active, or null when no meter is available. */
+  level(): number | null;
 }
 
 /**
@@ -129,6 +133,10 @@ export function startCapture(deps: CaptureDeps): CaptureSession {
 
   return {
     isActive: () => active,
+    level: () => {
+      if (!active || !meter) return null;
+      return meter.level ? meter.level() : meter.peak();
+    },
 
     async stop(): Promise<CaptureResult> {
       // Peak is read BEFORE release, because closing the meter destroys it.

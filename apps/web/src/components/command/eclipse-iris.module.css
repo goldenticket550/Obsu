@@ -431,7 +431,7 @@
 }
 
 .sphere {
-  inset: 22%;
+  inset: 13%;
   z-index: 2;
   overflow: hidden;
   border: 1px solid rgb(56 189 248 / 34%);
@@ -550,4 +550,12 @@
   clip: rect(0, 0, 0, 0) !important;
   white-space: nowrap !important;
   clip-path: inset(50%) !important;
+}
+.root[data-has-signal="true"] .coreBloom {
+  transform: scale(calc(1 + var(--iris-level) * 0.14));
+  opacity: calc(0.76 + var(--iris-level) * 0.24);
+}
+
+.root[data-has-signal="true"] .core {
+  transform: scale(calc(1 + var(--iris-level) * 0.1));
 }

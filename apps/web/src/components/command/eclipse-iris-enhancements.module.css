@@ -145,7 +145,7 @@
 /* Layered mechanical halo from the approved Eclipse Iris concept. */
 .instrumentHalo {
   position: absolute;
-  inset: -13%;
+  inset: -3%;
   z-index: -1;
   border: 1px solid rgb(56 189 248 / 42%);
   border-radius: 50%;
@@ -164,6 +164,7 @@
 .instrumentHalo::after,
 .haloRingA,
 .haloRingB,
+.haloRingC,
 .haloTicks,
 .haloNodes {
   position: absolute;
@@ -211,6 +212,17 @@
   animation: haloCounterSpin 22s linear infinite;
 }
 
+
+.haloRingC {
+  inset: 29%;
+  background: repeating-conic-gradient(
+    from 2deg,
+    rgb(125 211 252 / 82%) 0 1.4deg,
+    transparent 1.4deg 5.5deg
+  );
+  mask: radial-gradient(circle, transparent 0 74%, black 75% 89%, transparent 90%);
+  animation: haloSpin 17s linear infinite;
+}
 .haloTicks {
   inset: 8%;
   background: repeating-conic-gradient(
@@ -243,7 +255,7 @@
   transform:
     translate(-50%, -50%)
     rotate(var(--node-angle))
-    translateY(calc((var(--iris-size, 196px) * -0.63)))
+    translateY(calc((var(--iris-size, 196px) * -0.49)))
     rotate(calc(var(--node-angle) * -1));
   animation: nodePulse 4.8s ease-in-out infinite;
   animation-delay: calc(var(--halo-node) * -0.37s);
@@ -251,8 +263,8 @@
 
 .wings {
   z-index: -2;
-  width: 152%;
-  height: 152%;
+  width: 136%;
+  height: 136%;
   opacity: 0.58;
 }
 
@@ -274,7 +286,8 @@
   animation-duration: 8.8s;
 }
 
-.working .haloRingB {
+.working .haloRingB,
+.working .haloRingC {
   animation-duration: 12.4s;
 }
 
@@ -298,11 +311,13 @@
 .unavailable .instrumentHalo,
 .unavailable .haloRingA,
 .unavailable .haloRingB,
+.unavailable .haloRingC,
 .unavailable .haloTicks,
 .unavailable .haloNode,
 .stillness .instrumentHalo,
 .stillness .haloRingA,
 .stillness .haloRingB,
+.stillness .haloRingC,
 .stillness .haloTicks,
 .stillness .haloNode {
   animation: none;
@@ -336,8 +351,17 @@
   .instrumentHalo,
   .haloRingA,
   .haloRingB,
+  .haloRingC,
   .haloTicks,
   .haloNode {
     animation: none;
   }
+}
+.root[data-has-signal="true"] .instrumentHalo {
+  transform: scale(calc(1 + var(--iris-level) * 0.025));
+  filter: brightness(calc(1.08 + var(--iris-level) * 0.4)) drop-shadow(0 0 14px rgb(56 189 248 / 34%));
+}
+
+.root[data-has-signal="true"] .haloNode {
+  opacity: calc(0.7 + var(--iris-level) * 0.3);
 }

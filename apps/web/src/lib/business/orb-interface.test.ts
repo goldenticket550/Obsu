@@ -225,100 +225,69 @@ describe("invalid transitions are ignored, not obeyed", () => {
 });
 
 /* ================================================================== */
-/* The voice states are unreachable from the UI                        */
+/* Voice is a real, user-initiated Command Center capability            */
 /* ================================================================== */
 
-describe("voice states exist, are tested, and cannot be entered from the dashboard", () => {
-  const VOICE_STATES = ["requesting_permission", "listening", "transcribing", "speaking"];
-
-  /** They are real states with real copy — implemented, not stubbed out. */
+describe("voice is real, explicit, and truthful on the dashboard", () => {
   it("each voice state is implemented and has its own words", () => {
-    for (const kind of VOICE_STATES) expect(ORB_KINDS).toContain(kind);
     expect(orbCopy({ kind: "listening", level: 0 }).label).toBe("Listening…");
     expect(orbCopy({ kind: "transcribing" }).label).toBe("Writing that down…");
     expect(orbCopy({ kind: "speaking", level: 0 }).label).toBe("Speaking…");
     expect(orbCopy({ kind: "requesting_permission" }).label).toBe("Waiting for microphone");
   });
 
-  /**
-   * The events that lead to them are exactly the events the component must not
-   * dispatch. This is the guarantee, checked at the source.
-   */
-  it("the component dispatches none of the events that reach a voice state", () => {
-    const code = readFileSync(COMPONENT, "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/[^\n]*/g, "");
+  it("the real voice sequence reaches only states backed by real work", () => {
+    const states: OrbState[] = [{ kind: "idle" }];
+    for (const event of [
+      { type: "permission_requested" } as const,
+      { type: "permission_granted" } as const,
+      { type: "level_changed", level: 0.4 } as const,
+      { type: "capture_stopped" } as const,
+      { type: "transcript_ready", transcript: "how much did I make" } as const,
+      { type: "answer_ready" } as const,
+      { type: "playback_finished" } as const,
+    ]) states.push(transition(states.at(-1) as OrbState, event));
 
-    for (const forbidden of [
-      "permission_requested",
-      "permission_granted",
-      "permission_denied",
-      "capture_stopped",
-      "transcript_ready",
-      "level_changed",
-      "answer_ready",
-      "playback_finished",
-    ]) {
-      expect(code).not.toContain(forbidden);
-    }
+    expect(states.map((state) => state.kind)).toEqual([
+      "idle",
+      "requesting_permission",
+      "listening",
+      "listening",
+      "transcribing",
+      "thinking",
+      "speaking",
+      "idle",
+    ]);
   });
 
-  it("the component opens no microphone and imports no capture module", () => {
+  it("the dashboard connects capture, transcription, and playback", () => {
     const text = readFileSync(COMPONENT, "utf8");
-    expect(text).not.toContain("getUserMedia");
-    expect(text).not.toContain("MediaRecorder");
-    expect(text).not.toContain("audio-capture");
-    expect(text).not.toContain("mic-permission");
-    expect(text).not.toContain("transcribe-client");
+    expect(text).toContain("requestMicrophone(userGesture()");
+    expect(text).toContain("startCapture({");
+    expect(text).toContain("transcribe(result.audio");
+    expect(text).toContain("createDefaultTts()");
+    expect(text).toContain('send({ type: "level_changed", level: session.level() ?? 0 })');
   });
 
-  /**
-   * Proof by exhaustion: starting from idle, no sequence built only from the
-   * events the component actually sends can land on a voice state.
-   */
-  it("no reachable sequence of dashboard events produces a voice state", () => {
-    const dashboardEvents: OrbEvent[] = [
-      { type: "text_submitted", transcript: "t" },
-      { type: "answer_shown" },
-      { type: "proposal_received", proposal: PROPOSAL },
-      { type: "proposal_approved" },
-      { type: "proposal_rejected" },
-      { type: "execution_finished" },
-      { type: "warned", message: "w" },
-      { type: "failed", message: "f" },
-      { type: "went_offline" },
-      { type: "came_online" },
-      { type: "dismissed" },
-      { type: "cancelled" },
-    ];
-
-    // Breadth-first over every state reachable from idle using only those.
-    const seen = new Set<string>();
-    const queue: OrbState[] = [{ kind: "idle" }];
-    const reached: OrbState[] = [];
-    while (queue.length > 0) {
-      const state = queue.shift() as OrbState;
-      const key = JSON.stringify(state);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      reached.push(state);
-      for (const event of dashboardEvents) queue.push(transition(state, event));
-    }
-
-    const kinds = new Set(reached.map((s) => s.kind));
-    for (const voice of VOICE_STATES) expect([...kinds]).not.toContain(voice);
-    // And the walk really explored something.
-    expect(kinds.size).toBeGreaterThanOrEqual(6);
-  });
-
-  it("the UI offers no microphone control, and says why", () => {
+  it("voice begins only from an explicit control and remains stoppable", () => {
     const text = readFileSync(COMPONENT, "utf8");
-    expect(text).not.toMatch(/aria-label="[^"]*[Mm]icrophone/);
-    // The affordance is a plain statement, not a dead button.
-    expect(text).toContain("voice isn&apos;t enabled yet");
+    expect(text).toContain("onClick={onVoiceControl}");
+    expect(text).toContain('aria-label={voiceLabel}');
+    expect(text).toContain('aria-pressed={state.kind === "listening"}');
+    expect(text).toContain('state.kind === "listening" ? "Stop" : "Voice"');
+    expect(text).not.toMatch(/useEffect\([\s\S]{0,500}requestMicrophone/);
+  });
+
+  it("every live resource has a bounded, shared release path", () => {
+    const text = readFileSync(COMPONENT, "utf8");
+    expect(text).toContain("MAX_RECORDING_MS = 30_000");
+    expect(text).toContain("sessionRef.current?.abandon()");
+    expect(text).toContain("clearInterval(levelTimerRef.current)");
+    expect(text).toContain("clearTimeout(recordingTimerRef.current)");
+    expect(text).toContain("ttsRef.current?.cancel()");
+    expect(text).toContain("mountedRef.current = false");
   });
 });
-
 /* ================================================================== */
 /* Reduced motion, and animation off the React tree                    */
 /* ================================================================== */
