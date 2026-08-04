@@ -25,7 +25,12 @@ describe("Eclipse Iris canvas contract", () => {
 
   it("sizes before its first draw and fills the component without per-frame measurement", () => {
     expect(CANVAS).toContain("* 0.445");
-    expect(CANVAS.indexOf("resize();\n    draw(performance.now())")).toBeGreaterThan(-1);
+    // Newline-agnostic. A literal "\n" here made this assertion fail on any
+    // machine whose checkout produced CRLF — which is every fresh clone on
+    // Windows with core.autocrlf=true. The .gitattributes at the repo root now
+    // forces LF on checkout, but a source scan must not depend on that being
+    // honoured: this regex tolerates either ending.
+    expect(CANVAS).toMatch(/resize\(\);\r?\n\s*draw\(performance\.now\(\)\)/);
     const drawBody = CANVAS.slice(CANVAS.indexOf("const draw"), CANVAS.indexOf("const onVisibility"));
     expect(drawBody).not.toContain("getBoundingClientRect");
   });
