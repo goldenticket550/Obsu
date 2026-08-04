@@ -248,6 +248,12 @@
 }
 
 @media (max-width: 768px), (hover: none) {
+  .atmosphere {
+    background-position: 62% top;
+    background-size: auto 72vh;
+    background-repeat: no-repeat;
+    background-color: rgb(1 6 11);
+  }
   .rainFar,
   .rainNear {
     display: none;

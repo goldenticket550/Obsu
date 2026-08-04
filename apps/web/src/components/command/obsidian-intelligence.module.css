@@ -75,29 +75,16 @@
 
 @media (max-width: 520px) {
   .instrumentStage {
-    min-height: 250px;
-    padding: 40px 0 66px;
-  }
-  .controlCluster {
-    top: auto;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-    height: auto;
-  }
-  .controlCluster li,
-  .controlCluster li:nth-child(1),
-  .controlCluster li:nth-child(2),
-  .controlCluster li:nth-child(3) {
-    position: static;
-    transform: none;
+    min-height: 390px;
+    padding: 52px 44px 16px;
   }
   .controlButton {
-    width: 100%;
-    min-width: 0;
-    padding-inline: 5px;
+    min-width: 94px;
+    padding-inline: 8px;
     font-size: 9px;
   }
+  .controlCluster li:nth-child(2) { bottom: 54px; left: 0; }
+  .controlCluster li:nth-child(3) { right: 0; bottom: 54px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

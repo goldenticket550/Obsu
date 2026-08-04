@@ -70,7 +70,14 @@ export function SkylineTopBar({
             {pill}
           </span>
         </div>
-      ) : null}
+      ) : (
+        <div className={styles.topbarRight}>
+          <span className={styles.clearStatus} role="status">
+            <span className={styles.clearLine} aria-hidden />
+            All systems clear
+          </span>
+        </div>
+      )}
     </header>
   );
 }

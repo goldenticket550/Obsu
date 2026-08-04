@@ -8,7 +8,11 @@ const PHASES: IrisVisualizerPhase[] = [
   "unavailable",
   "idle",
   "listening",
+  "speaking",
+  "thinking",
   "processing",
+  "alert",
+  "offline",
   "error",
 ];
 
@@ -25,7 +29,7 @@ describe("deriveIrisVisualizerView", () => {
         combinations += 1;
       }
     }
-    expect(combinations).toBe(20);
+    expect(combinations).toBe(36);
   });
 
   it("rests when there is no signal", () => {

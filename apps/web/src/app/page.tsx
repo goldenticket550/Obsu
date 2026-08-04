@@ -123,7 +123,10 @@ export default async function DashboardPage() {
 
             <SkylineIntelligenceArea>
               <SkylineIntelligenceFrame>
-                <ObsidianIntelligence needsAttention={actionItems.length > 0} />
+                <ObsidianIntelligence
+                  needsAttention={actionItems.length > 0}
+                  actionCount={actionItems.length}
+                />
               </SkylineIntelligenceFrame>
             </SkylineIntelligenceArea>
 

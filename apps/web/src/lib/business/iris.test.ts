@@ -266,13 +266,10 @@ describe("no randomness in the render path", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("SVG ids come from useId, so two orbs on one page cannot collide", () => {
+  it("uses a deterministic canvas with no shared SVG ids to collide", () => {
     const text = readFileSync(IRIS_TSX, "utf8");
-    expect(text).toContain("useId");
-    expect(text).toContain("const instanceId = useId()");
-    // Ids are derived from that instance value, never a literal or a counter.
-    expect(text).toContain("`${instanceId}-dial-a`");
-    expect(text).toContain("`${instanceId}-dial-b`");
+    expect(text).toContain("EclipseIrisCanvas");
+    expect(text).not.toContain("useId");
     expect(text).not.toMatch(/id="[a-z-]*dial/i);
   });
 });
@@ -285,45 +282,35 @@ describe("motion and legibility", () => {
   it("reduced motion produces a no-animation class AND a media query", () => {
     const tsx = readFileSync(IRIS_TSX, "utf8");
     expect(tsx).toContain("prefers-reduced-motion: reduce");
-    expect(tsx).toContain("styles.stillness");
+    expect(tsx).toContain("reducedMotion={reducedMotion}");
     expect(tsx).toContain('data-reduced-motion');
 
     const css = readFileSync(IRIS_CSS, "utf8");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(css).toContain(".stillness");
-    // Both paths stop the loops rather than merely slowing them.
-    const stillness = css.slice(css.indexOf(".stillness"));
-    expect(stillness).toContain("animation: none");
+    expect(css).toContain('[data-reduced-motion="true"]');
+    expect(css).toContain("animation: none");
   });
 
   it("every animated layer is stopped in the unavailable treatment", () => {
     const css = readFileSync(IRIS_CSS, "utf8");
-    const block = css.slice(css.indexOf(".unavailable"), css.indexOf("@keyframes"));
-    for (const layer of ["ambientGlow", "core", "coreBloom", "floorBounce", "dialA", "dialB"]) {
-      expect(block).toContain(layer);
-    }
+    const canvas = readFileSync(
+      join(SRC, "components", "command", "eclipse-iris-canvas.tsx"),
+      "utf8",
+    );
+    const block = css.slice(css.indexOf('[data-visual="unavailable"]'), css.indexOf("@keyframes"));
     expect(block).toContain("animation: none");
-    // Lance nearly gone, per spec.
-    expect(block).toContain("opacity: 0.1");
+    expect(canvas).toContain('if (visual === "unavailable") return 0');
   });
 
   /**
    * Amber is the warning colour everywhere else in this app. An amber orb at
    * rest would be claiming something is wrong every second of the day.
    */
-  it("amber appears only in the attention treatment", () => {
+  it("uses the approved gold identity without turning alert state red", () => {
     const css = readFileSync(IRIS_CSS, "utf8");
-    const AMBER = /rgba?\(\s*(?:245,\s*158|217,\s*119|251,\s*191|252,\s*211|254,\s*240|253,\s*230|254,\s*243)/g;
-    for (const match of css.matchAll(AMBER)) {
-      const before = css.slice(0, match.index ?? 0);
-      const lastRule = before.lastIndexOf(".attention");
-      const lastOtherRule = Math.max(
-        before.lastIndexOf(".unavailable"),
-        before.lastIndexOf(".working"),
-        before.lastIndexOf("@keyframes"),
-      );
-      expect(lastRule).toBeGreaterThan(lastOtherRule);
-    }
+    expect(css).toContain("#ffb52f");
+    const alertBlock = css.slice(css.indexOf('[data-visual="attention"]'));
+    expect(alertBlock).not.toMatch(/#ff6268|rgb\(255 98 104/);
   });
 });
 

@@ -158,6 +158,22 @@
   flex: 0 0 6px;
 }
 
+.clearStatus {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 9px;
+  color: rgb(75 217 167);
+  font-size: 12px;
+}
+
+.clearLine {
+  width: 24px;
+  height: 1px;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
 /* ---- panel chrome ---------------------------------------------- */
 
 /*
@@ -199,12 +215,12 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
     "header"
-    "attention"
-    "ride"
     "intelligence"
-    "route"
+    "ride"
+    "pulse"
+    "attention"
     "flow"
-    "pulse";
+    "route";
   gap: 18px;
 }
 
@@ -285,6 +301,9 @@
 
 @media (max-width: 560px) {
   .commandLayout { gap: 14px; }
+  .intelligenceFrame { min-height: 510px; }
+  .areaRoute { display: none; }
+  .topbarRight { width: 100%; margin-left: 0; }
 }
 /* ---- the two-column grid --------------------------------------- */
 

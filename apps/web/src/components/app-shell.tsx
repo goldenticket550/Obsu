@@ -104,6 +104,33 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen lg:flex">
+      <header className="fixed inset-x-0 top-0 z-40 flex min-h-[64px] items-center justify-between border-b border-obsidian-line bg-obsidian-black/90 px-5 backdrop-blur lg:hidden">
+        <Link
+          href="/"
+          className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan"
+        >
+          <span className="block text-base font-semibold tracking-[0.2em] text-obsidian-platinum">
+            OBSIDIAN
+          </span>
+          <span className="block text-center text-[9px] uppercase tracking-[0.28em] text-obsidian-cyan">
+            Rides
+          </span>
+        </Link>
+        <details className="relative">
+          <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-obsidian-line text-obsidian-platinum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan">
+            <span className="sr-only">Open profile menu</span>
+            <IconCustomers width={22} height={22} />
+          </summary>
+          <div className="absolute right-0 mt-2 w-36 rounded-xl border border-obsidian-line bg-obsidian-graphite p-2 shadow-panel">
+            <form action={signOut} onSubmit={announceSignOut}>
+              <button type="submit" className="min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-obsidian-silver hover:bg-obsidian-slate/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan">
+                Sign out
+              </button>
+            </form>
+          </div>
+        </details>
+      </header>
+
       {/* DESKTOP SIDEBAR */}
       <aside className="hidden border-r border-obsidian-line bg-obsidian-graphite/70 lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-56 lg:flex-col">
         <div className="px-5 py-5">
@@ -168,13 +195,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* CONTENT — bottom padding on mobile clears the fixed bar AND the
           floating create button (plus the device's own safe area, e.g. the
           iPhone home indicator), so neither ever covers content at 320px. */}
-      <div className="min-w-0 flex-1 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-56">
+      <div className="min-w-0 flex-1 pb-[calc(8rem+env(safe-area-inset-bottom))] pt-16 lg:pb-0 lg:pl-56 lg:pt-0">
         {children}
       </div>
 
       {/* MOBILE CREATE (FAB) — sits above the bottom bar, right-aligned, so it
           never overlaps navigation or the safe area. */}
-      <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-50 lg:hidden">
+      <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 lg:hidden">
         <CreateMenu variant="fab" />
       </div>
 
@@ -197,7 +224,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   }`}
                 >
                   {Icon ? <Icon /> : null}
-                  {label}
+                  <span className={active ? "block" : "hidden min-[390px]:block"}>{label}</span>
                 </Link>
               </li>
             );

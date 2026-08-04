@@ -1,561 +1,109 @@
-/*
- * Eclipse Iris — a black glass sphere with instrument dials turning inside it
- * and a light lance passing through and out both sides.
- *
- * CSS MODULE, deliberately. Every class below is compiled to a hashed name, so
- * a layer called `.sphere` or `.rim` cannot collide with a page-layout class of
- * the same name. That collision is not hypothetical: a `.shell` orb layer once
- * inherited `display:flex; min-height:100vh` from a layout rule, and with
- * border-radius:50% and the parent's overflow:hidden it painted a 100vh ellipse
- * across the sphere's face. A descendant selector does not protect you — it
- * only wins the properties it declares. A module removes the shared namespace
- * entirely, which is the only fix that cannot be reintroduced by accident.
- *
- * The sphere clips its contents, so the lance and the floor bounce are SIBLINGS
- * of the sphere, not children of it.
- */
-
-/*
- * The container. `--iris-size` is a MAXIMUM, not a fixed width.
- *
- * Two layers reach outside the sphere: the lance (168% wide, so 34% beyond
- * each side) and the ambient glow (180%, so 40% beyond each side — the wider
- * of the two, and the one that actually governs). At a fixed 196px inside a
- * 320px viewport the glow would push past the panel and give the page a
- * horizontal scrollbar.
- *
- * Capping at 44vw keeps the widest layer inside the panel at every width, so
- * NO overflow rule is needed here, on the panel, or on <body>:
- *
- *   320px viewport → panel content ≈ 240px → orb 140.8px
- *                  → glow reaches 56.3px per side, 49.6px of room, and the
- *                    remaining 6.7px sits inside the panel's own 20px padding
- *   768px+         → 44vw exceeds 196px, so the cap stops applying
- *
- * Clipping instead would have cut the lance, which is the one layer that is
- * supposed to leave the sphere.
- */
 .root {
+  --iris-x: 0;
+  --iris-y: 0;
   position: relative;
-  display: block;
-  width: min(var(--iris-size, 196px), 44vw);
-  height: min(var(--iris-size, 196px), 44vw);
+  width: min(var(--iris-size), 74vw);
+  aspect-ratio: 1;
   isolation: isolate;
+  transform: translate3d(calc(var(--iris-x) * 2px), calc(var(--iris-y) * 1.5px), 0);
+  transition: filter 360ms ease, transform 180ms ease-out;
 }
 
-/* 1 — ambient glow. Sits behind everything, 180% of the sphere. */
-.ambientGlow {
-  position: absolute;
-  left: -40%;
-  top: -40%;
-  width: 180%;
-  height: 180%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(37, 99, 235, 0.34) 0%,
-    rgba(56, 189, 248, 0.14) 32%,
-    transparent 66%
-  );
-  filter: blur(6px);
-  animation: irisBreathe 7s ease-in-out infinite;
-  pointer-events: none;
-}
-
-/* 2 — the sphere body. Clips layers 3-9. */
-.sphere {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  background: radial-gradient(
-    circle at 36% 22%,
-    #323b4e 0%,
-    #0f131c 12%,
-    #05070d 42%,
-    #020408 74%,
-    #010203 100%
-  );
-  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.9);
-}
-
-/* 3 — the two dial layers, counter-rotating. */
-.dialLayer {
-  position: absolute;
-  inset: 0;
-  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.55))
-    drop-shadow(0 0 12px rgba(37, 99, 235, 0.35));
-  pointer-events: none;
-}
-
-.dialA {
-  animation: irisSpin 72s linear infinite;
-}
-
-.dialB {
-  animation: irisSpin 104s linear infinite reverse;
-}
-
-.dialSvg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-/* 4 — core bloom. */
-.coreBloom {
-  position: absolute;
-  inset: 22%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(147, 197, 253, 0.55) 0%,
-    rgba(56, 189, 248, 0.2) 38%,
-    transparent 70%
-  );
-  filter: blur(14px);
-  mix-blend-mode: screen;
-  animation: irisBreathe 5s ease-in-out infinite;
-  pointer-events: none;
-}
-
-/* 5 — the core itself. */
-.core {
-  position: absolute;
-  inset: 38%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    #ffffff 0%,
-    #dbeafe 22%,
-    #60a5fa 46%,
-    rgba(37, 99, 235, 0.35) 68%,
-    transparent 82%
-  );
-  filter: blur(3px);
-  animation: irisBreathe 5s ease-in-out infinite;
-  pointer-events: none;
-}
-
-/* 6 — gloss. */
-.gloss {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background:
-    radial-gradient(
-      70% 46% at 36% 12%,
-      rgba(255, 255, 255, 0.3),
-      rgba(255, 255, 255, 0.07) 44%,
-      transparent 72%
-    ),
-    linear-gradient(184deg, rgba(255, 255, 255, 0.1) 0%, transparent 26%);
-  pointer-events: none;
-}
-
-/*
- * 7 — terminator shade. Twelve eased stops, not three: three would band
- * visibly across the sphere's lower right and read as a printing error.
- */
-.terminator {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(
-    125% 125% at 72% 84%,
-    rgba(0, 0, 0, 0.55) 0%,
-    rgba(0, 0, 0, 0.53) 9%,
-    rgba(0, 0, 0, 0.5) 18%,
-    rgba(0, 0, 0, 0.455) 27%,
-    rgba(0, 0, 0, 0.4) 36%,
-    rgba(0, 0, 0, 0.34) 45%,
-    rgba(0, 0, 0, 0.275) 54%,
-    rgba(0, 0, 0, 0.21) 63%,
-    rgba(0, 0, 0, 0.15) 72%,
-    rgba(0, 0, 0, 0.095) 81%,
-    rgba(0, 0, 0, 0.045) 90%,
-    transparent 100%
-  );
-  pointer-events: none;
-}
-
-/* 8 — specular highlight. */
-.specular {
-  position: absolute;
-  left: 22%;
-  top: 13%;
-  width: 22%;
-  height: 13%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(226, 240, 255, 0.42) 46%,
-    transparent 76%
-  );
-  filter: blur(4px);
-  pointer-events: none;
-}
-
-/* 9 — rim light. */
+.root canvas,
+.fallback,
+.core,
 .rim {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  box-shadow:
-    inset -1px -2px 16px rgba(56, 189, 248, 0.34),
-    inset 1px 2px 12px rgba(255, 255, 255, 0.1),
-    inset 0 0 0 1px rgba(125, 211, 252, 0.14);
   pointer-events: none;
 }
 
-/* 10 — lance bloom. OUTSIDE the sphere, or the clip would cut it. */
-.lanceBloom {
-  position: absolute;
-  left: -34%;
-  width: 168%;
-  top: 50%;
-  height: 16px;
-  margin-top: -8px;
-  filter: blur(7px);
-  opacity: 0.75;
-  mix-blend-mode: screen;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(37, 99, 235, 0.3) 22%,
-    rgba(96, 165, 250, 0.75) 48%,
-    rgba(37, 99, 235, 0.3) 78%,
-    transparent 100%
-  );
-  pointer-events: none;
+.fallback {
+  background:
+    repeating-conic-gradient(from 12deg, rgb(255 181 47 / 0.3) 0 0.7deg, transparent 0.8deg 5deg),
+    radial-gradient(circle, rgb(255 255 255) 0 1%, rgb(255 213 106) 2% 7%, rgb(255 181 47 / 0.38) 15%, transparent 55%);
+  mask: radial-gradient(circle, black 0 70%, transparent 72%);
+  filter: drop-shadow(0 0 24px rgb(255 181 47 / 0.42));
 }
 
-/* 11 — the lance. */
-.lance {
-  position: absolute;
-  left: -34%;
-  width: 168%;
-  top: 50%;
-  height: 2px;
-  margin-top: -1px;
-  mix-blend-mode: screen;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(56, 189, 248, 0.55) 26%,
-    rgba(191, 219, 254, 0.95) 46%,
-    #ffffff 50%,
-    rgba(191, 219, 254, 0.95) 54%,
-    rgba(56, 189, 248, 0.55) 74%,
-    transparent 100%
-  );
-  pointer-events: none;
+.root canvas {
+  z-index: 2;
+  display: block;
 }
 
-/* 12 — floor bounce. */
-.floorBounce {
-  position: absolute;
-  left: 8%;
-  width: 84%;
-  height: 16%;
-  bottom: -13%;
-  border-radius: 50%;
-  filter: blur(9px);
-  mix-blend-mode: screen;
-  background: radial-gradient(
-    circle,
-    rgba(96, 165, 250, 0.55) 0%,
-    rgba(37, 99, 235, 0.18) 52%,
-    transparent 78%
-  );
-  animation: irisBreathe 7s ease-in-out infinite;
-  pointer-events: none;
+.core {
+  inset: 39%;
+  z-index: 3;
+  width: 22%;
+  height: 22%;
+  background: radial-gradient(circle, white 0 8%, #fff1bd 16%, #ffd56a 34%, #ffb52f 58%, transparent 76%);
+  box-shadow: 0 0 18px rgb(255 181 47 / 0.9), 0 0 52px rgb(255 181 47 / 0.48);
+  transform: scale(calc(1 + var(--iris-level) * 0.22));
+  transition: transform 80ms linear;
 }
 
-/* ---------------------------------------------------------------- */
-/* State treatments                                                   */
-/* ---------------------------------------------------------------- */
-
-/* working — dials speed up, core breathes faster. */
-.working .dialA {
-  animation-duration: 11s;
-}
-.working .dialB {
-  animation-duration: 16s;
-}
-.working .core,
-.working .coreBloom {
-  animation-duration: 2.6s;
+.rim {
+  inset: 9%;
+  z-index: 4;
+  width: 82%;
+  height: 82%;
+  border: 1px solid rgb(255 213 106 / 0.25);
+  box-shadow: inset 0 0 34px rgb(255 181 47 / 0.08), 0 0 42px rgb(255 181 47 / 0.12);
 }
 
-/*
- * attention — AMBER, and only here. Amber is the warning colour everywhere
- * else in this app, so an amber orb at rest would claim something is wrong
- * every second of the day.
- */
-.attention .dialLayer {
-  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6))
-    drop-shadow(0 0 12px rgba(217, 119, 6, 0.4));
-}
-.attention .dialSvg circle {
-  stroke: rgba(252, 211, 77, var(--iris-ring-opacity, 1));
-}
-.attention .ambientGlow {
-  background: radial-gradient(
-    circle,
-    rgba(217, 119, 6, 0.34) 0%,
-    rgba(245, 158, 11, 0.14) 32%,
-    transparent 66%
-  );
-}
-.attention .lance {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(245, 158, 11, 0.55) 26%,
-    rgba(254, 240, 199, 0.95) 46%,
-    #ffffff 50%,
-    rgba(254, 240, 199, 0.95) 54%,
-    rgba(245, 158, 11, 0.55) 74%,
-    transparent 100%
-  );
-}
-.attention .lanceBloom {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(217, 119, 6, 0.3) 22%,
-    rgba(251, 191, 36, 0.75) 48%,
-    rgba(217, 119, 6, 0.3) 78%,
-    transparent 100%
-  );
-}
-.attention .floorBounce {
-  background: radial-gradient(
-    circle,
-    rgba(251, 191, 36, 0.55) 0%,
-    rgba(217, 119, 6, 0.18) 52%,
-    transparent 78%
-  );
-}
-.attention .core {
-  background: radial-gradient(
-    circle,
-    #ffffff 0%,
-    #fef3c7 22%,
-    #fbbf24 46%,
-    rgba(217, 119, 6, 0.35) 68%,
-    transparent 82%
-  );
-}
-.attention .coreBloom {
-  background: radial-gradient(
-    circle,
-    rgba(253, 230, 138, 0.55) 0%,
-    rgba(245, 158, 11, 0.2) 38%,
-    transparent 70%
-  );
+.root[data-focused="true"] {
+  filter: brightness(1.14) saturate(1.08);
 }
 
-/* unavailable — desaturated, everything stopped, lance almost gone. */
-.unavailable {
-  filter: saturate(0.15);
+.root[data-visual="working"] .core {
+  animation: workingCore 1.15s ease-in-out infinite;
 }
-.unavailable .ambientGlow,
-.unavailable .core,
-.unavailable .coreBloom,
-.unavailable .floorBounce,
-.unavailable .dialA,
-.unavailable .dialB {
+
+.root[data-visual="attention"] {
+  filter: brightness(1.16) saturate(1.14);
+}
+
+.root[data-visual="attention"] .rim {
+  border-style: dashed;
+  animation: attentionFragments 2.4s linear infinite;
+}
+
+.root[data-visual="unavailable"] {
+  filter: grayscale(0.58) saturate(0.35) brightness(0.72);
+}
+
+.root[data-reduced-motion="true"] {
+  transform: none;
+}
+
+.root[data-reduced-motion="true"] .core,
+.root[data-reduced-motion="true"] .rim,
+.root[data-visual="unavailable"] .core,
+.root[data-visual="unavailable"] .rim {
   animation: none;
 }
-.unavailable .lance,
-.unavailable .lanceBloom {
-  opacity: 0.1;
+
+@keyframes workingCore {
+  0%, 100% { transform: scale(calc(0.94 + var(--iris-level) * 0.18)); }
+  50% { transform: scale(calc(1.06 + var(--iris-level) * 0.24)); }
 }
 
-/* ---------------------------------------------------------------- */
-/* Motion                                                            */
-/* ---------------------------------------------------------------- */
-
-@keyframes irisSpin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes attentionFragments {
+  to { transform: rotate(360deg); }
 }
 
-@keyframes irisBreathe {
-  0%,
-  100% {
-    opacity: 0.72;
-    transform: scale(1);
+@media (max-width: 767px) {
+  .root {
+    width: clamp(238px, 76vw, 360px);
   }
-  50% {
-    opacity: 1;
-    transform: scale(1.045);
-  }
-}
-
-/*
- * Every continuous animation stops. The orb stays fully legible: colour,
- * geometry, the terminator and the lance are all static properties, and the
- * status is text regardless. Motion is never the only signal.
- */
-.stillness .ambientGlow,
-.stillness .core,
-.stillness .coreBloom,
-.stillness .floorBounce,
-.stillness .dialA,
-.stillness .dialB {
-  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ambientGlow,
   .core,
-  .coreBloom,
-  .floorBounce,
-  .dialA,
-  .dialB {
-    animation: none;
+  .rim {
+    animation: none !important;
   }
-}
-
-/* Quantum Iris identity pass: the sphere is the aperture, not the whole instrument. */
-.root {
-  overflow: visible;
-}
-
-.sphere {
-  inset: 13%;
-  z-index: 2;
-  overflow: hidden;
-  border: 1px solid rgb(56 189 248 / 34%);
-  background:
-    radial-gradient(circle at 50% 50%, rgb(4 13 24) 0 16%, rgb(3 9 17) 17% 44%, rgb(1 4 9) 72%, rgb(0 2 5) 100%);
-  box-shadow:
-    inset 0 0 34px rgb(0 0 0 / 92%),
-    inset 0 0 0 2px rgb(56 189 248 / 7%),
-    0 0 0 1px rgb(125 211 252 / 12%),
-    0 0 28px rgb(37 99 235 / 28%);
-}
-
-.ambientGlow {
-  left: -15%;
-  top: -15%;
-  width: 130%;
-  height: 130%;
-  background: radial-gradient(
-    circle,
-    rgb(37 99 235 / 24%) 0%,
-    rgb(56 189 248 / 11%) 36%,
-    transparent 70%
-  );
-  filter: blur(10px);
-}
-
-.dialLayer {
-  filter:
-    drop-shadow(0 0 3px rgb(125 211 252 / 76%))
-    drop-shadow(0 0 9px rgb(37 99 235 / 48%));
-}
-
-.coreBloom {
-  inset: 24%;
-  background: radial-gradient(
-    circle,
-    rgb(255 247 214 / 72%) 0%,
-    rgb(251 191 36 / 42%) 24%,
-    rgb(217 119 6 / 16%) 48%,
-    transparent 72%
-  );
-  filter: blur(9px);
-}
-
-.core {
-  inset: 36%;
-  background: radial-gradient(
-    circle,
-    white 0%,
-    rgb(255 248 220) 20%,
-    rgb(251 191 36) 45%,
-    rgb(217 119 6 / 58%) 66%,
-    transparent 82%
-  );
-  filter: blur(1.5px);
-  box-shadow: 0 0 12px rgb(251 191 36 / 72%);
-}
-
-.gloss {
-  opacity: 0.3;
-}
-
-.terminator {
-  opacity: 0.58;
-}
-
-.specular {
-  left: 25%;
-  top: 17%;
-  width: 15%;
-  height: 8%;
-  opacity: 0.42;
-}
-
-.rim {
-  box-shadow:
-    inset 0 0 16px rgb(56 189 248 / 38%),
-    inset 0 0 0 1px rgb(191 219 254 / 18%),
-    0 0 12px rgb(37 99 235 / 28%);
-}
-
-.lanceBloom {
-  left: -18%;
-  width: 136%;
-  height: 10px;
-  margin-top: -5px;
-  opacity: 0.7;
-}
-
-.lance {
-  left: -18%;
-  width: 136%;
-}
-
-.floorBounce {
-  left: 20%;
-  width: 60%;
-  height: 11%;
-  bottom: -9%;
-}
-
-.attention .core,
-.attention .coreBloom {
-  filter: brightness(1.14) saturate(1.14);
-}
-
-.unavailable .core,
-.unavailable .coreBloom {
-  filter: grayscale(0.62) brightness(0.72);
-}
-.statusText {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
-  white-space: nowrap !important;
-  clip-path: inset(50%) !important;
-}
-.root[data-has-signal="true"] .coreBloom {
-  transform: scale(calc(1 + var(--iris-level) * 0.14));
-  opacity: calc(0.76 + var(--iris-level) * 0.24);
-}
-
-.root[data-has-signal="true"] .core {
-  transform: scale(calc(1 + var(--iris-level) * 0.1));
 }

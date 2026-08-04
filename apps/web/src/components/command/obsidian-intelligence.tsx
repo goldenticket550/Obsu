@@ -49,6 +49,7 @@ const MAX_RECORDING_MS = 30_000;
 
 export function ObsidianIntelligence({
   needsAttention = false,
+  actionCount = 0,
 }: {
   /**
    * Gate 1: the ONLY real-data input to the orb's amber treatment. Passed from
@@ -57,12 +58,15 @@ export function ObsidianIntelligence({
    * question.
    */
   needsAttention?: boolean;
+  /** Exact length of the server-derived Action Required list. */
+  actionCount?: number;
 } = {}) {
   const [state, setState] = useState<OrbState>({ kind: "idle" });
   const [history, setHistory] = useState<ConversationTurn[]>([]);
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [askFocused, setAskFocused] = useState(false);
+  const [expandedSurface, setExpandedSurface] = useState<string | null>(null);
 
   const stateRef = useRef<OrbState>({ kind: "idle" });
   const mountedRef = useRef(true);
@@ -94,6 +98,7 @@ export function ObsidianIntelligence({
       behavior: reduced ? "auto" : "smooth",
       block: "start",
     });
+    setExpandedSurface(id);
   }, []);
 
 
@@ -373,7 +378,9 @@ export function ObsidianIntelligence({
 
   /** Current failures desaturate the Iris until the operator dismisses them. */
   const capability: CapabilityStatus =
-    state.kind === "error" ? "temporarily_unavailable" : "available";
+    state.kind === "error" || state.kind === "offline"
+      ? "temporarily_unavailable"
+      : "available";
   const phase: InteractionPhase =
     state.kind === "requesting_permission" ||
     state.kind === "listening" ||
@@ -404,11 +411,16 @@ export function ObsidianIntelligence({
       ? "listening"
       : state.kind === "speaking"
         ? "speaking"
+        : state.kind === "thinking"
+          ? "thinking"
         : state.kind === "requesting_permission" ||
             state.kind === "transcribing" ||
-            state.kind === "thinking" ||
             state.kind === "executing"
           ? "processing"
+          : state.kind === "offline"
+            ? "offline"
+          : state.kind === "warning"
+            ? "alert"
           : state.kind === "error"
             ? "error"
             : "idle";
@@ -432,6 +444,7 @@ export function ObsidianIntelligence({
               type="button"
               className={ui.controlButton}
               aria-controls="tonights-flow"
+              aria-expanded={expandedSurface === "tonights-flow"}
               onClick={() => scrollToSurface("tonights-flow")}
             >
               Tonight&apos;s Flow
@@ -442,9 +455,10 @@ export function ObsidianIntelligence({
               type="button"
               className={ui.controlButton}
               aria-controls="action-required"
+              aria-expanded={expandedSurface === "action-required"}
               onClick={() => scrollToSurface("action-required")}
             >
-              Action Required
+              {actionCount > 0 ? `Action Required · ${actionCount}` : "All clear"}
             </button>
           </li>
           <li>
@@ -452,6 +466,7 @@ export function ObsidianIntelligence({
               type="button"
               className={ui.controlButton}
               aria-controls="business-pulse"
+              aria-expanded={expandedSurface === "business-pulse"}
               onClick={() => scrollToSurface("business-pulse")}
             >
               Business Pulse
