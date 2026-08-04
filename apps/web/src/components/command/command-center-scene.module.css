@@ -216,6 +216,7 @@
   box-shadow: inset 0 0 180px 32px rgb(0 0 0 / 62%);
 }
 
+
 @media (min-width: 1024px) {
   .atmosphere {
     left: 14rem;

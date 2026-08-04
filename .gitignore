@@ -41,3 +41,11 @@ coverage/
 .branches
 .temp
 supabase/.temp
+
+# Generated audio — TTS output and voice test artefacts. Never commit.
+*.mp3
+*.wav
+*.webm
+*.m4a
+*.ogg
+*.opus

@@ -49,11 +49,10 @@ export function BusinessPulse({
 
   if (variant === "command") {
     const commandStats = [
-      { label: "Revenue", value: formatUsd(revenueCents), icon: "$" },
-      { label: "Est. operating profit", value: formatUsd(profitCents), icon: "↗" },
-      { label: "Completed rides", value: String(completedRides), icon: "●" },
-    ];
-
+      { label: "Revenue", value: formatUsd(revenueCents), icon: "$", tone: "revenue" },
+      { label: "Est. operating profit", value: formatUsd(profitCents), icon: "↗", tone: "profit" },
+      { label: "Completed rides", value: String(completedRides), icon: "●", tone: "activity" },
+    ] as const;
     return (
       <section
         id="business-pulse"
@@ -70,7 +69,7 @@ export function BusinessPulse({
         </h2>
         <dl className={surfaces.pulseGrid}>
           {commandStats.map((stat) => (
-            <div key={stat.label} className={surfaces.pulseStat}>
+            <div key={stat.label} className={surfaces.pulseStat} data-tone={stat.tone}>
               <span className={surfaces.pulseIcon} aria-hidden="true">{stat.icon}</span>
               <dt className={surfaces.pulseLabel}>{stat.label}</dt>
               <dd className={surfaces.pulseValue} title={stat.value}>{stat.value}</dd>

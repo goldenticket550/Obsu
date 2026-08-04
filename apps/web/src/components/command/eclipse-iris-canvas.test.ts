@@ -8,16 +8,26 @@ const IRIS = readFileSync(join(ROOT, "eclipse-iris.tsx"), "utf8");
 
 describe("Eclipse Iris canvas contract", () => {
   it("renders deterministic gold particles, data marks, orbital paths and restrained blue nodes", () => {
-    expect(CANVAS).toContain("buildParticles(narrow ? 260 : 440)");
+    expect(CANVAS).toContain("buildParticles(narrow ? 260 : 430)");
+    expect(CANVAS).toContain("Array.from({ length: 7 }");
+    expect(CANVAS).toContain("orbit.start + orbit.length");
     expect(CANVAS).toContain("context.ellipse");
-    expect(CANVAS).toContain("point.index % 17");
+    expect(CANVAS).toContain("point.index % 71");
     expect(CANVAS).toContain("53, 194, 255");
     expect(CANVAS).not.toContain("Math.random");
+    expect(CANVAS).not.toMatch(/moveTo\(centerX|lineTo\(centerX/);
   });
 
   it("caps pixel density and reduces work on narrow screens", () => {
     expect(CANVAS).toContain("Math.min(window.devicePixelRatio || 1, 2)");
     expect(CANVAS).toContain('window.matchMedia("(max-width: 767px)")');
+  });
+
+  it("sizes before its first draw and fills the component without per-frame measurement", () => {
+    expect(CANVAS).toContain("* 0.445");
+    expect(CANVAS.indexOf("resize();\n    draw(performance.now())")).toBeGreaterThan(-1);
+    const drawBody = CANVAS.slice(CANVAS.indexOf("const draw"), CANVAS.indexOf("const onVisibility"));
+    expect(drawBody).not.toContain("getBoundingClientRect");
   });
 
   it("pauses while hidden or outside the viewport and cleans every resource", () => {

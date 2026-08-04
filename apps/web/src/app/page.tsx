@@ -6,9 +6,11 @@ import { listCustomers } from "@/lib/db/customers";
 import {
   averageTripValueCents,
   buildActionRequired,
+  businessDayKey,
   currentMonthRange,
   estimatedOperatingProfitCents,
   filterByDateRange,
+  greetingFor,
   operationalSummary,
   profitMarginPercent,
   selectNextRide,
@@ -38,6 +40,7 @@ import { deriveRouteVisualState, RouteLine } from "@/components/command/route-li
 import { TonightsFlow } from "@/components/command/tonights-flow";
 import { BusinessPulse } from "@/components/command/business-pulse";
 import { ActionRequired } from "@/components/command/action-required";
+import { formatUsdForSpeech } from "@/lib/money";
 
 /**
  * OBSIDIAN RIDES Command Center.
@@ -93,6 +96,12 @@ export default async function DashboardPage() {
           nextRide.trip.pickup_location,
           nextRide.trip.dropoff_location,
         );
+  const businessName = org?.name?.trim() || "Command Center";
+  const activitySummary = operationalSummary(allTrips, now) || "Nothing scheduled";
+  const attentionSummary = actionItems.length === 0
+    ? "Nothing needs your attention"
+    : `${actionItems.length} ${actionItems.length === 1 ? "item needs" : "items need"} your attention`;
+  const dailyBriefing = `${greetingFor(now)}, ${businessName}. ${activitySummary}. ${attentionSummary}. Month-to-date revenue is ${formatUsdForSpeech(revenueCents)}, with estimated operating profit of ${formatUsdForSpeech(profitCents)}.`;
 
   return (
     <CommandCenterScene
@@ -126,18 +135,23 @@ export default async function DashboardPage() {
                 <ObsidianIntelligence
                   needsAttention={actionItems.length > 0}
                   actionCount={actionItems.length}
+                  briefingDayKey={businessDayKey(now)}
+                  dailyBriefing={dailyBriefing}
+                  shortGreeting={`Hey, ${businessName}. How can I help today?`}
                 />
               </SkylineIntelligenceFrame>
             </SkylineIntelligenceArea>
 
-            <SkylineRouteArea>
-              <RouteLine
-                pickup={nextRide.kind === "none" ? null : nextRide.trip.pickup_location}
-                dropoff={nextRide.kind === "none" ? null : nextRide.trip.dropoff_location}
-                editHref={nextRide.kind === "none" ? "/trips/new?status=scheduled" : `/trips/${nextRide.trip.id}/edit`}
-                variant="scene"
-              />
-            </SkylineRouteArea>
+            {routeState === "empty" ? null : (
+              <SkylineRouteArea>
+                <RouteLine
+                  pickup={nextRide.kind === "none" ? null : nextRide.trip.pickup_location}
+                  dropoff={nextRide.kind === "none" ? null : nextRide.trip.dropoff_location}
+                  editHref={nextRide.kind === "none" ? "/trips/new?status=scheduled" : `/trips/${nextRide.trip.id}/edit`}
+                  variant="scene"
+                />
+              </SkylineRouteArea>
+            )}
 
             <SkylineFlowArea>
               <TonightsFlow entries={flow} variant="command" />

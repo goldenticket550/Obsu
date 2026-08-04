@@ -204,6 +204,24 @@
   white-space: nowrap;
 }
 
+
+.pulseStat[data-tone="profit"] .pulseIcon {
+  color: rgb(251 191 36);
+  border-color: rgb(245 158 11 / 34%);
+  background: radial-gradient(circle, rgb(245 158 11 / 12%), rgb(5 12 20 / 74%));
+  box-shadow: inset 0 1px rgb(255 255 255 / 6%), 0 0 20px rgb(245 158 11 / 13%);
+}
+
+.pulseStat[data-tone="profit"] .pulseValue {
+  color: rgb(253 224 154);
+  text-shadow: 0 0 18px rgb(245 158 11 / 12%);
+}
+
+.pulseStat[data-tone="activity"] .pulseIcon {
+  color: rgb(174 183 197);
+  border-color: rgb(148 163 184 / 18%);
+}
+
 @keyframes surfaceSweep {
   0%, 72%, 100% { transform: translateX(-110%); }
   86% { transform: translateX(110%); }

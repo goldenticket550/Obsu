@@ -535,3 +535,11 @@ describe("exactly one shape describes orb state", () => {
     expect(orb).not.toMatch(/level\?: number/);
   });
 });
+describe("the selected ElevenLabs voice remains authoritative", () => {
+  it("never substitutes the browser voice in the default provider", () => {
+    const tts = readFileSync(join(SRC, "lib", "voice", "tts.ts"), "utf8");
+    const factory = tts.slice(tts.indexOf("export function createDefaultTts"));
+    expect(factory).toContain("return new ElevenLabsTts()");
+    expect(factory).not.toContain("new BrowserTts()");
+  });
+});

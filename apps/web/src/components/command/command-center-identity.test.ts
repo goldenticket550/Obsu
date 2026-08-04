@@ -17,9 +17,27 @@ describe("approved Command Center identity", () => {
     }
   });
 
-  it("collapses an empty command attention area to All systems clear", () => {
+  it("unlocks the daily voice briefing through an explicit user gesture", () => {
+    expect(intelligence).toContain("Enter Command Center");
+    expect(intelligence).toContain("obsidian-command-briefing:");
+    expect(intelligence).toContain("playStartupChime");
+    expect(intelligence).toContain("dailyBriefing");
+    expect(intelligence).toContain("shortGreeting");
+    expect(intelligence).toContain("Replay daily briefing");
+    expect(intelligence).toContain("replayDailyBriefing");
+    expect(intelligence).toContain("welcomeGate");
+  });
+  it("reserves the gold metric treatment for operating profit", () => {
+    const pulse = readFileSync(join(SRC, "components", "command", "business-pulse.tsx"), "utf8");
+    const pulseCss = readFileSync(join(SRC, "components", "command", "command-surfaces.module.css"), "utf8");
+    expect(pulse).toContain('tone: "profit"');
+    expect(pulse).toContain("data-tone={stat.tone}");
+    expect(pulseCss).toContain('.pulseStat[data-tone="profit"] .pulseValue');
+  });
+  it("collapses an empty command attention area without duplicating the header status", () => {
     expect(action).toContain('items.length === 0 && variant === "command"');
-    expect(action).toContain("All systems clear");
+    expect(action).toContain("No action required");
+    expect(action).not.toContain("All systems clear");
     expect(action).not.toContain("mock");
   });
 

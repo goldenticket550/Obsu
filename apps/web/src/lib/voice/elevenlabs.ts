@@ -13,12 +13,30 @@
  * (nPczCjzI2devNBz1zQrb), Daniel (onwK4e9ZLuTAKqWW03F9). On a paid plan any
  * voice id works — just swap this constant.
  */
-export const ELEVENLABS_VOICE_ID = "EXAVITQu4vr4xnSDxMaL";
+export const DEFAULT_ELEVENLABS_VOICE_ID = "EXAVITQu4vr4xnSDxMaL";
 export const ELEVENLABS_STT_MODEL = "scribe_v1";
 export const ELEVENLABS_TTS_MODEL = "eleven_multilingual_v2";
 export const ELEVENLABS_TTS_FORMAT = "mp3_44100_128";
 
 const BASE = "https://api.elevenlabs.io/v1";
+import { VOICE_PROVIDER_TIMEOUT_MS } from "./limits";
+
+export class VoiceProviderError extends Error {
+  constructor(readonly operation: "transcription" | "playback", readonly status?: number) {
+    super(`Voice provider ${operation} failed`);
+    this.name = "VoiceProviderError";
+  }
+}
+
+export function configuredVoiceId(): string {
+  return process.env.ELEVENLABS_VOICE_ID?.trim() || DEFAULT_ELEVENLABS_VOICE_ID;
+}
+
+async function withTimeout<T>(operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), VOICE_PROVIDER_TIMEOUT_MS);
+  try { return await operation(controller.signal); } finally { clearTimeout(timer); }
+}
 
 function apiKey(): string {
   const key = process.env.ELEVENLABS_API_KEY;
@@ -44,14 +62,14 @@ export async function transcribeAudio(blob: Blob): Promise<string> {
   form.append("file", blob, `audio.${extFor(blob.type || "audio/webm")}`);
   form.append("model_id", ELEVENLABS_STT_MODEL);
 
-  const res = await fetch(`${BASE}/speech-to-text`, {
+  const res = await withTimeout((signal) => fetch(`${BASE}/speech-to-text`, {
     method: "POST",
     headers: { "xi-api-key": apiKey() },
     body: form,
-  });
+    signal,
+  }));
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`ElevenLabs STT ${res.status}: ${detail.slice(0, 200)}`);
+    throw new VoiceProviderError("transcription", res.status);
   }
   const data = (await res.json()) as { text?: string };
   return (data.text ?? "").trim();
@@ -59,21 +77,27 @@ export async function transcribeAudio(blob: Blob): Promise<string> {
 
 /** Synthesize speech for `text` via ElevenLabs TTS. Returns MP3 audio bytes. */
 export async function synthesizeSpeech(text: string): Promise<ArrayBuffer> {
-  const res = await fetch(
-    `${BASE}/text-to-speech/${ELEVENLABS_VOICE_ID}?output_format=${ELEVENLABS_TTS_FORMAT}`,
+  const res = await withTimeout((signal) => fetch(
+    `${BASE}/text-to-speech/${configuredVoiceId()}?output_format=${ELEVENLABS_TTS_FORMAT}`,
     {
       method: "POST",
       headers: { "xi-api-key": apiKey(), "content-type": "application/json" },
       body: JSON.stringify({
         text,
         model_id: ELEVENLABS_TTS_MODEL,
-        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+        voice_settings: {
+          stability: 0.42,
+          similarity_boost: 0.82,
+          style: 0.28,
+          use_speaker_boost: true,
+          speed: 0.90,
+        },
       }),
+      signal,
     },
-  );
+  ));
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`ElevenLabs TTS ${res.status}: ${detail.slice(0, 200)}`);
+    throw new VoiceProviderError("playback", res.status);
   }
   return res.arrayBuffer();
 }

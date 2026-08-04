@@ -23,6 +23,7 @@ export type TranscriptionResult =
 export interface TranscribeDeps {
   /** Normally `fetch`, bound. Injected so the boundary is testable. */
   fetch: typeof fetch;
+  signal?: AbortSignal;
 }
 
 /** Names the upload after the container the recorder actually produced. */
@@ -61,6 +62,7 @@ export async function transcribe(
     response = await deps.fetch.call(globalThis, "/api/voice/transcribe", {
       method: "POST",
       body: form,
+      signal: deps.signal,
     });
   } catch {
     return {

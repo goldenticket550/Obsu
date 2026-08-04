@@ -22,18 +22,7 @@ export function ActionRequired({
   variant?: "default" | "command";
 }) {
   if (items.length === 0 && variant === "command") {
-    return (
-      <section
-        id="action-required"
-        tabIndex={-1}
-        data-scene-surface="attention"
-        aria-label="Action required"
-        className={surfaces.allClear}
-      >
-        <span className={surfaces.allClearLine} aria-hidden="true" />
-        All systems clear
-      </section>
-    );
+    return <section id="action-required" tabIndex={-1} aria-label="No action required" />;
   }
 
   return (

@@ -12,7 +12,7 @@ type Particle = {
   blue: boolean;
 };
 
-type Orbit = { radiusX: number; radiusY: number; rotation: number; phase: number };
+type Orbit = { radiusX: number; radiusY: number; rotation: number; phase: number; start: number; length: number; opacity: number };
 
 const TAU = Math.PI * 2;
 
@@ -25,18 +25,21 @@ function buildParticles(count: number): Particle[] {
   return Array.from({ length: count }, (_, index) => ({
     longitude: seeded(index, 1) * TAU,
     latitude: Math.acos(2 * seeded(index, 2) - 1) - Math.PI / 2,
-    radius: 0.58 + seeded(index, 3) * 0.4,
-    size: 0.45 + seeded(index, 4) * 1.5,
+    radius: 0.52 + seeded(index, 3) * 0.48 + (seeded(index, 13) - 0.5) * 0.09,
+    size: 0.38 + seeded(index, 4) * 1.9,
     speed: 0.45 + seeded(index, 5) * 0.9,
     blue: index % 61 === 0,
   }));
 }
 
-const ORBITS: Orbit[] = Array.from({ length: 12 }, (_, index) => ({
-  radiusX: 0.57 + seeded(index, 6) * 0.36,
-  radiusY: 0.18 + seeded(index, 7) * 0.32,
+const ORBITS: Orbit[] = Array.from({ length: 7 }, (_, index) => ({
+  radiusX: 0.61 + seeded(index, 6) * 0.31,
+  radiusY: 0.22 + seeded(index, 7) * 0.28,
   rotation: seeded(index, 8) * Math.PI,
   phase: seeded(index, 9) * TAU,
+  start: seeded(index, 10) * TAU,
+  length: Math.PI * (1.08 + seeded(index, 11) * 0.72),
+  opacity: 0.16 + seeded(index, 12) * 0.16,
 }));
 
 function stateSpeed(visual: IrisVisualState): number {
@@ -65,14 +68,18 @@ export function EclipseIrisCanvas({
     if (!canvas || !context) return;
 
     const narrow = window.matchMedia("(max-width: 767px)").matches;
-    const particles = buildParticles(narrow ? 260 : 440);
+    const particles = buildParticles(narrow ? 260 : 430);
     let frame = 0;
     let visible = document.visibilityState === "visible";
     let intersecting = true;
     let startedAt = performance.now();
 
+    let cssWidth = 1;
+    let cssHeight = 1;
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
+      cssWidth = Math.max(1, rect.width);
+      cssHeight = Math.max(1, rect.height);
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const width = Math.max(1, Math.round(rect.width * dpr));
       const height = Math.max(1, Math.round(rect.height * dpr));
@@ -84,12 +91,11 @@ export function EclipseIrisCanvas({
     };
 
     const draw = (now: number) => {
-      resize();
-      const width = canvas.clientWidth;
-      const height = canvas.clientHeight;
+      const width = cssWidth;
+      const height = cssHeight;
       const centerX = width / 2;
       const centerY = height / 2;
-      const baseRadius = Math.min(width, height) * 0.34;
+      const baseRadius = Math.min(width, height) * 0.445;
       const signal = Math.max(0, Math.min(1, amplitudeRef.current));
       const speed = reducedMotion ? 0 : stateSpeed(visual);
       const time = ((now - startedAt) / 1000) * speed;
@@ -100,7 +106,8 @@ export function EclipseIrisCanvas({
       glow.addColorStop(0, `rgba(255, 247, 214, ${0.98 + signal * 0.02})`);
       glow.addColorStop(0.08, "rgba(255, 213, 106, 0.96)");
       glow.addColorStop(0.2, "rgba(255, 181, 47, 0.58)");
-      glow.addColorStop(0.48, "rgba(255, 181, 47, 0.13)");
+      glow.addColorStop(0.42, "rgba(255, 181, 47, 0.16)");
+      glow.addColorStop(0.72, "rgba(255, 181, 47, 0.045)");
       glow.addColorStop(1, "rgba(255, 181, 47, 0)");
       context.fillStyle = glow;
       context.beginPath();
@@ -114,9 +121,9 @@ export function EclipseIrisCanvas({
         context.save();
         context.rotate(orbit.rotation + time * 0.018);
         context.beginPath();
-        context.ellipse(0, 0, baseRadius * orbit.radiusX, baseRadius * orbit.radiusY, orbit.phase, 0, TAU);
-        context.strokeStyle = "rgba(255, 181, 47, 0.24)";
-        context.lineWidth = 0.65;
+        context.ellipse(0, 0, baseRadius * orbit.radiusX, baseRadius * orbit.radiusY, orbit.phase, orbit.start, orbit.start + orbit.length);
+        context.strokeStyle = `rgba(255, 181, 47, ${orbit.opacity})`;
+        context.lineWidth = 0.45 + orbit.opacity;
         context.stroke();
         context.restore();
       }
@@ -134,7 +141,7 @@ export function EclipseIrisCanvas({
         const perspective = 0.76 + (point.z + 1) * 0.2;
         const x = point.x * baseRadius * perspective;
         const y = point.y * baseRadius * perspective;
-        const alpha = 0.24 + (point.z + 1) * 0.28;
+        const alpha = (0.16 + (point.z + 1) * 0.31) * (0.72 + seeded(point.index, 14) * 0.5);
         const pulse = 1 + signal * (point.index % 9 === 0 ? 1.4 : 0.35);
         context.fillStyle = point.particle.blue
           ? `rgba(53, 194, 255, ${Math.min(1, alpha + signal * 0.35)})`
@@ -143,12 +150,21 @@ export function EclipseIrisCanvas({
         context.arc(x, y, point.particle.size * perspective * pulse, 0, TAU);
         context.fill();
 
-        if (point.index % 17 === 0) {
-          context.strokeStyle = `rgba(255, 213, 106, ${alpha * 0.55})`;
-          context.lineWidth = 0.55;
+        if (point.z > 0.55 && point.index % 23 === 0) {
+          context.shadowColor = point.particle.blue ? "rgba(53, 194, 255, 0.45)" : "rgba(255, 213, 106, 0.5)";
+          context.shadowBlur = 5 * perspective;
+          context.fill();
+          context.shadowBlur = 0;
+        }
+
+        if (point.z > 0.4 && point.index % 71 === 0) {
+          context.strokeStyle = `rgba(255, 225, 143, ${alpha * 0.72})`;
+          context.lineWidth = 0.7;
           context.beginPath();
-          context.moveTo(x - 3 * perspective, y);
-          context.lineTo(x + 4 * perspective, y);
+          context.moveTo(x - 2.8 * perspective, y);
+          context.lineTo(x + 2.8 * perspective, y);
+          context.moveTo(x, y - 2.8 * perspective);
+          context.lineTo(x, y + 2.8 * perspective);
           context.stroke();
         }
       }
@@ -182,13 +198,17 @@ export function EclipseIrisCanvas({
         }, { rootMargin: "80px" });
 
     observer?.observe(canvas);
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(resize);
+    resizeObserver?.observe(canvas);
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", onVisibility);
+    resize();
     draw(performance.now());
 
     return () => {
       cancelAnimationFrame(frame);
       observer?.disconnect();
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", onVisibility);
     };

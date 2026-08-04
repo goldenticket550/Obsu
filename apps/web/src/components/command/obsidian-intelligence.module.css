@@ -200,3 +200,83 @@
 @media (max-width: 520px) {
   .voiceButton span { display: none; }
 }
+
+.welcomeGate {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  width: min(72%, 300px);
+  min-height: 126px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid rgb(56 189 248 / 32%);
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 30%, rgb(17 65 92 / 74%), rgb(2 7 13 / 92%) 72%);
+  box-shadow: inset 0 1px rgb(255 255 255 / 8%), 0 0 34px rgb(37 99 235 / 16%);
+  backdrop-filter: blur(14px);
+  transform: translate(-50%, -50%);
+}
+
+.welcomeGate p {
+  color: rgb(154 161 173);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.welcomeGate button {
+  min-height: 48px;
+  border: 1px solid rgb(56 189 248 / 58%);
+  border-radius: 999px;
+  padding-inline: 22px;
+  background: rgb(8 18 29 / 92%);
+  box-shadow: 0 0 24px rgb(37 99 235 / 22%);
+  color: rgb(231 233 238);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.welcomeGate button:focus-visible {
+  outline: 2px solid rgb(56 189 248);
+  outline-offset: 4px;
+}
+
+@media (max-width: 520px) {
+  .welcomeGate {
+    width: min(68%, 264px);
+    min-height: 112px;
+  }
+}
+.replayBriefing {
+  min-height: 36px;
+  margin-top: 7px;
+  border: 1px solid rgb(56 189 248 / 28%);
+  border-radius: 999px;
+  padding-inline: 13px;
+  color: rgb(154 181 204);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.replayBriefing:hover:not(:disabled) {
+  border-color: rgb(56 189 248 / 64%);
+  background: rgb(14 116 144 / 12%);
+  color: rgb(219 234 254);
+}
+
+.replayBriefing:focus-visible {
+  outline: 2px solid rgb(56 189 248);
+  outline-offset: 3px;
+}
+
+.replayBriefing:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}

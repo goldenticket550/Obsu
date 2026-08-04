@@ -47,9 +47,41 @@ import { shouldReleaseMicrophone } from "@/lib/voice/mic-lifecycle";
 const SUCCESS_DWELL_MS = 2400;
 const MAX_RECORDING_MS = 30_000;
 
+const SURFACE_ANNOUNCEMENTS: Record<string, string> = {
+  "tonights-flow": "Opening tonight's flow.",
+  "action-required": "Opening items that need your attention.",
+  "business-pulse": "Opening your business pulse.",
+};
+
+async function playStartupChime(): Promise<void> {
+  const AudioContextClass = window.AudioContext ??
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextClass) return;
+  const context = new AudioContextClass();
+  await context.resume();
+  const gain = context.createGain();
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.025);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.62);
+  gain.connect(context.destination);
+  [196, 293.66, 440].forEach((frequency, index) => {
+    const oscillator = context.createOscillator();
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+    oscillator.connect(gain);
+    oscillator.start(context.currentTime + index * 0.085);
+    oscillator.stop(context.currentTime + 0.62);
+  });
+  await new Promise((resolve) => window.setTimeout(resolve, 660));
+  await context.close();
+}
+
 export function ObsidianIntelligence({
   needsAttention = false,
   actionCount = 0,
+  briefingDayKey = "",
+  dailyBriefing = "",
+  shortGreeting = "",
 }: {
   /**
    * Gate 1: the ONLY real-data input to the orb's amber treatment. Passed from
@@ -60,13 +92,18 @@ export function ObsidianIntelligence({
   needsAttention?: boolean;
   /** Exact length of the server-derived Action Required list. */
   actionCount?: number;
-} = {}) {
+  briefingDayKey?: string;
+  dailyBriefing?: string;
+  shortGreeting?: string;
+}) {
   const [state, setState] = useState<OrbState>({ kind: "idle" });
   const [history, setHistory] = useState<ConversationTurn[]>([]);
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [askFocused, setAskFocused] = useState(false);
   const [expandedSurface, setExpandedSurface] = useState<string | null>(null);
+  const [welcomePending, setWelcomePending] = useState(Boolean(briefingDayKey && dailyBriefing && shortGreeting));
+  const [welcomeBusy, setWelcomeBusy] = useState(false);
 
   const stateRef = useRef<OrbState>({ kind: "idle" });
   const mountedRef = useRef(true);
@@ -75,6 +112,8 @@ export function ObsidianIntelligence({
   const ttsRef = useRef<ObsidianTts | null>(null);
   const levelTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceOperationRef = useRef(0);
+  const transcriptionAbortRef = useRef<AbortController | null>(null);
 
   const releaseMic = useCallback(() => {
     if (levelTimerRef.current) {
@@ -87,6 +126,8 @@ export function ObsidianIntelligence({
     }
     sessionRef.current?.abandon();
     sessionRef.current = null;
+    transcriptionAbortRef.current?.abort();
+    transcriptionAbortRef.current = null;
   }, []);
 
   const scrollToSurface = useCallback((id: string) => {
@@ -99,6 +140,7 @@ export function ObsidianIntelligence({
       block: "start",
     });
     setExpandedSurface(id);
+    void ttsRef.current?.speak(SURFACE_ANNOUNCEMENTS[id] ?? "Opening that section.").catch(() => {});
   }, []);
 
 
@@ -150,6 +192,7 @@ export function ObsidianIntelligence({
 
     return () => {
       mountedRef.current = false;
+      voiceOperationRef.current += 1;
       window.removeEventListener("offline", goOffline);
       window.removeEventListener("online", goOnline);
       window.removeEventListener(SIGN_OUT_EVENT, onSignOut);
@@ -160,6 +203,41 @@ export function ObsidianIntelligence({
     };
   }, [send, clearDwell, releaseMic]);
 
+
+  async function beginWelcome() {
+    if (welcomeBusy || !briefingDayKey || !dailyBriefing || !shortGreeting) return;
+    setWelcomeBusy(true);
+    const storageKey = `obsidian-command-briefing:${briefingDayKey}`;
+    let firstOpeningToday = true;
+    try {
+      firstOpeningToday = !document.cookie.split("; ").includes(`${storageKey}=played`);
+      if (firstOpeningToday) {
+        document.cookie = `${storageKey}=played; Max-Age=172800; Path=/; SameSite=Lax`;
+      }
+    } catch {
+      // Cookies can be unavailable; the briefing still works.
+    }
+    setWelcomePending(false);
+    try {
+      await playStartupChime();
+      await ttsRef.current?.speak(firstOpeningToday ? dailyBriefing : shortGreeting);
+    } catch {
+      send({ type: "failed", message: "The Charles voice is temporarily unavailable. Please try again." });
+    } finally {
+      setWelcomeBusy(false);
+    }
+  }
+  async function replayDailyBriefing() {
+    if (welcomeBusy || !dailyBriefing) return;
+    setWelcomeBusy(true);
+    try {
+      await ttsRef.current?.speak(dailyBriefing);
+    } catch {
+      send({ type: "failed", message: "The Charles voice is temporarily unavailable. Please try again." });
+    } finally {
+      setWelcomeBusy(false);
+    }
+  }
   function remember(turn: ConversationTurn) {
     setHistory((current) => appendRedacted(current, turn));
   }
@@ -253,9 +331,19 @@ export function ObsidianIntelligence({
     // Detach before the transition: transcribing may not hold a live mic, but
     // this session still needs to finish cleanly and return its recording.
     sessionRef.current = null;
+    const operation = ++voiceOperationRef.current;
     send({ type: "capture_stopped" });
 
-    const result = await session.stop();
+    let result;
+    try {
+      result = await session.stop();
+    } catch {
+      if (mountedRef.current && operation === voiceOperationRef.current) {
+        send({ type: "failed", message: "The recording could not be completed. Please try again." });
+      }
+      return;
+    }
+    if (!mountedRef.current || operation !== voiceOperationRef.current) return;
     const assessment = captureCopy(result.assessment);
     if (!assessment.usable || !result.audio) {
       const message = assessment.suggestion
@@ -265,7 +353,12 @@ export function ObsidianIntelligence({
       return;
     }
 
-    const transcription = await transcribe(result.audio, { fetch });
+    const controller = new AbortController();
+    transcriptionAbortRef.current?.abort();
+    transcriptionAbortRef.current = controller;
+    const transcription = await transcribe(result.audio, { fetch, signal: controller.signal });
+    if (!mountedRef.current || operation !== voiceOperationRef.current) return;
+    transcriptionAbortRef.current = null;
     if (transcription.kind === "failed") {
       send({ type: "failed", message: transcription.message });
       return;
@@ -287,6 +380,7 @@ export function ObsidianIntelligence({
     }
     if (stateRef.current.kind !== "idle") return;
 
+    const operation = ++voiceOperationRef.current;
     send({ type: "permission_requested" });
     const permission = await requestMicrophone(userGesture(), {
       getUserMedia: navigator.mediaDevices?.getUserMedia
@@ -295,7 +389,7 @@ export function ObsidianIntelligence({
       isSecureContext: window.isSecureContext,
     });
 
-    if (!mountedRef.current) {
+    if (!mountedRef.current || operation !== voiceOperationRef.current) {
       if (permission.kind === "granted") {
         permission.stream.getTracks().forEach((track) => track.stop());
       }
@@ -438,6 +532,14 @@ export function ObsidianIntelligence({
           Animation is pure CSS on compositor-friendly properties, so nothing
           here re-renders per frame. */}
       <div className={ui.instrumentStage}>
+        {welcomePending ? (
+          <div className={ui.welcomeGate}>
+            <p>Voice briefing ready</p>
+            <button type="button" onClick={() => void beginWelcome()} disabled={welcomeBusy}>
+              {welcomeBusy ? "Starting…" : "Enter Command Center"}
+            </button>
+          </div>
+        ) : null}
         <ul className={ui.controlCluster} aria-label="Command Center sections">
           <li>
             <button
@@ -482,7 +584,7 @@ export function ObsidianIntelligence({
         >
           <EclipseIris
             visual={visual}
-            size={236}
+            size={460}
             focused={askFocused || state.kind === "listening" || state.kind === "speaking"}
             amplitude={orbLevel(state)}
           />
@@ -493,7 +595,16 @@ export function ObsidianIntelligence({
       {/* The status, in words. The orb is decorative; this is the information,
           and it is legible with no colour and no motion. */}
       <p className={ui.status}>{copy.label}</p>
-      {copy.detail && !proposal ? (
+      {dailyBriefing && !welcomePending ? (
+        <button
+          type="button"
+          className={ui.replayBriefing}
+          onClick={() => void replayDailyBriefing()}
+          disabled={welcomeBusy}
+        >
+          {welcomeBusy ? "Speaking…" : "Replay daily briefing"}
+        </button>
+      ) : null}      {copy.detail && !proposal ? (
         <p className="mt-1 max-w-sm text-center text-xs text-content-muted">
           {copy.detail}
         </p>

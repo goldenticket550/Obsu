@@ -44,6 +44,28 @@ export function formatUsd(cents: number): string {
   return `${sign}$${centsToDollars(Math.abs(value))}`;
 }
 
+/**
+ * Speech helper: avoids symbols and decimal notation that TTS engines can read
+ * inconsistently. Examples: 50000 -> "500 dollars"; 50025 ->
+ * "500 dollars and 25 cents".
+ */
+export function formatUsdForSpeech(cents: number): string {
+  const rounded = Number.isFinite(cents) ? Math.round(cents) : 0;
+  const negative = rounded < 0;
+  const absolute = Math.abs(rounded);
+  const dollars = Math.floor(absolute / 100);
+  const remainingCents = absolute % 100;
+  const parts: string[] = [];
+
+  if (dollars > 0 || remainingCents === 0) {
+    parts.push(`${dollars.toLocaleString("en-US")} ${dollars === 1 ? "dollar" : "dollars"}`);
+  }
+  if (remainingCents > 0) {
+    parts.push(`${remainingCents} ${remainingCents === 1 ? "cent" : "cents"}`);
+  }
+
+  return `${negative ? "negative " : ""}${parts.join(" and ")}`;
+}
 /** Like dollarsToCents, but blank/whitespace -> null (for optional amounts). */
 export function optionalDollarsToCents(
   input: string | null | undefined,
