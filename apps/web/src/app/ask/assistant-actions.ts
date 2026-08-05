@@ -6,6 +6,7 @@ import { parseTripFromText } from "@/lib/ai/parse-trip";
 import { enumOrNull, errorMessage } from "@/lib/form";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
 import { getCurrentOrgId } from "@/lib/db/org";
+import { assertOrgWriteAllowed, ORG_WRITE_BLOCKED_MESSAGE } from "@/lib/db/org-access";
 import { createActionLog } from "@/lib/db/action-log";
 import { createProposalWrites } from "@/lib/db/proposal-writes";
 import { dollarsToCents } from "@/lib/money";
@@ -165,6 +166,17 @@ export async function approveProposal(
   }
 
   const now = new Date();
+  const supabase = createSupabaseServerClient();
+  try {
+    await assertOrgWriteAllowed(supabase, who.orgId);
+  } catch {
+    return {
+      label: "Not done",
+      detail: ORG_WRITE_BLOCKED_MESSAGE,
+      ok: false,
+      logged: false,
+    };
+  }
   const proposal = takeProposal(
     String(proposalId ?? ""),
     { userId: who.userId, organizationId: who.orgId },
@@ -179,7 +191,6 @@ export async function approveProposal(
     };
   }
 
-  const supabase = createSupabaseServerClient();
   const outcome: ExecutionOutcome = await executeProposal(
     // Approval is recorded HERE, on the server, from the act of calling this
     // action — never carried in from the client and never inferred from text.

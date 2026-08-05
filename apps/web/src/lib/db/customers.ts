@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "./supabase-server";
 import { getCurrentOrgId } from "./org";
+import { assertOrgWriteAllowed } from "./org-access";
 import type { Customer } from "@/lib/types";
 
 export async function listCustomers(): Promise<Customer[]> {
@@ -45,6 +46,7 @@ export async function findOrCreateCustomerByName(
   if (existing) return (existing as { id: string }).id;
 
   const orgId = await getCurrentOrgId();
+  await assertOrgWriteAllowed(supabase, orgId);
   const { data: created, error: insErr } = await supabase
     .from("customers")
     .insert({ organization_id: orgId, name: trimmed })

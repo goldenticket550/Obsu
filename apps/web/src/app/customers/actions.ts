@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
 import { getCurrentOrgId } from "@/lib/db/org";
+import { assertOrgWriteAllowed } from "@/lib/db/org-access";
 import { errorMessage, optStr, str } from "@/lib/form";
 
 export async function createCustomer(formData: FormData) {
@@ -16,6 +17,7 @@ export async function createCustomer(formData: FormData) {
   try {
     const supabase = createSupabaseServerClient();
     const organization_id = await getCurrentOrgId();
+    await assertOrgWriteAllowed(supabase, organization_id);
     const { error } = await supabase.from("customers").insert({
       organization_id,
       name,
@@ -49,6 +51,8 @@ export async function updateCustomer(formData: FormData) {
   let failure: string | null = null;
   try {
     const supabase = createSupabaseServerClient();
+    const organizationId = await getCurrentOrgId();
+    await assertOrgWriteAllowed(supabase, organizationId);
     const { error } = await supabase
       .from("customers")
       .update({

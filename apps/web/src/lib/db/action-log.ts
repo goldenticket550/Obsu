@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "./supabase-server";
+import { assertOrgWriteAllowed } from "./org-access";
 import type { ActionLog, ActionLogEntry } from "@/lib/business/execute-proposal";
 
 /**
@@ -41,6 +42,7 @@ export function createActionLog(): ActionLog {
 
     async append(entry: ActionLogEntry): Promise<void> {
       const supabase = createSupabaseServerClient();
+      await assertOrgWriteAllowed(supabase, entry.organizationId);
       const { error } = await supabase.from("action_log").insert({
         organization_id: entry.organizationId,
         actor_user_id: entry.actorUserId,

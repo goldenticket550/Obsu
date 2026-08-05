@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "./supabase-server";
+import { assertOrgWriteAllowed } from "./org-access";
 import type { Trip } from "@/lib/types";
 
 /** A trip row with its customer's name embedded (for list/detail display). */
@@ -77,6 +78,7 @@ export async function createTripWithCosts(
     costs: TripCostsInput;
   },
 ): Promise<CreateTripResult> {
+  await assertOrgWriteAllowed(supabase, params.organizationId);
   const { data, error } = await supabase
     .from("trips")
     .insert({
@@ -117,6 +119,7 @@ export async function createTripWithCosts(
     return { tripId, costsRequested: 0, costsWritten: true };
   }
 
+  await assertOrgWriteAllowed(supabase, params.organizationId);
   const { error: costError } = await supabase.from("expenses").insert(rows);
   if (costError) {
     // The ride exists; the costs do not. Report it — do not throw away the

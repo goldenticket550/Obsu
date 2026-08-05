@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "./supabase-server";
 import { findOrCreateCustomerByName } from "./customers";
 import { createTripWithCosts } from "./trips";
+import { assertOrgWriteAllowed } from "./org-access";
 import type { ProposalWrites } from "@/lib/business/execute-proposal";
 
 /**
@@ -17,6 +18,7 @@ export function createProposalWrites(organizationId: string): ProposalWrites {
   return {
     async createTrip(action) {
       const supabase = createSupabaseServerClient();
+      await assertOrgWriteAllowed(supabase, organizationId);
       const customerId = action.customerName
         ? await findOrCreateCustomerByName(action.customerName)
         : null;
@@ -48,6 +50,7 @@ export function createProposalWrites(organizationId: string): ProposalWrites {
 
     async updateTrip(action) {
       const supabase = createSupabaseServerClient();
+      await assertOrgWriteAllowed(supabase, organizationId);
       const patch: Record<string, unknown> = {};
       const { changes } = action;
       if (changes.pickup !== undefined) patch.pickup_location = changes.pickup;
@@ -67,6 +70,7 @@ export function createProposalWrites(organizationId: string): ProposalWrites {
 
     async completeTrip(action) {
       const supabase = createSupabaseServerClient();
+      await assertOrgWriteAllowed(supabase, organizationId);
       const { error } = await supabase
         .from("trips")
         .update({ status: "completed", revenue_cents: action.revenueCents })
@@ -76,6 +80,7 @@ export function createProposalWrites(organizationId: string): ProposalWrites {
 
     async cancelTrip(action) {
       const supabase = createSupabaseServerClient();
+      await assertOrgWriteAllowed(supabase, organizationId);
       const { error } = await supabase
         .from("trips")
         .update({ status: "canceled" })
@@ -85,6 +90,7 @@ export function createProposalWrites(organizationId: string): ProposalWrites {
 
     async recordPayment(action) {
       const supabase = createSupabaseServerClient();
+      await assertOrgWriteAllowed(supabase, organizationId);
       // Only the amount received. The fare is untouched — recording a payment
       // is not a re-price, and the proposal model has no way to express one.
       const { error } = await supabase

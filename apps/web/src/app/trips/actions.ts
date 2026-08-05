@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
 import { getCurrentOrgId } from "@/lib/db/org";
+import { assertOrgWriteAllowed } from "@/lib/db/org-access";
 import { findOrCreateCustomerByName } from "@/lib/db/customers";
 import { createTripWithCosts } from "@/lib/db/trips";
 import { optionalDollarsToCents } from "@/lib/money";
@@ -150,6 +151,8 @@ export async function updateTrip(formData: FormData) {
   let failure: string | null = null;
   try {
     const supabase = createSupabaseServerClient();
+    const organizationId = await getCurrentOrgId();
+    await assertOrgWriteAllowed(supabase, organizationId);
     const customer_id = await findOrCreateCustomerByName(
       str(formData, "customer_name"),
     );
@@ -191,6 +194,8 @@ export async function markTripCompleted(formData: FormData) {
     if (firstError) throw new Error(firstError.message);
 
     const supabase = createSupabaseServerClient();
+    const organizationId = await getCurrentOrgId();
+    await assertOrgWriteAllowed(supabase, organizationId);
     const { error } = await supabase
       .from("trips")
       .update({
@@ -230,6 +235,8 @@ export async function confirmTrip(formData: FormData) {
   let failure: string | null = null;
   try {
     const supabase = createSupabaseServerClient();
+    const organizationId = await getCurrentOrgId();
+    await assertOrgWriteAllowed(supabase, organizationId);
     const { error } = await supabase
       .from("trips")
       .update({ confirmed_at: new Date().toISOString() })
@@ -256,6 +263,8 @@ export async function unconfirmTrip(formData: FormData) {
   let failure: string | null = null;
   try {
     const supabase = createSupabaseServerClient();
+    const organizationId = await getCurrentOrgId();
+    await assertOrgWriteAllowed(supabase, organizationId);
     const { error } = await supabase
       .from("trips")
       .update({ confirmed_at: null })
@@ -285,6 +294,8 @@ export async function cancelTrip(formData: FormData) {
   let failure: string | null = null;
   try {
     const supabase = createSupabaseServerClient();
+    const organizationId = await getCurrentOrgId();
+    await assertOrgWriteAllowed(supabase, organizationId);
     const { error } = await supabase
       .from("trips")
       .update({ status: "canceled" })

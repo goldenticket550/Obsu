@@ -41,6 +41,7 @@ import { TonightsFlow } from "@/components/command/tonights-flow";
 import { BusinessPulse } from "@/components/command/business-pulse";
 import { ActionRequired } from "@/components/command/action-required";
 import { formatUsdForSpeech } from "@/lib/money";
+import { PilotEndedNotice } from "@/components/command/pilot-ended";
 
 /**
  * OBSIDIAN RIDES Command Center.
@@ -66,7 +67,7 @@ export default async function DashboardPage() {
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("name")
+    .select("name, status, pilot_ends_at")
     .eq("id", membership.organization_id)
     .single();
 
@@ -97,6 +98,10 @@ export default async function DashboardPage() {
           nextRide.trip.dropoff_location,
         );
   const businessName = org?.name?.trim() || "Command Center";
+  const pilotEnded =
+    org?.status === "pilot" &&
+    typeof org.pilot_ends_at === "string" &&
+    new Date(org.pilot_ends_at).getTime() <= now.getTime();
   const activitySummary = operationalSummary(allTrips, now) || "Nothing scheduled";
   const attentionSummary = actionItems.length === 0
     ? "Nothing needs your attention"
@@ -123,7 +128,11 @@ export default async function DashboardPage() {
             </SkylineHeaderArea>
 
             <SkylineAttentionArea>
-              <ActionRequired items={actionItems} variant="command" />
+              {pilotEnded ? (
+                <PilotEndedNotice />
+              ) : (
+                <ActionRequired items={actionItems} variant="command" />
+              )}
             </SkylineAttentionArea>
 
             <SkylineRideArea>

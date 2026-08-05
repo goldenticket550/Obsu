@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
 import { getCurrentOrgId } from "@/lib/db/org";
+import { assertOrgWriteAllowed } from "@/lib/db/org-access";
 import { dollarsToCents } from "@/lib/money";
 import { EXPENSE_CATEGORIES } from "@/lib/enums";
 import { enumOrNull, errorMessage, optStr, str } from "@/lib/form";
@@ -26,6 +27,7 @@ export async function createExpense(formData: FormData) {
   try {
     const supabase = createSupabaseServerClient();
     const organization_id = await getCurrentOrgId();
+    await assertOrgWriteAllowed(supabase, organization_id);
     const { error } = await supabase
       .from("expenses")
       .insert({ organization_id, ...readExpenseFields(formData) });
@@ -49,6 +51,8 @@ export async function updateExpense(formData: FormData) {
   let failure: string | null = null;
   try {
     const supabase = createSupabaseServerClient();
+    const organizationId = await getCurrentOrgId();
+    await assertOrgWriteAllowed(supabase, organizationId);
     const { error } = await supabase
       .from("expenses")
       .update(readExpenseFields(formData))
