@@ -102,7 +102,7 @@ const admin = createClient(URL_, SERVICE, {
 const created = {
   users: [],
   orgs: [],
-  rows: { customers: [], vehicles: [], trips: [], expenses: [], action_log: [], memberships: [] },
+  rows: { customers: [], vehicles: [], trips: [], expenses: [], business_profile: [], action_log: [], memberships: [] },
 };
 
 const ORG_SCOPED_TABLES = ["customers", "vehicles", "trips", "expenses", "action_log"];
@@ -189,6 +189,17 @@ async function seed(tenant) {
     .single();
   if (eErr) throw new Error(`seed expenses: ${eErr.message}`);
   created.rows.expenses.push(exp.id);
+  const { data: profile, error: pErr } = await admin
+    .from("business_profile")
+    .insert({
+      organization_id: orgId,
+      display_name: `${MARK}-${tenant.label}-profile`,
+      workspace_label: tenant.label.toUpperCase(),
+    })
+    .select("organization_id")
+    .single();
+  if (pErr) throw new Error(`seed business_profile: ${pErr.message}`);
+  created.rows.business_profile.push(profile.organization_id);
 
   const { data: logRow, error: lErr } = await admin
     .from("action_log")
@@ -243,7 +254,7 @@ async function run() {
   log("Seeding both orgs in every org-scoped table…");
   const seedA = await seed(A);
   const seedB = await seed(B);
-  log("  seeded: customers, vehicles, trips, expenses, action_log\n");
+  log("  seeded: customers, vehicles, trips, expenses, business_profile, action_log\n");
 
   const clientA = await asUser(A);
 
@@ -321,6 +332,43 @@ async function run() {
       })(),
     ),
   };
+  // 7. business_profile is keyed by organization_id, not a synthetic id.
+  const ownProfile = await clientA
+    .from("business_profile")
+    .select("organization_id")
+    .eq("organization_id", A.orgId);
+  const otherProfile = await clientA
+    .from("business_profile")
+    .select("organization_id")
+    .eq("organization_id", B.orgId);
+  const updateOtherProfile = await clientA
+    .from("business_profile")
+    .update({ display_name: `${MARK}-hijack` })
+    .eq("organization_id", B.orgId)
+    .select("organization_id");
+  const deleteOtherProfile = await clientA
+    .from("business_profile")
+    .delete()
+    .eq("organization_id", B.orgId)
+    .select("organization_id");
+  RESULT.business_profile = {
+    readOther: (otherProfile.data?.length ?? 0) === 0 ? "0 rows" : `*** ${otherProfile.data.length} ROWS ***`,
+    readOwn: (ownProfile.data?.length ?? 0) > 0 ? `${ownProfile.data.length} rows` : "*** 0 rows - TEST BLIND ***",
+    updateOther: verdict(Boolean(updateOtherProfile.error) || (updateOtherProfile.data?.length ?? 0) === 0),
+    deleteOther: verdict(Boolean(deleteOtherProfile.error) || (deleteOtherProfile.data?.length ?? 0) === 0),
+    insertSpoofed: "n/a (one profile per org)",
+  };
+
+  // 8. The service-role-only activation RPC is idempotent on a throwaway org.
+  const firstActivation = await admin.rpc("activate_pilot", { org: A.orgId, days: 14 });
+  if (firstActivation.error) throw new Error(`first activate_pilot: ${firstActivation.error.message}`);
+  const secondActivation = await admin.rpc("activate_pilot", { org: A.orgId, days: 14 });
+  if (secondActivation.error) throw new Error(`second activate_pilot: ${secondActivation.error.message}`);
+  const firstWindow = firstActivation.data;
+  const secondWindow = secondActivation.data;
+  if (firstWindow.pilot_started_at !== secondWindow.pilot_started_at || firstWindow.pilot_ends_at !== secondWindow.pilot_ends_at) {
+    throw new Error("activate_pilot was not idempotent: the second call moved the pilot window");
+  }
 
   printMatrix();
   await clientA.auth.signOut();
@@ -394,11 +442,12 @@ async function cleanup() {
   const failures = [];
 
   // Child rows first, then parents.
-  const order = ["action_log", "expenses", "trips", "vehicles", "customers", "memberships"];
+  const order = ["action_log", "expenses", "trips", "vehicles", "customers", "business_profile", "memberships"];
   for (const table of order) {
     const ids = created.rows[table] ?? [];
     if (ids.length === 0) continue;
-    const { error } = await admin.from(table).delete().in("id", ids);
+    const key = table === "business_profile" ? "organization_id" : "id";
+    const { error } = await admin.from(table).delete().in(key, ids);
     if (error) failures.push(`${table}: ${error.message}`);
     else log(`  deleted ${ids.length} from ${table}`);
   }

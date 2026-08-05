@@ -29,7 +29,7 @@ describe("platform administration is not tenant membership", () => {
   it("exposes no tenant application route that activates or extends a pilot", () => {
     const offenders: string[] = [];
     for (const file of sourceFiles(join(process.cwd(), "src"))) {
-      if (file.endsWith("platform-admin-separation.test.ts")) continue;
+      if (/\.test\.tsx?$/.test(file)) continue;
       const source = readFileSync(file, "utf8");
       if (/activate_pilot|extend_pilot/.test(source)) offenders.push(file);
     }
