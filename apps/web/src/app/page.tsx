@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
 import { listTrips } from "@/lib/db/trips";
 import { listExpenses } from "@/lib/db/expenses";
@@ -139,6 +140,12 @@ export default async function DashboardPage() {
                   Vehicle status | {branding.vehicleDescription}
                 </p>
               ) : null}
+              <Link
+                href="/feedback"
+                className="mt-2 inline-flex min-h-[44px] items-center text-xs font-medium text-accent-soft underline-offset-4 hover:underline"
+              >
+                Send feedback
+              </Link>
             </SkylineHeaderArea>
 
             <SkylineAttentionArea>
