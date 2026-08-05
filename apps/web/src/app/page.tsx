@@ -41,6 +41,7 @@ import { TonightsFlow } from "@/components/command/tonights-flow";
 import { BusinessPulse } from "@/components/command/business-pulse";
 import { ActionRequired } from "@/components/command/action-required";
 import { formatUsdForSpeech } from "@/lib/money";
+import { resolveBusinessBranding } from "@/lib/business/business-profile";
 import { PilotEndedNotice } from "@/components/command/pilot-ended";
 
 /**
@@ -70,6 +71,13 @@ export default async function DashboardPage() {
     .select("name, status, pilot_ends_at")
     .eq("id", membership.organization_id)
     .single();
+  const { data: profile } = await supabase
+    .from("business_profile")
+    .select("display_name, workspace_label, vehicle_description, primary_color, secondary_color")
+    .eq("organization_id", membership.organization_id)
+    .maybeSingle();
+  const branding = resolveBusinessBranding(org?.name, profile);
+
 
   const [allTrips, allExpenses, customers] = await Promise.all([
     listTrips(),
@@ -97,7 +105,7 @@ export default async function DashboardPage() {
           nextRide.trip.pickup_location,
           nextRide.trip.dropoff_location,
         );
-  const businessName = org?.name?.trim() || "Command Center";
+  const businessName = branding.displayName || "Command Center";
   const pilotEnded =
     org?.status === "pilot" &&
     typeof org.pilot_ends_at === "string" &&
@@ -118,13 +126,19 @@ export default async function DashboardPage() {
           <SkylineCommandLayout>
             <SkylineHeaderArea>
               <SkylineTopBar
-                businessName={org?.name ?? null}
+                businessName={branding.displayName}
+                workspaceLabel={branding.workspaceLabel}
                 now={now}
                 actionItems={actionItems}
               />
               <p className="mt-2 text-sm text-content-secondary">
                 {operationalSummary(allTrips, now)}
               </p>
+              {branding.vehicleDescription ? (
+                <p className="mt-1 text-xs text-content-muted">
+                  Vehicle status | {branding.vehicleDescription}
+                </p>
+              ) : null}
             </SkylineHeaderArea>
 
             <SkylineAttentionArea>

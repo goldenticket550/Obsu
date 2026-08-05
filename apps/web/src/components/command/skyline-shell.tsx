@@ -34,6 +34,7 @@ export function SkylineMain({ children }: { children: ReactNode }) {
 
 export function SkylineTopBar({
   businessName,
+  workspaceLabel,
   now,
   actionItems,
 }: {
@@ -43,6 +44,7 @@ export function SkylineTopBar({
    * would be a name the operator did not choose.
    */
   businessName: string | null;
+  workspaceLabel: string | null;
   now: Date;
   /** The same array Action Required renders and the orb reads. */
   actionItems: readonly { kind: ActionKind }[];
@@ -54,6 +56,7 @@ export function SkylineTopBar({
       <div>
         <p className={`${styles.eyebrow} text-content-muted`}>
           <span className={styles.eyebrowDot} aria-hidden />
+          {workspaceLabel ? `${workspaceLabel} | ` : ""}
           {businessName ?? ""}
         </p>
         <h1 className={`${styles.title} text-content-primary`}>Command Center</h1>

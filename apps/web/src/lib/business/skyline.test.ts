@@ -145,7 +145,9 @@ describe("the shell hard-codes no business identity", () => {
     expect(shell).toContain("businessName ?? \"\"");
 
     const page = readFileSync(join(SRC, "app", "page.tsx"), "utf8");
-    expect(page).toContain("businessName={org?.name ?? null}");
+    expect(page).toContain("businessName={branding.displayName}");
+    expect(page).toContain("workspaceLabel={branding.workspaceLabel}");
+    expect(page).toContain("Vehicle status | {branding.vehicleDescription}");
   });
 
   it("the page passes now down rather than letting the shell read a clock", () => {
