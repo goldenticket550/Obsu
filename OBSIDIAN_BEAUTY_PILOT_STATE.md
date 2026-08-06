@@ -88,8 +88,10 @@ icons, orb intact as `ObsidianIntelligence`); the corrupted Rides mobile nav ico
 fixed in the same pass (CCG benefits). Production deployed to https://obsidian-mvp.vercel.app
 (Vercel `READY`). A follow-up fixed the mobile assistant layout (orb ~360px→84px on Beauty
 mobile via an opt-in `presentation="beauty-compact"` prop; Rides/`/obsidian` unchanged).
-Latest commit `ffaace8699db4494038580e48323309e95a7ce01` on `origin/master` (prior milestones:
-`de6bead` mobile design, `9e1d7a8` docs, `5a353736` assistant, `ac9cc496` build).
+The orb now speaks a record-derived daily briefing on entry, and the opt-in iOS
+AudioContext-on-tap playback fix shipped. Latest commit
+`b897b44455da2251ae1007251e2e260d48461584` on `origin/master` (prior milestones:
+`ffaace8` mobile-compact assistant, `de6bead` mobile design, `5a353736` assistant).
 
 ## Remaining (owner)
 1. Owner logs in: https://obsidian-mvp.vercel.app → Forgot password →
