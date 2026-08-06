@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "@/app/login/actions";
 import { announceSignOut } from "@/lib/conversation";
 import { CreateMenu } from "@/components/create-menu";
+import { MobileNavigation } from "@/components/mobile-navigation";
 import {
   NAV_DESTINATIONS,
   isActiveDestination,
@@ -195,42 +196,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* CONTENT — bottom padding on mobile clears the fixed bar AND the
           floating create button (plus the device's own safe area, e.g. the
           iPhone home indicator), so neither ever covers content at 320px. */}
-      <div className="min-w-0 flex-1 pb-[calc(8rem+env(safe-area-inset-bottom))] pt-16 lg:pb-0 lg:pl-56 lg:pt-0">
+      <div className="min-w-0 flex-1 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-16 lg:pb-0 lg:pl-56 lg:pt-0">
         {children}
       </div>
 
       {/* MOBILE CREATE (FAB) — sits above the bottom bar, right-aligned, so it
           never overlaps navigation or the safe area. */}
-      <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 lg:hidden">
+      <div className={`fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 lg:hidden ${pathname === "/" ? "hidden" : ""}`}>
         <CreateMenu variant="fab" />
       </div>
 
-      {/* MOBILE BOTTOM BAR */}
-      <nav
-        aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-obsidian-line bg-obsidian-black/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
-      >
-        <ul className="flex items-stretch justify-around">
-          {NAV_DESTINATIONS.map(({ href, label }) => {
-            const active = isActiveDestination(pathname, href);
-            const Icon = ICONS[href];
-            return (
-              <li key={href} className="flex-1">
-                <Link
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex min-h-[56px] flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-obsidian-cyan ${
-                    active ? "text-obsidian-cyan" : "text-obsidian-muted"
-                  }`}
-                >
-                  {Icon ? <Icon /> : null}
-                  <span className={active ? "block" : "hidden min-[390px]:block"}>{label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <MobileNavigation />
     </div>
   );
 }

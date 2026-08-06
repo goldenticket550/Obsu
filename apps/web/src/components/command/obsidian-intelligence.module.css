@@ -280,3 +280,44 @@
   cursor: wait;
   opacity: 0.58;
 }
+.dockWaveform {
+  width: 54px;
+  height: 36px;
+  flex: 0 0 54px;
+  overflow: hidden;
+}
+.dockWaveform > * {
+  width: 92px;
+  transform: scale(0.58);
+  transform-origin: left center;
+}
+
+@media (max-width: 520px) {
+  .commandDock {
+    position: fixed;
+    right: 14px;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    left: 14px;
+    z-index: 45;
+    width: auto;
+    margin: 0;
+    border-radius: 999px;
+    padding: 6px 8px;
+    background: rgb(2 8 14 / 95%);
+  }
+  .commandDock input { min-width: 0; padding-inline: 4px; font-size: 16px; }
+  .commandDock button[type="submit"] { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dockWaveform > * { transition: none; }
+}
+.dockLabel { display: none; }
+@media (max-width: 520px) {
+  .dockLabel {
+    display: block;
+    color: rgb(154 161 173);
+    font-size: 14px;
+  }
+  .commandDock input::placeholder { color: transparent; }
+}

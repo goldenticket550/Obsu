@@ -6,6 +6,7 @@ const SRC = join(process.cwd(), "src");
 const intelligence = readFileSync(join(SRC, "components", "command", "obsidian-intelligence.tsx"), "utf8");
 const action = readFileSync(join(SRC, "components", "command", "action-required.tsx"), "utf8");
 const shell = readFileSync(join(SRC, "components", "app-shell.tsx"), "utf8");
+const mobileNavigation = readFileSync(join(SRC, "components", "mobile-navigation.tsx"), "utf8");
 const layout = readFileSync(join(SRC, "components", "command", "skyline-shell.module.css"), "utf8");
 
 describe("approved Command Center identity", () => {
@@ -45,7 +46,8 @@ describe("approved Command Center identity", () => {
     expect(shell).toContain("Open profile menu");
     expect(shell).toContain("safe-area-inset-bottom");
     expect(shell).toContain("left-1/2");
-    expect(shell).toContain('active ? "block" : "hidden min-[390px]:block"');
+    expect(mobileNavigation).toContain('aria-label="Mobile navigation"');
+    expect(mobileNavigation).toContain("grid-cols-5");
   });
 
   it("uses a dedicated mobile content order and hides the decorative route below the hero", () => {

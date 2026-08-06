@@ -652,6 +652,10 @@ export function ObsidianIntelligence({
         }}
         className={ui.commandDock}
       >
+        <div className={ui.dockWaveform} aria-hidden="true">
+          <IrisVisualizer phase={visualizerPhase} amplitude={orbLevel(state)} />
+        </div>
+        <span className={ui.dockLabel}>Ask Obsidian</span>
         <label htmlFor="obsidian-ask" className="sr-only">
           Ask a question about your business, or describe a ride to record
         </label>
