@@ -47,6 +47,8 @@ import { shouldReleaseMicrophone } from "@/lib/voice/mic-lifecycle";
 /** How long a success rests on screen before the orb returns to idle. */
 const SUCCESS_DWELL_MS = 2400;
 const MAX_RECORDING_MS = 30_000;
+export const BEAUTY_TODAY_OVERVIEW_REQUEST =
+  "Give me a concise briefing covering today's appointments, revenue summary, and clients whose fills are due. Use only my organization's verified records, report empty or unavailable results honestly, and do not send any reminders or messages.";
 
 const SURFACE_ANNOUNCEMENTS: Record<string, string> = {
   "tonights-flow": "Opening tonight's flow.",
@@ -83,6 +85,8 @@ export function ObsidianIntelligence({
   briefingDayKey = "",
   dailyBriefing = "",
   shortGreeting = "",
+  showTodayOverview = false,
+  speakTypedAnswers = false,
 }: {
   /**
    * Gate 1: the ONLY real-data input to the orb's amber treatment. Passed from
@@ -96,6 +100,10 @@ export function ObsidianIntelligence({
   briefingDayKey?: string;
   dailyBriefing?: string;
   shortGreeting?: string;
+  /** Adds the Beauty briefing shortcut without creating a second Ask path. */
+  showTodayOverview?: boolean;
+  /** Beauty speaks typed and shortcut answers; Rides keeps its existing default. */
+  speakTypedAnswers?: boolean;
 }) {
   const [state, setState] = useState<OrbState>({ kind: "idle" });
   const [history, setHistory] = useState<ConversationTurn[]>([]);
@@ -264,7 +272,7 @@ export function ObsidianIntelligence({
       switch (turn.kind) {
         case "answer":
           remember({ role: "assistant", text: turn.text });
-          if (source === "voice") {
+          if (source === "voice" || speakTypedAnswers) {
             send({ type: "answer_ready" });
             await speak(turn.text);
           } else {
@@ -612,7 +620,19 @@ export function ObsidianIntelligence({
         >
           {welcomeBusy ? "Speaking…" : "Replay daily briefing"}
         </button>
-      ) : null}      {copy.detail && !proposal ? (
+      ) : null}
+      {showTodayOverview ? (
+        <button
+          type="button"
+          className={ui.todayOverview}
+          onClick={() => void run(BEAUTY_TODAY_OVERVIEW_REQUEST)}
+          disabled={busy || !resting}
+          aria-label="Today's overview: appointments, revenue, and fills due"
+        >
+          {busy ? "Preparing overview…" : "Today’s overview"}
+        </button>
+      ) : null}
+      {copy.detail && !proposal ? (
         <p className="mt-1 max-w-sm text-center text-xs text-content-muted">
           {copy.detail}
         </p>
