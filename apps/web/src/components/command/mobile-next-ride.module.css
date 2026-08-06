@@ -1,0 +1,54 @@
+.mobileRideShell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 14px;
+  overflow: hidden;
+  border: 1px solid rgb(56 189 248 / 30%);
+  border-radius: 24px;
+  padding: 18px;
+  background: linear-gradient(145deg, rgb(3 10 18 / 94%), rgb(2 7 13 / 88%));
+  box-shadow: inset 0 1px rgb(255 255 255 / 7%), 0 18px 48px rgb(0 0 0 / 40%);
+  backdrop-filter: blur(18px);
+}
+
+.vehicleMonogram {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  place-items: center;
+  align-self: center;
+  border: 1px solid var(--workspace-secondary);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(13 28 42 / 90%), rgb(2 7 12 / 96%));
+  box-shadow: 0 0 22px color-mix(in srgb, var(--workspace-secondary) 20%, transparent);
+  color: rgb(231 233 238);
+}
+.vehicleMonogram svg { width: 58px; }
+.mobileRideBody { min-width: 0; }
+.rideHeadlineRow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.rideHeadlineRow h2 { color: rgb(231 233 238); font-size: 24px; line-height: 1.1; }
+.rideHeadlineRow span { color: rgb(128 136 151); }
+.rideHeadlineRow strong { color: var(--workspace-primary); font-size: 18px; font-weight: 500; }
+.rideChips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.rideChips span { border: 1px solid rgb(148 163 184 / 22%); border-radius: 999px; padding: 4px 9px; color: rgb(184 191 202); font-size: 10px; }
+.mobileRoute { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgb(148 163 184 / 16%); color: rgb(231 233 238); font-size: 14px; overflow-wrap: anywhere; }
+.mobileRideActions { grid-column: 1 / -1; display: grid; grid-template-columns: 58px 58px minmax(0, 1fr); gap: 8px; align-items: stretch; }
+.contactAction { display: flex; min-height: 54px; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 1px solid rgb(56 189 248 / 20%); border-radius: 16px; color: var(--workspace-secondary); font-size: 10px; transition: border-color 160ms ease, background 160ms ease; }
+.contactAction > span:first-child { font-size: 19px; }
+.contactAction:hover { border-color: var(--workspace-secondary); background: rgb(8 28 40 / 65%); }
+.contactAction:focus-visible, .ridePrimary:focus-visible { outline: 2px solid var(--workspace-secondary); outline-offset: 2px; }
+.contactDisabled { cursor: not-allowed; opacity: 0.38; }
+.ridePrimary { display: inline-flex; min-height: 54px; align-items: center; justify-content: center; gap: 10px; border: 1px solid color-mix(in srgb, var(--workspace-primary) 88%, white); border-radius: 999px; padding: 0 18px; background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--workspace-primary) 62%, transparent), color-mix(in srgb, var(--workspace-primary) 28%, black)); box-shadow: 0 0 24px color-mix(in srgb, var(--workspace-primary) 30%, transparent); color: white; font-size: 14px; }
+.ridePrimary:hover { filter: brightness(1.12); }
+
+@media (max-width: 360px) {
+  .mobileRideShell { grid-template-columns: 68px minmax(0, 1fr); padding: 14px; }
+  .vehicleMonogram { width: 68px; height: 68px; }
+  .vehicleMonogram svg { width: 50px; }
+  .rideHeadlineRow h2 { font-size: 21px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contactAction, .ridePrimary { transition: none; }
+}

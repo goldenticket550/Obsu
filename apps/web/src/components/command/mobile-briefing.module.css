@@ -1,0 +1,29 @@
+.briefingCard {
+  width: min(100%, 420px);
+  margin: 4px auto 0;
+  border: 1px solid rgb(56 189 248 / 24%);
+  border-radius: 18px;
+  padding: 14px 16px 10px;
+  background: rgb(2 9 16 / 82%);
+  backdrop-filter: blur(16px);
+}
+.briefingLabel { color: var(--workspace-secondary); font-size: 10px; letter-spacing: 0.2em; }
+.briefingText { display: -webkit-box; overflow: hidden; margin-top: 6px; color: rgb(231 233 238); font-size: 12px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+
+@media (max-width: 560px) {
+  .briefingCard {
+    position: absolute;
+    top: 76px;
+    left: 0;
+    z-index: 5;
+    width: min(43vw, 166px);
+    margin: 0;
+    padding: 12px 13px 8px;
+    box-shadow: 0 12px 30px rgb(0 0 0 / 38%);
+  }
+  .briefingText { font-size: 11px; -webkit-line-clamp: 4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .briefingCard * { animation: none !important; }
+}

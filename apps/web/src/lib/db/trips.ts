@@ -4,10 +4,10 @@ import type { Trip } from "@/lib/types";
 
 /** A trip row with its customer's name embedded (for list/detail display). */
 export interface TripListRow extends Trip {
-  customer: { name: string } | null;
+  customer: { name: string; phone?: string | null } | null;
 }
 
-const SELECT = "*, customer:customers(name)";
+const SELECT = "*, customer:customers(name,phone)";
 
 export async function listTrips(): Promise<TripListRow[]> {
   const supabase = createSupabaseServerClient();

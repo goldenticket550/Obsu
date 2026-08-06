@@ -5,6 +5,7 @@ import { ProposalCard } from "@/components/proposal-card";
 import { EclipseIris } from "@/components/command/eclipse-iris";
 import { IrisVisualizer } from "@/components/command/iris-visualizer";
 import ui from "./obsidian-intelligence.module.css";
+import briefing from "./mobile-briefing.module.css";
 import {
   deriveIrisVisualState,
   type CapabilityStatus,
@@ -590,7 +591,14 @@ export function ObsidianIntelligence({
           />
         </button>
       </div>
-      <IrisVisualizer phase={visualizerPhase} amplitude={orbLevel(state)} />
+      <div className={briefing.briefingCard}>
+        <p className={briefing.briefingLabel}>OBSIDIAN</p>
+        <p className={briefing.briefingText}>{dailyBriefing || copy.detail || copy.label}</p>
+        <IrisVisualizer phase={visualizerPhase} amplitude={orbLevel(state)} />
+        <span className="sr-only" role="status" aria-live="polite">
+          Voice status: {copy.label}
+        </span>
+      </div>
 
       {/* The status, in words. The orb is decorative; this is the information,
           and it is legible with no colour and no motion. */}

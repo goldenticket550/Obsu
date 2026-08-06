@@ -1,11 +1,5 @@
 import Link from "next/link";
-
-export function requestResponseText(count: number): string | null {
-  if (count <= 0) return null;
-  return count === 1
-    ? "1 request needs a response"
-    : `${count} requests need a response`;
-}
+import { requestResponseText } from "./mobile-dashboard-model";
 
 export function RequestResponseAlert({ count }: { count: number }) {
   const text = requestResponseText(count);

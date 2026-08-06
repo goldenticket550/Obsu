@@ -21,6 +21,7 @@ import { centsToDollars } from "@/lib/money";
 import { tripTypeHeading } from "@/lib/business/trip-type";
 import { absenceLabel } from "@/lib/business/missing";
 import type { TripListRow } from "@/lib/db/trips";
+import { MobileNextRide } from "./mobile-next-ride";
 
 /**
  * U2 — Next Ride, the centerpiece.
@@ -114,6 +115,10 @@ export function NextRide({
         </div>
       </Shell>
     );
+  }
+
+  if (variant === "command") {
+    return <MobileNextRide view={view} now={now} />;
   }
 
   const trip = view.trip;
