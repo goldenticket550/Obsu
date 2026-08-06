@@ -435,3 +435,49 @@
   .beautyCompact .irisButton > div { width: 76px; }
   .beautyCompact .instrumentStage { min-height: 76px; }
 }
+
+@media (max-width: 700px) {
+  .beautyCompact .welcomeGate {
+    inset: 0;
+    width: 84px;
+    min-height: 84px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    transform: none;
+  }
+
+  .beautyCompact .welcomeGate p { display: none; }
+
+  .beautyCompact .welcomeGate button {
+    display: grid;
+    width: 84px;
+    min-height: 84px;
+    place-items: center;
+    border: 1px solid rgb(226 189 117 / 52%);
+    padding: 0;
+    background: rgb(13 9 7 / 16%);
+    box-shadow: 0 0 20px rgb(214 173 96 / 18%);
+    color: transparent;
+    font-size: 0;
+  }
+
+  .beautyCompact .welcomeGate button::after {
+    width: 0;
+    height: 0;
+    margin-left: 3px;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-left: 9px solid #fffaf2;
+    content: "";
+  }
+}
+
+@media (max-width: 380px) {
+  .beautyCompact .welcomeGate,
+  .beautyCompact .welcomeGate button {
+    width: 76px;
+    min-height: 76px;
+  }
+}

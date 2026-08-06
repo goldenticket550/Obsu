@@ -112,4 +112,23 @@ describe("ElevenLabs TTS cleanup", () => {
     expect(close).toHaveBeenCalledOnce();
     expect(context.createBufferSource).toHaveBeenCalledOnce();
   });
+
+  it("reuses an audio context primed by the user gesture", async () => {
+    installAnimationFrame();
+    const { context, close, source } = installAudioContext(
+      () => Promise.resolve({} as AudioBuffer),
+    );
+    const tts = new ElevenLabsTts();
+
+    tts.unlock();
+    expect(context.resume).toHaveBeenCalledOnce();
+
+    const speaking = tts.speak("hello");
+    await vi.waitFor(() => expect(source.start).toHaveBeenCalledOnce());
+    expect(context.resume).toHaveBeenCalledTimes(2);
+
+    (source.onended as unknown as () => void)();
+    await expect(speaking).resolves.toBeUndefined();
+    expect(close).toHaveBeenCalledOnce();
+  });
 });

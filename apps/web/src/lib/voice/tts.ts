@@ -23,6 +23,8 @@ export interface ObsidianTts {
   readonly name: string;
   /** Resolves when playback finishes; rejects if it could not start (triggers fallback). */
   speak(text: string, opts?: TtsOpts): Promise<void>;
+  /** Prime browser audio from the same user gesture that requests speech. */
+  unlock?(): void;
   cancel(): void;
 }
 
@@ -75,6 +77,7 @@ export class BrowserTts implements ObsidianTts {
 export class ElevenLabsTts implements ObsidianTts {
   readonly name = "elevenlabs";
   private ctx: AudioContext | null = null;
+  private primedCtx: AudioContext | null = null;
   private src: AudioBufferSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
   private raf = 0;
@@ -83,7 +86,28 @@ export class ElevenLabsTts implements ObsidianTts {
   private finish: (() => void) | null = null;
   private finishGeneration = 0;
 
+  /** Prime Web Audio synchronously from a user gesture for iOS playback. */
+  unlock(): void {
+    if (this.primedCtx) {
+      void this.primedCtx.resume().catch(() => {});
+      return;
+    }
+    const AC = window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    this.primedCtx = ctx;
+    void ctx.resume().catch(() => {
+      if (this.primedCtx === ctx) {
+        this.primedCtx = null;
+        void ctx.close().catch(() => {});
+      }
+    });
+  }
+
   async speak(text: string, opts?: TtsOpts): Promise<void> {
+    const primedContext = this.primedCtx;
+    this.primedCtx = null;
     this.cancel();
     const generation = ++this.generation;
     const abort = new AbortController();
@@ -100,6 +124,9 @@ export class ElevenLabsTts implements ObsidianTts {
       if (!res.ok) throw new Error(`speak ${res.status}`);
       bytes = await res.arrayBuffer();
       if (generation !== this.generation) throw new TtsCancelledError();
+    } catch (error) {
+      void primedContext?.close().catch(() => {});
+      throw error;
     } finally {
       if (this.abort === abort) this.abort = null;
     }
@@ -108,9 +135,11 @@ export class ElevenLabsTts implements ObsidianTts {
       window.AudioContext ??
       (window as unknown as { webkitAudioContext?: typeof AudioContext })
         .webkitAudioContext;
-    if (!AC) throw new Error("no AudioContext");
-
-    const ctx = new AC();
+    let ctx = primedContext;
+    if (!ctx) {
+      if (!AC) throw new Error("no AudioContext");
+      ctx = new AC();
+    }
     this.ctx = ctx;
     let audioBuf: AudioBuffer;
     try {
@@ -174,6 +203,9 @@ export class ElevenLabsTts implements ObsidianTts {
   cancel(): void {
     this.generation += 1;
     this.abort?.abort();
+    const primedContext = this.primedCtx;
+    this.primedCtx = null;
+    void primedContext?.close().catch(() => {});
     this.abort = null;
     // Preserve the active completion callback before cleanup clears ownership.
     // A cancelled playback is a clean terminal path: callers must not be left

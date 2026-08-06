@@ -89,6 +89,7 @@ export function ObsidianIntelligence({
   speakTypedAnswers = false,
   todayOverviewClassName = "",
   presentation = "standard",
+  primeAudioOnGesture = false,
 }: {
   /**
    * Gate 1: the ONLY real-data input to the orb's amber treatment. Passed from
@@ -110,6 +111,8 @@ export function ObsidianIntelligence({
   todayOverviewClassName?: string;
   /** Keeps the shared controller fully functional in a compact Beauty card. */
   presentation?: "standard" | "beauty-compact";
+  /** Opt-in for mobile browsers that require audio to be primed by the initiating tap. */
+  primeAudioOnGesture?: boolean;
 }) {
   const [state, setState] = useState<OrbState>({ kind: "idle" });
   const [history, setHistory] = useState<ConversationTurn[]>([]);
@@ -219,9 +222,14 @@ export function ObsidianIntelligence({
   }, [send, clearDwell, releaseMic]);
 
 
+  function prepareVoicePlayback() {
+    if (primeAudioOnGesture) ttsRef.current?.unlock?.();
+  }
+
   async function beginWelcome() {
     if (welcomeBusy || !briefingDayKey || !dailyBriefing || !shortGreeting) return;
     setWelcomeBusy(true);
+    prepareVoicePlayback();
     const storageKey = `obsidian-command-briefing:${briefingDayKey}`;
     let firstOpeningToday = true;
     try {
@@ -245,6 +253,7 @@ export function ObsidianIntelligence({
   async function replayDailyBriefing() {
     if (welcomeBusy || !dailyBriefing) return;
     setWelcomeBusy(true);
+    prepareVoicePlayback();
     try {
       await ttsRef.current?.speak(dailyBriefing);
     } catch {
@@ -445,6 +454,7 @@ export function ObsidianIntelligence({
     const kind = stateRef.current.kind;
     if (kind === "idle" || kind === "success" || kind === "warning" || kind === "error") {
       void startListening();
+      prepareVoicePlayback();
     } else if (kind === "listening") {
       void stopListening();
     } else if (kind === "speaking") {
@@ -633,7 +643,10 @@ export function ObsidianIntelligence({
         <button
           type="button"
           className={todayOverviewClassName}
-          onClick={() => void run(BEAUTY_TODAY_OVERVIEW_REQUEST)}
+          onClick={() => {
+            prepareVoicePlayback();
+            void run(BEAUTY_TODAY_OVERVIEW_REQUEST);
+          }}
           disabled={busy || !resting}
           aria-label="Today's overview: appointments, revenue, and fills due"
         >
@@ -677,6 +690,7 @@ export function ObsidianIntelligence({
         onSubmit={(e) => {
           e.preventDefault();
           void run(question);
+          prepareVoicePlayback();
         }}
         className={ui.commandDock}
       >

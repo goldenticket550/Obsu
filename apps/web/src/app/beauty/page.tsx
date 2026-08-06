@@ -9,7 +9,8 @@ import {
   todaysRemainingAppointments,
 } from "@/lib/business/beauty/intel";
 import { getBeautyProfile, listAppointments, listBeautyClients } from "@/lib/db/beauty";
-import { formatUsd } from "@/lib/money";
+import { localDateKey } from "@/lib/business/beauty/timezone";
+import { formatUsd, formatUsdForSpeech } from "@/lib/money";
 import type { Appointment } from "@/lib/types/beauty";
 import styles from "./beauty-home.module.css";
 
@@ -41,6 +42,14 @@ export default async function BeautyDashboard() {
   const nextAppointment = remaining[0] ?? null;
   const due = fillsDueClients(clients, appointments, now, 21, profile.timezone);
   const displayName = profile.display_name?.trim() || "Beauty Command Center";
+  const greeting = beautyGreeting(profile.owner_name, now, profile.timezone);
+  const appointmentBriefing = remaining.length === 0
+    ? "You have no remaining appointments today."
+    : `You have ${remaining.length} ${remaining.length === 1 ? "appointment" : "appointments"} remaining today.`;
+  const fillsBriefing = due.length === 0
+    ? "No clients are currently flagged as fills due."
+    : `${due.length} ${due.length === 1 ? "client is" : "clients are"} currently flagged as fills due.`;
+  const dailyBriefing = `${greeting}. ${appointmentBriefing} Completed appointment revenue today is ${formatUsdForSpeech(todayRevenue)}. ${fillsBriefing}`;
   const timeFormatter = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -53,7 +62,7 @@ export default async function BeautyDashboard() {
   return (
     <main className={`${beautyPage} ${styles.home} mx-auto max-w-5xl px-5 pt-6`}>
       <BeautyHeader title={displayName} />
-      <p className={styles.greeting}>{beautyGreeting(profile.owner_name, now, profile.timezone)}</p>
+      <p className={styles.greeting}>{greeting}</p>
       <section className={styles.metrics} aria-label="Today's business overview">
         <article className={styles.metricCard}>
           <p className={styles.metricLabel}>Today&apos;s revenue</p>
@@ -122,8 +131,12 @@ export default async function BeautyDashboard() {
         <ObsidianIntelligence
           needsAttention={due.length > 0}
           presentation="beauty-compact"
+          primeAudioOnGesture
           actionCount={due.length}
           showTodayOverview
+          briefingDayKey={`beauty-${localDateKey(now, profile.timezone)}`}
+          dailyBriefing={dailyBriefing}
+          shortGreeting={`${greeting}. How can I help today?`}
           speakTypedAnswers
           todayOverviewClassName={styles.overviewButton}
         />

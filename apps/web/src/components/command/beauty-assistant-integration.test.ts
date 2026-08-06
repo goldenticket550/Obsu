@@ -7,6 +7,7 @@ const controller = readFileSync(join(SRC, "components", "command", "obsidian-int
 const beautyHome = readFileSync(join(SRC, "app", "beauty", "page.tsx"), "utf8");
 const sharedStyles = readFileSync(join(SRC, "components", "command", "obsidian-intelligence.module.css"), "utf8");
 const beautyStyles = readFileSync(join(SRC, "app", "beauty", "beauty-home.module.css"), "utf8");
+const tts = readFileSync(join(SRC, "lib", "voice", "tts.ts"), "utf8");
 
 describe("Beauty Home assistant integration", () => {
   it("mounts the shared controller, never the bare canvas", () => {
@@ -14,6 +15,10 @@ describe("Beauty Home assistant integration", () => {
     expect(beautyHome).toContain("showTodayOverview");
     expect(beautyHome).toContain("speakTypedAnswers");
     expect(beautyHome).toContain('presentation="beauty-compact"');
+    expect(beautyHome).toContain("primeAudioOnGesture");
+    expect(beautyHome).toContain("briefingDayKey");
+    expect(beautyHome).toContain("dailyBriefing");
+    expect(beautyHome).toContain("shortGreeting");
     expect(beautyHome).not.toContain("EclipseIrisCanvas");
     expect(beautyHome).not.toContain("eclipse-iris-canvas");
   });
@@ -36,6 +41,17 @@ describe("Beauty Home assistant integration", () => {
     expect(controller).toContain("aria-label=\"Today's overview: appointments, revenue, and fills due\"");
   });
 
+
+  it("unlocks mobile audio from the tap before delayed speech", () => {
+    expect(controller).toContain("ttsRef.current?.unlock?.()");
+    expect(controller).toContain("primeAudioOnGesture?: boolean");
+    expect(controller).toContain("if (primeAudioOnGesture)");
+    expect(controller).toContain("prepareVoicePlayback();");
+    expect(tts).toContain("private primedCtx: AudioContext | null");
+    expect(tts).toContain("unlock(): void");
+    expect(tts).toContain("let ctx = primedContext");
+    expect(tts).toContain("ctx = new AC()");
+  });
   it("keeps the Beauty controller compact and in page flow on mobile", () => {
     expect(controller).toContain('presentation?: "standard" | "beauty-compact"');
     expect(controller).toContain("ui.beautyCompact");
