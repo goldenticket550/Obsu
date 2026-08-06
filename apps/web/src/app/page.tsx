@@ -44,6 +44,7 @@ import { ActionRequired } from "@/components/command/action-required";
 import { formatUsdForSpeech } from "@/lib/money";
 import { resolveBusinessBranding } from "@/lib/business/business-profile";
 import { PilotEndedNotice } from "@/components/command/pilot-ended";
+import { RequestResponseAlert } from "@/components/command/request-response-alert";
 
 /**
  * OBSIDIAN RIDES Command Center.
@@ -134,6 +135,7 @@ export default async function DashboardPage() {
                 now={now}
                 actionItems={actionItems}
               />
+              <RequestResponseAlert count={actionItems.length} />
               <p className="mt-2 text-sm text-content-secondary">
                 {operationalSummary(allTrips, now)}
               </p>

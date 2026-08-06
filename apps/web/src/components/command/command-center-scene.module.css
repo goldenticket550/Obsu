@@ -288,3 +288,47 @@
     display: none;
   }
 }
+
+/* Mobile cinematic pass: existing skyline asset and route layer only. */
+@media (max-width: 768px) {
+  .atmosphere {
+    background:
+      linear-gradient(180deg, rgb(1 5 10 / 14%) 0%, rgb(1 5 10 / 26%) 48%, rgb(1 5 10 / 94%) 90%),
+      radial-gradient(72% 46% at 48% 28%, color-mix(in srgb, var(--workspace-primary) 10%, transparent), transparent 76%),
+      url("/images/obsidian-skyline-command-v2.png") 58% 5% / auto 76vh no-repeat,
+      rgb(1 6 11);
+  }
+  .sky {
+    background:
+      radial-gradient(70% 48% at 50% 30%, color-mix(in srgb, var(--workspace-primary) 10%, transparent), transparent 72%),
+      radial-gradient(55% 42% at 72% 38%, color-mix(in srgb, var(--workspace-secondary) 13%, transparent), transparent 75%);
+  }
+  .horizonGlow {
+    inset: 16% -20% auto;
+    height: 58%;
+    background: radial-gradient(ellipse at center, color-mix(in srgb, var(--workspace-secondary) 20%, transparent), transparent 68%);
+  }
+  .contentVeil {
+    background:
+      linear-gradient(180deg, rgb(1 5 10 / 6%) 0%, rgb(1 5 10 / 18%) 42%, rgb(1 5 10 / 88%) 88%),
+      linear-gradient(90deg, rgb(1 5 10 / 34%), transparent 52%, rgb(1 5 10 / 22%));
+  }
+  .vignette {
+    box-shadow: inset 0 0 90px 18px rgb(0 0 0 / 64%);
+  }
+  .routeGlow {
+    inset: 40vh -14vw auto auto;
+    width: 72vw;
+    height: 28vh;
+    border-top: 2px solid color-mix(in srgb, var(--workspace-secondary) 75%, transparent);
+    border-right: 2px solid color-mix(in srgb, var(--workspace-primary) 70%, transparent);
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: 8px -8px 24px color-mix(in srgb, var(--workspace-secondary) 30%, transparent);
+    transform: rotate(-24deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .routeGlow { transition: none; }
+}
