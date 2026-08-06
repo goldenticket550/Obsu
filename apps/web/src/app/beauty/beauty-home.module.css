@@ -161,3 +161,155 @@
   .overviewButton { transition: none; }
   .overviewButton:hover:not(:disabled) { transform: none; }
 }
+
+/* Approved Beauty Home composition at iPhone widths. */
+@media (max-width: 700px) {
+  .home { padding-top: 1.15rem; }
+
+  .greeting {
+    margin-top: 0.7rem;
+    font-size: clamp(1.55rem, 7vw, 2rem);
+  }
+
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .metricCard {
+    min-height: 124px;
+    border-radius: 0.875rem;
+    padding: 0.9rem;
+  }
+
+  .metricLabel {
+    font-size: 0.625rem;
+    letter-spacing: 0.09em;
+  }
+
+  .metricValue {
+    margin-top: 0.4rem;
+    font-size: 1.65rem;
+  }
+
+  .metricMeta {
+    margin-top: 0.45rem;
+    font-size: 0.675rem;
+    line-height: 1.35;
+  }
+
+  .metricLink {
+    margin-top: 0.15rem;
+    font-size: 0.7rem;
+  }
+
+  .nextClientCard {
+    grid-column: 1 / -1;
+    min-height: 0;
+    border: 0;
+    border-top: 1px solid rgb(214 173 96 / 36%);
+    border-bottom: 1px solid rgb(214 173 96 / 36%);
+    border-radius: 0;
+    padding: 0.8rem 0.15rem;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .nextClientCard .metricLabel { color: #e2bd75; }
+
+  .inlineLink {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    color: #e2bd75;
+    font-size: 0.6875rem;
+    font-weight: 700;
+  }
+
+  .nextClientRow {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  .clientAvatar {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    border: 1px solid rgb(255 250 242 / 32%);
+    border-radius: 50%;
+    background: linear-gradient(145deg, #d9947d, #ad604f);
+    color: #fffaf2;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 0.9rem;
+  }
+
+  .nextClientCopy { min-width: 0; }
+  .nextClient { margin-top: 0; color: #fffaf2; font-size: 0.9rem; }
+  .nextService { margin-top: 0.15rem; overflow-wrap: anywhere; color: #d8c9ba; font-size: 0.6875rem; }
+  .nextTime { margin-top: 0.2rem; color: #e2bd75; font-size: 0.6875rem; font-weight: 700; }
+  .nextClientEmpty { padding-block: 0.15rem 0.4rem; }
+  .nextClientEmpty .metricMeta { color: #bba999; }
+
+  .clientLink {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    border: 1px solid rgb(226 189 117 / 68%);
+    border-radius: 0.7rem;
+    padding-inline: 0.65rem;
+    color: #f7efe3;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .schedulePanel {
+    border: 0;
+    border-radius: 0;
+    padding: 0.85rem 0.15rem 0.2rem;
+    background: transparent;
+    box-shadow: none;
+    color: #f7efe3;
+  }
+
+  .sectionTitle { color: #fffaf2; font-size: 1rem; }
+  .scheduleLink { color: #e2bd75; font-size: 0.6875rem; }
+  .scheduleItem { border-color: rgb(214 173 96 / 24%); }
+  .scheduleAppointment { min-height: 54px; color: #f7efe3; }
+  .scheduleClient { color: #fffaf2; }
+  .scheduleService, .scheduleEmpty { color: #bba999; }
+
+  .quickActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+  }
+
+  .quickAction { padding-inline: 0.5rem; font-size: 0.75rem; }
+
+  .assistantPanel {
+    margin-top: 1rem !important;
+    border-radius: 1rem;
+    padding: 0.85rem !important;
+    background: radial-gradient(circle at 16% 45%, rgb(214 173 96 / 15%), transparent 34%), linear-gradient(145deg, #21150f, #0b0908);
+  }
+
+  .overviewButton {
+    min-height: 44px;
+    margin-top: 0;
+    padding-inline: 0.85rem;
+    background: transparent;
+    color: #e2bd75;
+    font-size: 0.6875rem;
+  }
+}
+
+@media (max-width: 370px) {
+  .nextClientRow { grid-template-columns: 44px minmax(0, 1fr); }
+  .clientAvatar { width: 44px; height: 44px; }
+  .clientLink { grid-column: 2; justify-self: start; }
+}

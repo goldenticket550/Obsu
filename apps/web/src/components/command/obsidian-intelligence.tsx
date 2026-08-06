@@ -88,6 +88,7 @@ export function ObsidianIntelligence({
   showTodayOverview = false,
   speakTypedAnswers = false,
   todayOverviewClassName = "",
+  presentation = "standard",
 }: {
   /**
    * Gate 1: the ONLY real-data input to the orb's amber treatment. Passed from
@@ -107,6 +108,8 @@ export function ObsidianIntelligence({
   speakTypedAnswers?: boolean;
   /** Lets a vertical own presentation without leaking styles into this shared controller. */
   todayOverviewClassName?: string;
+  /** Keeps the shared controller fully functional in a compact Beauty card. */
+  presentation?: "standard" | "beauty-compact";
 }) {
   const [state, setState] = useState<OrbState>({ kind: "idle" });
   const [history, setHistory] = useState<ConversationTurn[]>([]);
@@ -538,7 +541,7 @@ export function ObsidianIntelligence({
         : "Start voice input";
 
   return (
-    <div className={ui.root}>
+    <div className={`${ui.root} ${presentation === "beauty-compact" ? ui.beautyCompact : ""}`}>
       {/* The orb. Embedded, never floating — it sits in the page flow so it
           cannot cover navigation, approval controls or an error message.
           Animation is pure CSS on compositor-friendly properties, so nothing
@@ -602,9 +605,11 @@ export function ObsidianIntelligence({
           />
         </button>
       </div>
-      <div className={briefing.briefingCard}>
-        <p className={briefing.briefingLabel}>OBSIDIAN</p>
-        <p className={briefing.briefingText}>{dailyBriefing || copy.detail || copy.label}</p>
+      <div className={`${briefing.briefingCard} ${presentation === "beauty-compact" ? ui.beautyCompactBriefing : ""}`}>
+        <p className={briefing.briefingLabel}>{presentation === "beauty-compact" ? "OBSIDIAN ASSISTANT" : "OBSIDIAN"}</p>
+        <p className={briefing.briefingText}>
+          {dailyBriefing || (presentation === "beauty-compact" && state.kind === "idle" ? "Tap the orb for insights and smart suggestions." : copy.detail || copy.label)}
+        </p>
         <IrisVisualizer phase={visualizerPhase} amplitude={orbLevel(state)} />
         <span className="sr-only" role="status" aria-live="polite">
           Voice status: {copy.label}

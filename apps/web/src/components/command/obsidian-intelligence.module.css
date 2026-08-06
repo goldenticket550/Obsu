@@ -1,4 +1,5 @@
 .root {
+  position: relative;
   display: flex;
   width: 100%;
   max-width: 540px;
@@ -320,4 +321,117 @@
     font-size: 14px;
   }
   .commandDock input::placeholder { color: transparent; }
+}
+
+/* Beauty keeps the complete shared controller, but presents it as the compact
+   assistant card approved for 375-430px screens. No interaction path changes. */
+@media (max-width: 700px) {
+  .beautyCompact {
+    display: grid;
+    max-width: none;
+    grid-template-columns: 84px minmax(0, 1fr);
+    align-items: center;
+    gap: 0.45rem 0.8rem;
+  }
+
+  .beautyCompact .instrumentStage {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    width: 84px;
+    min-height: 84px;
+    padding: 0;
+  }
+
+  .beautyCompact .controlCluster { display: none; }
+
+  .beautyCompact .irisButton > div {
+    width: 84px;
+  }
+
+  .beautyCompactBriefing {
+    position: static !important;
+    z-index: auto !important;
+    grid-column: 2;
+    grid-row: 1;
+    width: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .beautyCompactBriefing > p:first-child {
+    color: #e2bd75;
+    font-size: 0.625rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+  }
+
+  .beautyCompactBriefing > p:nth-child(2) {
+    margin-top: 0.3rem;
+    color: #f7efe3;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    -webkit-line-clamp: 3;
+  }
+
+  .beautyCompactBriefing > :nth-child(3) { display: none; }
+
+  .beautyCompact .status {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+    color: #c9b89f;
+    font-size: 0.6875rem;
+  }
+
+  .beautyCompact > button:not(.irisButton) {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .beautyCompact .commandDock {
+    position: static;
+    z-index: auto;
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: 0.25rem;
+    border-color: rgb(226 189 117 / 42%);
+    border-radius: 0.875rem;
+    padding: 0.35rem 0.45rem;
+    background: rgb(8 7 6 / 72%);
+  }
+
+  .beautyCompact .dockWaveform,
+  .beautyCompact .dockLabel { display: none; }
+
+  .beautyCompact .commandDock input {
+    min-width: 0;
+    padding-inline: 0.45rem;
+    color: #f7efe3;
+  }
+
+  .beautyCompact .commandDock input::placeholder { color: #a99583; }
+
+  .beautyCompact .inputNote,
+  .beautyCompact > div[aria-live="polite"],
+  .beautyCompact > p:not(.status):not(.trust) {
+    grid-column: 1 / -1;
+  }
+
+  .beautyCompact .inputNote {
+    margin-top: 0;
+    color: #a99583;
+    text-align: center;
+  }
+}
+
+@media (max-width: 380px) {
+  .beautyCompact { grid-template-columns: 76px minmax(0, 1fr); }
+  .beautyCompact .instrumentStage,
+  .beautyCompact .irisButton > div { width: 76px; }
+  .beautyCompact .instrumentStage { min-height: 76px; }
 }

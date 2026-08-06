@@ -19,6 +19,14 @@ function serviceSummary(appointment: Appointment): string {
   return appointment.appointment_services?.map((line) => line.name).join(" + ") || "Service unavailable";
 }
 
+function clientInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase()).join("") || "\u2014";
+}
+
 export default async function BeautyDashboard() {
   const now = new Date();
   const [appointments, clients, profile] = await Promise.all([
@@ -32,6 +40,7 @@ export default async function BeautyDashboard() {
   const remaining = todaysRemainingAppointments(appointments, now, profile.timezone);
   const nextAppointment = remaining[0] ?? null;
   const due = fillsDueClients(clients, appointments, now, 21, profile.timezone);
+  const displayName = profile.display_name?.trim() || "Beauty Command Center";
   const timeFormatter = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -43,7 +52,7 @@ export default async function BeautyDashboard() {
 
   return (
     <main className={`${beautyPage} ${styles.home} mx-auto max-w-5xl px-5 pt-6`}>
-      <BeautyHeader title="Command Center" />
+      <BeautyHeader title={displayName} />
       <p className={styles.greeting}>{beautyGreeting(profile.owner_name, now, profile.timezone)}</p>
       <section className={styles.metrics} aria-label="Today's business overview">
         <article className={styles.metricCard}>
@@ -56,17 +65,29 @@ export default async function BeautyDashboard() {
           <p className={styles.metricValue}>{remaining.length}</p>
           <Link className={styles.metricLink} href="/beauty/appointments">View appointments</Link>
         </article>
-        <article className={styles.metricCard}>
-          <p className={styles.metricLabel}>Next client</p>
-          <p className={styles.nextClient}>{nextAppointment?.client?.name ?? "No remaining clients"}</p>
-          <p className={styles.metricMeta}>
-            {nextAppointment ? `${timeFormatter.format(new Date(nextAppointment.starts_at))} \u00b7 ${serviceSummary(nextAppointment)}` : "No booked appointments remain today"}
-          </p>
-        </article>
-        <article className={styles.metricCard}>
-          <p className={styles.metricLabel}>Fills due</p>
-          <p className={styles.metricValue}>{due.length}</p>
-          <Link className={styles.metricLink} href="/beauty/clients">Review fill details</Link>
+        <article className={`${styles.metricCard} ${styles.nextClientCard}`}>
+          <div className={styles.sectionHeader}>
+            <p className={styles.metricLabel}>Next client</p>
+            <Link className={styles.inlineLink} href="/beauty/appointments">View schedule</Link>
+          </div>
+          {nextAppointment ? (
+            <div className={styles.nextClientRow}>
+              <span className={styles.clientAvatar} aria-hidden="true">{clientInitials(nextAppointment?.client?.name ?? "")}</span>
+              <div className={styles.nextClientCopy}>
+                <p className={styles.nextClient}>{nextAppointment?.client?.name ?? "Walk-in"}</p>
+                <p className={styles.nextService}>{serviceSummary(nextAppointment)}</p>
+                <p className={styles.nextTime}>{timeFormatter.format(new Date(nextAppointment.starts_at))}</p>
+              </div>
+              {nextAppointment.client_id ? (
+                <Link className={styles.clientLink} href={`/beauty/clients/${nextAppointment.client_id}`}>View client</Link>
+              ) : null}
+            </div>
+          ) : (
+            <div className={styles.nextClientEmpty}>
+              <p className={styles.nextClient}>No remaining clients</p>
+              <p className={styles.metricMeta}>No booked appointments remain today.</p>
+            </div>
+          )}
         </article>
       </section>
 
@@ -98,13 +119,9 @@ export default async function BeautyDashboard() {
       </nav>
 
       <BeautyPanel tone="dark" className={`${styles.assistantPanel} mt-5 overflow-hidden`}>
-        <div className="mb-5 text-center">
-          <p className={styles.assistantEyebrow}>Ask Obsidian</p>
-          <h2 className={styles.assistantHeading}>Your beauty back office, at a glance.</h2>
-          <p className={styles.assistantBody}>Tap the shared orb or type a question. Answers use only verified records in this workspace.</p>
-        </div>
         <ObsidianIntelligence
           needsAttention={due.length > 0}
+          presentation="beauty-compact"
           actionCount={due.length}
           showTodayOverview
           speakTypedAnswers

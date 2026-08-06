@@ -13,6 +13,7 @@ describe("Beauty Home assistant integration", () => {
     expect(beautyHome).toContain("<ObsidianIntelligence");
     expect(beautyHome).toContain("showTodayOverview");
     expect(beautyHome).toContain("speakTypedAnswers");
+    expect(beautyHome).toContain('presentation="beauty-compact"');
     expect(beautyHome).not.toContain("EclipseIrisCanvas");
     expect(beautyHome).not.toContain("eclipse-iris-canvas");
   });
@@ -33,6 +34,22 @@ describe("Beauty Home assistant integration", () => {
     expect(controller).toContain('source === "voice" || speakTypedAnswers');
     expect(controller).toContain("await speak(turn.text)");
     expect(controller).toContain("aria-label=\"Today's overview: appointments, revenue, and fills due\"");
+  });
+
+  it("keeps the Beauty controller compact and in page flow on mobile", () => {
+    expect(controller).toContain('presentation?: "standard" | "beauty-compact"');
+    expect(controller).toContain("ui.beautyCompact");
+    expect(sharedStyles).toContain("position: relative;");
+    expect(sharedStyles).toContain(".beautyCompact .commandDock");
+    expect(sharedStyles).toContain("position: static;");
+    expect(sharedStyles).toContain(".beautyCompact .irisButton > div");
+    expect(sharedStyles).toContain("width: 84px;");
+  });
+
+  it("matches the approved compact Home hierarchy", () => {
+    expect(beautyStyles).toContain("grid-template-columns: repeat(2, minmax(0, 1fr));");
+    expect(beautyStyles).toContain(".nextClientCard");
+    expect(beautyStyles).toContain(".quickActions");
   });
 
   it("keeps the overview control calm in reduced-motion mode", () => {
