@@ -54,3 +54,13 @@ export async function getCurrentOrgId(): Promise<string> {
   if (!data) throw new Error("No organization found for this user.");
   return (data as { organization_id: string }).organization_id;
 }
+
+export async function getCurrentOrgVertical(): Promise<"rides" | "beauty"> {
+  const supabase = createSupabaseServerClient();
+  const { data: membership, error: membershipError } = await supabase.from("memberships").select("organization_id").limit(1).maybeSingle();
+  if (membershipError) throw membershipError;
+  if (!membership) return "rides";
+  const { data, error } = await supabase.from("organizations").select("vertical").eq("id", membership.organization_id).maybeSingle();
+  if (error) throw error;
+  return (data as { vertical?: string } | null)?.vertical === "beauty" ? "beauty" : "rides";
+}

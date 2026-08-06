@@ -11,11 +11,13 @@
  * real session tokens against the real database.
  *
  * DELIBERATELY OUTSIDE `src/`. vitest.config.ts includes only
- * `src/**\/*.test.ts`, so `npm test` cannot pick this up. The clean-clone suite
+ * `src/**\/*.test.ts`, so
+pm test` cannot pick this up. The clean-clone suite
  * must stay green with no environment at all — a test that needs credentials
  * has no business in the default run.
  *
  * Run:  node scripts/rls-cross-tenant-proof.mjs
+ * Prerequisite: Beauty migrations 0008 and 0009 have been applied.
  *
  * Requires, in apps/web/.env.local or the environment:
  *   NEXT_PUBLIC_SUPABASE_URL
@@ -102,10 +104,10 @@ const admin = createClient(URL_, SERVICE, {
 const created = {
   users: [],
   orgs: [],
-  rows: { customers: [], vehicles: [], trips: [], expenses: [], business_profile: [], action_log: [], memberships: [] },
+  rows: { customers: [], vehicles: [], trips: [], expenses: [], business_profile: [], action_log: [], memberships: [], services: [], appointments: [], appointment_services: [], working_hours: [], time_off: [], beauty_client_details: [] },
 };
 
-const ORG_SCOPED_TABLES = ["customers", "vehicles", "trips", "expenses", "action_log"];
+const ORG_SCOPED_TABLES = ["customers", "vehicles", "trips", "expenses", "action_log", "services", "appointments", "appointment_services", "working_hours", "time_off", "beauty_client_details"];
 
 function log(...a) {
   console.log(...a);
@@ -217,7 +219,19 @@ async function seed(tenant) {
   if (lErr) throw new Error(`seed action_log: ${lErr.message}`);
   created.rows.action_log.push(logRow.id);
 
-  return { customerId: cust.id, vehicleId: veh.id, tripId: trip.id, expenseId: exp.id, logId: logRow.id };
+  const service = await admin.from("services").insert({ organization_id: orgId, name: `${MARK}-service`, category: "other", duration_minutes: 60, price_cents: 1000 }).select("id").single();
+  if (service.error) throw new Error(`seed services: ${service.error.message}`); created.rows.services.push(service.data.id);
+  const appointment = await admin.from("appointments").insert({ organization_id: orgId, client_id: cust.id, service_id: service.data.id, starts_at: "2026-01-06T16:00:00Z", ends_at: "2026-01-06T17:00:00Z", price_cents: 1000 }).select("id").single();
+  if (appointment.error) throw new Error(`seed appointments: ${appointment.error.message}`); created.rows.appointments.push(appointment.data.id);
+  const line = await admin.from("appointment_services").insert({ organization_id: orgId, appointment_id: appointment.data.id, service_id: service.data.id, name: `${MARK}-service`, category: "other", price_cents: 1000, duration_minutes: 60 }).select("id").single();
+  if (line.error) throw new Error(`seed appointment_services: ${line.error.message}`); created.rows.appointment_services.push(line.data.id);
+  const hours = await admin.from("working_hours").insert({ organization_id: orgId, weekday: 2, start_time: "11:00", end_time: "19:00" }).select("id").single();
+  if (hours.error) throw new Error(`seed working_hours: ${hours.error.message}`); created.rows.working_hours.push(hours.data.id);
+  const off = await admin.from("time_off").insert({ organization_id: orgId, starts_at: "2026-01-07T16:00:00Z", ends_at: "2026-01-07T17:00:00Z", reason: MARK }).select("id").single();
+  if (off.error) throw new Error(`seed time_off: ${off.error.message}`); created.rows.time_off.push(off.data.id);
+  const details = await admin.from("beauty_client_details").insert({ organization_id: orgId, customer_id: cust.id, allergy_notes: MARK }).select("customer_id").single();
+  if (details.error) throw new Error(`seed beauty_client_details: ${details.error.message}`); created.rows.beauty_client_details.push(details.data.customer_id);
+  return { customerId: cust.id, vehicleId: veh.id, tripId: trip.id, expenseId: exp.id, logId: logRow.id, serviceId: service.data.id, appointmentId: appointment.data.id, lineId: line.data.id, hoursId: hours.data.id, timeOffId: off.data.id, detailsId: details.data.customer_id };
 }
 
 /** A client holding a REAL user session on the ANON key — what a browser has. */
@@ -264,34 +278,44 @@ async function run() {
     trips: seedB.tripId,
     expenses: seedB.expenseId,
     action_log: seedB.logId,
+    services: seedB.serviceId,
+    appointments: seedB.appointmentId,
+    appointment_services: seedB.lineId,
+    working_hours: seedB.hoursId,
+    time_off: seedB.timeOffId,
+    beauty_client_details: seedB.detailsId,
   };
 
   for (const table of ORG_SCOPED_TABLES) {
     const r = {};
+    // beauty_client_details is keyed by customer_id (no synthetic `id` column).
+    const idCol = table === "beauty_client_details" ? "customer_id" : "id";
 
     // 1. READ the other org's rows — expect ZERO
-    const other = await clientA.from(table).select("id").eq("organization_id", B.orgId);
+    const other = await clientA.from(table).select(idCol).eq("organization_id", B.orgId);
+    if (other.error) throw new Error(`read other ${table}: ${other.error.message}`);
     r.readOther = (other.data?.length ?? 0) === 0 ? "0 rows" : `*** ${other.data.length} ROWS ***`;
 
     // 2. READ own org's rows — expect NON-ZERO (proves we are really connected)
-    const own = await clientA.from(table).select("id").eq("organization_id", A.orgId);
+    const own = await clientA.from(table).select(idCol).eq("organization_id", A.orgId);
+    if (own.error) throw new Error(`read own ${table}: ${own.error.message}`);
     r.readOwn = (own.data?.length ?? 0) > 0 ? `${own.data.length} rows` : "*** 0 rows — TEST BLIND ***";
 
     // 3. UPDATE a row belonging to the other org — expect refusal (0 rows affected)
-    const upd = await clientA.from(table).update({ organization_id: B.orgId }).eq("id", idOfB[table]).select("id");
+    const upd = await clientA.from(table).update({ organization_id: B.orgId }).eq(idCol, idOfB[table]).select(idCol);
     r.updateOther = verdict(Boolean(upd.error) || (upd.data?.length ?? 0) === 0);
 
     // 4. DELETE a row belonging to the other org — expect refusal
-    const del = await clientA.from(table).delete().eq("id", idOfB[table]).select("id");
+    const del = await clientA.from(table).delete().eq(idCol, idOfB[table]).select(idCol);
     r.deleteOther = verdict(Boolean(del.error) || (del.data?.length ?? 0) === 0);
 
     // 5. INSERT claiming the other org's id — THE SPOOFING CASE
-    const spoofRow = spoofPayload(table, B.orgId, A.userId, seedB.tripId);
-    const ins = await clientA.from(table).insert(spoofRow).select("id");
+    const spoofRow = spoofPayload(table, B.orgId, A.userId, seedB);
+    const ins = await clientA.from(table).insert(spoofRow).select(idCol);
     const spoofRefused = Boolean(ins.error) || (ins.data?.length ?? 0) === 0;
     r.insertSpoofed = verdict(spoofRefused);
-    if (!spoofRefused && ins.data?.[0]?.id) {
-      created.rows[table].push(ins.data[0].id); // clean up anything that got through
+    if (!spoofRefused && ins.data?.[0]?.[idCol]) {
+      created.rows[table].push(ins.data[0][idCol]); // clean up anything that got through
     }
 
     RESULT[table] = r;
@@ -370,11 +394,11 @@ async function run() {
     throw new Error("activate_pilot was not idempotent: the second call moved the pilot window");
   }
 
-  printMatrix();
+  if (printMatrix() > 0) throw new Error("Cross-tenant proof detected a leak or a blind assertion.");
   await clientA.auth.signOut();
 }
 
-function spoofPayload(table, otherOrgId, myUserId, otherTripId) {
+function spoofPayload(table, otherOrgId, myUserId, other) {
   switch (table) {
     case "customers":
       return { organization_id: otherOrgId, name: `${MARK}-spoof` };
@@ -384,6 +408,12 @@ function spoofPayload(table, otherOrgId, myUserId, otherTripId) {
       return { organization_id: otherOrgId, trip_date: "2026-01-02", revenue_cents: 1, status: "completed" };
     case "expenses":
       return { organization_id: otherOrgId, category: "gas", amount_cents: 1, expense_date: "2026-01-02" };
+    case "services": return { organization_id: otherOrgId, name: `${MARK}-spoof`, category: "other", duration_minutes: 1, price_cents: 1 };
+    case "appointments": return { organization_id: otherOrgId, starts_at: "2026-01-08T16:00:00Z", ends_at: "2026-01-08T17:00:00Z", price_cents: 1 };
+    case "appointment_services": return { organization_id: otherOrgId, appointment_id: other.appointmentId, name: `${MARK}-spoof`, category: "other", price_cents: 1, duration_minutes: 1 };
+    case "working_hours": return { organization_id: otherOrgId, weekday: 1, start_time: "10:00", end_time: "11:00" };
+    case "time_off": return { organization_id: otherOrgId, starts_at: "2026-01-08T16:00:00Z", ends_at: "2026-01-08T17:00:00Z" };
+    case "beauty_client_details": return { organization_id: otherOrgId, customer_id: other.customerId, allergy_notes: `${MARK}-spoof` };
     case "action_log":
       return {
         organization_id: otherOrgId,
@@ -392,7 +422,7 @@ function spoofPayload(table, otherOrgId, myUserId, otherTripId) {
         action_kind: "create_trip",
         approved_summary: `${MARK} spoof`,
         outcome: "succeeded",
-        trip_id: otherTripId,
+        trip_id: other.tripId,
       };
     default:
       return { organization_id: otherOrgId };
@@ -442,11 +472,11 @@ async function cleanup() {
   const failures = [];
 
   // Child rows first, then parents.
-  const order = ["action_log", "expenses", "trips", "vehicles", "customers", "business_profile", "memberships"];
+  const order = ["appointment_services", "appointments", "beauty_client_details", "time_off", "working_hours", "services", "action_log", "expenses", "trips", "vehicles", "customers", "business_profile", "memberships"];
   for (const table of order) {
     const ids = created.rows[table] ?? [];
     if (ids.length === 0) continue;
-    const key = table === "business_profile" ? "organization_id" : "id";
+    const key = table === "business_profile" ? "organization_id" : table === "beauty_client_details" ? "customer_id" : "id";
     const { error } = await admin.from(table).delete().in(key, ids);
     if (error) failures.push(`${table}: ${error.message}`);
     else log(`  deleted ${ids.length} from ${table}`);
@@ -479,14 +509,14 @@ let exitCode = 0;
 try {
   await run();
 } catch (err) {
-  log(`\n*** ERROR: ${err instanceof Error ? err.message : String(err)}`);
+  log(`\n*** ERROR: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
   log("Cleanup will still run for anything already created.");
   exitCode = 1;
 } finally {
   try {
     await cleanup();
   } catch (err) {
-    log(`*** CLEANUP THREW: ${err instanceof Error ? err.message : String(err)}`);
+    log(`*** CLEANUP THREW: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
     log(`Rows marked "${MARK}" may remain.`);
     exitCode = 1;
   }

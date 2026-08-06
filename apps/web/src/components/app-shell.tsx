@@ -9,6 +9,7 @@ import { CreateMenu } from "@/components/create-menu";
 import { MobileNavigation } from "@/components/mobile-navigation";
 import {
   NAV_DESTINATIONS,
+  BEAUTY_NAV_DESTINATIONS,
   isActiveDestination,
   isChromeless,
 } from "@/lib/nav";
@@ -36,6 +37,11 @@ const ICONS: Record<string, (p: SVGProps<SVGSVGElement>) => ReactNode> = {
   "/trips": IconTrips,
   "/customers": IconCustomers,
   "/expenses": IconExpenses,
+  "/beauty": IconDashboard,
+  "/beauty/appointments": IconUpcoming,
+  "/beauty/services": IconTrips,
+  "/beauty/clients": IconCustomers,
+  "/beauty/schedule": IconUpcoming,
 };
 
 const iconProps: SVGProps<SVGSVGElement> = {
@@ -95,8 +101,11 @@ function IconExpenses(p: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, vertical = "rides" }: { children: ReactNode; vertical?: "rides" | "beauty" }) {
   const pathname = usePathname();
+  const beauty = vertical === "beauty";
+  const destinations = beauty ? BEAUTY_NAV_DESTINATIONS : NAV_DESTINATIONS;
+  const home = beauty ? "/beauty" : "/";
 
   // Pre-auth / pre-org screens render exactly as they did before the shell
   // existed — no sidebar, no bottom bar, nothing that could interfere with the
@@ -107,14 +116,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen lg:flex">
       <header className="fixed inset-x-0 top-0 z-40 flex min-h-[64px] items-center justify-between border-b border-obsidian-line bg-obsidian-black/90 px-5 backdrop-blur lg:hidden">
         <Link
-          href="/"
+          href={home}
           className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan"
         >
           <span className="block text-base font-semibold tracking-[0.2em] text-obsidian-platinum">
             OBSIDIAN
           </span>
           <span className="block text-center text-[9px] uppercase tracking-[0.28em] text-obsidian-cyan">
-            Rides
+            {beauty ? "Beauty" : "Rides"}
           </span>
         </Link>
         <details className="relative">
@@ -136,26 +145,26 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="hidden border-r border-obsidian-line bg-obsidian-graphite/70 lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-56 lg:flex-col">
         <div className="px-5 py-5">
           <Link
-            href="/"
+            href={home}
             className="inline-flex items-baseline gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obsidian-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian-black"
           >
             <span className="text-lg font-semibold tracking-[0.2em] text-obsidian-platinum">
               OBSIDIAN
             </span>
             <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-obsidian-cyan">
-              Rides
+              {beauty ? "Beauty" : "Rides"}
             </span>
           </Link>
         </div>
 
         {/* Primary create control (desktop). Menu opens upward from here. */}
         <div className="px-3 pb-3">
-          <CreateMenu variant="sidebar" />
+          {beauty ? <Link href="/beauty/appointments/new" className="block rounded-lg bg-amber-300 px-3 py-3 text-center text-sm font-semibold text-stone-950">Book appointment</Link> : <CreateMenu variant="sidebar" />}
         </div>
 
         <nav aria-label="Main" className="flex-1 px-3">
           <ul className="flex flex-col gap-1">
-            {NAV_DESTINATIONS.map(({ href, label }) => {
+            {destinations.map(({ href, label }) => {
               const active = isActiveDestination(pathname, href);
               const Icon = ICONS[href];
               return (
@@ -202,11 +211,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* MOBILE CREATE (FAB) — sits above the bottom bar, right-aligned, so it
           never overlaps navigation or the safe area. */}
-      <div className={`fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 lg:hidden ${pathname === "/" ? "hidden" : ""}`}>
-        <CreateMenu variant="fab" />
+      <div className={`fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 lg:hidden ${pathname === "/" || pathname === "/beauty" ? "hidden" : ""}`}>
+        {beauty ? <Link href="/beauty/appointments/new" className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-stone-950 shadow-panel">Book</Link> : <CreateMenu variant="fab" />}
       </div>
 
-      <MobileNavigation />
+      <MobileNavigation beauty={beauty} />
     </div>
   );
 }

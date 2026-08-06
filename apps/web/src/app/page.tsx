@@ -73,9 +73,10 @@ export default async function DashboardPage() {
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("name, status, pilot_ends_at")
+    .select("name, status, pilot_ends_at, vertical")
     .eq("id", membership.organization_id)
     .single();
+  if ((org as { vertical?: string } | null)?.vertical === "beauty") redirect("/beauty");
   const { data: profile } = await supabase
     .from("business_profile")
     .select("display_name, workspace_label, vehicle_description, primary_color, secondary_color")

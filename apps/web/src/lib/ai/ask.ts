@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ASK_MODEL, MAX_TOOL_ITERATIONS, buildAskSystemPrompt } from "./config";
 import { TOOL_DEFS, executeTool } from "./tools";
-import { getCurrentOrgName } from "@/lib/db/org";
+import { BEAUTY_TOOL_DEFS, executeBeautyTool } from "./beauty-tools";
+import { getCurrentOrgName, getCurrentOrgVertical } from "@/lib/db/org";
 import { errorMessage } from "@/lib/form";
 
 /**
@@ -20,10 +21,13 @@ export async function askObsidian(question: string): Promise<string> {
   }
 
   const client = new Anthropic({ apiKey });
+  const vertical = await getCurrentOrgVertical();
+  const toolDefs = vertical === "beauty" ? BEAUTY_TOOL_DEFS : TOOL_DEFS;
+  const toolExecutor = vertical === "beauty" ? executeBeautyTool : executeTool;
 
   // The business name is resolved SERVER-SIDE from the authenticated user's
   // org (RLS-scoped) — never from the client or from the question text.
-  const systemPrompt = buildAskSystemPrompt(await getCurrentOrgName());
+  const systemPrompt = buildAskSystemPrompt(await getCurrentOrgName(), vertical);
 
   const messages: Anthropic.MessageParam[] = [
     { role: "user", content: question },
@@ -34,7 +38,7 @@ export async function askObsidian(question: string): Promise<string> {
       model: ASK_MODEL,
       max_tokens: 1024,
       system: systemPrompt,
-      tools: TOOL_DEFS,
+      tools: toolDefs,
       messages,
     });
 
@@ -54,7 +58,7 @@ export async function askObsidian(question: string): Promise<string> {
     for (const block of response.content) {
       if (block.type !== "tool_use") continue;
       try {
-        const result = await executeTool(block.name, block.input);
+        const result = await toolExecutor(block.name, block.input);
         toolResults.push({
           type: "tool_result",
           tool_use_id: block.id,

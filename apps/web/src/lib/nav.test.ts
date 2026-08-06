@@ -92,3 +92,10 @@ describe("isActiveDestination", () => {
     }
   });
 });
+
+describe("Beauty navigation", () => {
+  it("keeps the Beauty home item exact", () => {
+    expect(isActiveDestination("/beauty", "/beauty")).toBe(true);
+    expect(isActiveDestination("/beauty/appointments", "/beauty")).toBe(false);
+  });
+});

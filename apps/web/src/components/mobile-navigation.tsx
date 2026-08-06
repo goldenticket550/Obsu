@@ -8,8 +8,17 @@ import { isActiveDestination } from "@/lib/nav";
 import { MOBILE_MORE_DESTINATIONS, MOBILE_NAV_DESTINATIONS } from "@/lib/mobile-nav";
 
 function NavIcon({ label }: { label: string }) {
-  const glyph = label === "Home" ? "⌂" : label === "Trips" ? "▱" : label === "Clients" ? "♙" : label === "Feedback" ? "▤" : "•••";
-  return <span className="text-xl leading-none" aria-hidden="true">{glyph}</span>;
+  const glyphs: Record<string, string> = {
+    Home: "�",
+    Trips: "?",
+    Clients: "?",
+    Feedback: "?",
+    Bookings: "?",
+    Services: "=",
+    Schedule: "?",
+    More: "���",
+  };
+  return <span className="text-xl leading-none" aria-hidden="true">{glyphs[label] ?? "�"}</span>;
 }
 
 function Destination({ href, label, active }: { href: string; label: string; active: boolean }) {
@@ -25,8 +34,12 @@ function Destination({ href, label, active }: { href: string; label: string; act
   );
 }
 
-export function MobileNavigation() {
+export function MobileNavigation({ beauty = false }: { beauty?: boolean }) {
   const pathname = usePathname();
+  if (beauty) {
+    const links = [{ href: "/beauty", label: "Home" }, { href: "/beauty/appointments", label: "Bookings" }, { href: "/beauty/services", label: "Services" }, { href: "/beauty/clients", label: "Clients" }, { href: "/beauty/schedule", label: "Schedule" }];
+    return <nav aria-label="Beauty navigation" className="fixed inset-x-0 bottom-0 z-40 border-t border-amber-200/15 bg-stone-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"><ul className="grid grid-cols-5">{links.map(x => <li key={x.href}><Destination {...x} active={isActiveDestination(pathname, x.href)} /></li>)}</ul></nav>;
+  }
   const moreActive = MOBILE_MORE_DESTINATIONS.some(({ href }) => isActiveDestination(pathname, href));
   const primary = MOBILE_NAV_DESTINATIONS.slice(0, 3);
   const feedback = MOBILE_NAV_DESTINATIONS[3];
