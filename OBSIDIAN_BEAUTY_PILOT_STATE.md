@@ -1,7 +1,7 @@
 # Obsidian Beauty — pilot state (Infinite Beauty Palace)
 
-**Status:** LIVE. `0008`+`0009` applied, isolation gate re-passed, production redeployed.
-Owner account linked. Pilot NOT yet activated. **As of:** 2026-08-06.
+**Status:** LIVE with the full mobile design. `0008`+`0009` applied, gate re-passed, mobile
+redesign shipped. Owner account linked. Pilot NOT yet activated. **As of:** 2026-08-06.
 **Repo:** github.com/goldenticket550/Obsu, branch `master`. **App:** `apps/web`.
 
 ## What this is
@@ -81,9 +81,13 @@ RPCs, and the hardened RLS proof.
   `cd apps/web` then `npx vercel --prod`.
 
 ## Done (2026-08-06)
-`0008` + `0009` applied; isolation gate re-passed (full REFUSED matrix); production
-redeployed to https://obsidian-mvp.vercel.app (Vercel `READY`); build pushed to GitHub
-(commit `ac9cc4967e4133de8cb7b72ed5dd054152905942`).
+`0008` + `0009` applied; isolation gate re-passed (full REFUSED matrix); full mobile design
+system shipped across all `/beauty` screens (cream cards, antique-gold, serif headings,
+day-timeline appointments, ranked Fills Due, category-filtered services, code-native nav
+icons, orb intact as `ObsidianIntelligence`); the corrupted Rides mobile nav icons were also
+fixed in the same pass (CCG benefits). Production deployed to https://obsidian-mvp.vercel.app
+(Vercel `READY`). Latest commit `de6bead716e3857f60bbdac02ed07f766ef8136e` on `origin/master`
+(prior milestones: `ac9cc496` build, `3f0dd37e` docs, `5a353736` assistant).
 
 ## Remaining (owner)
 1. Owner logs in: https://obsidian-mvp.vercel.app → Forgot password →
