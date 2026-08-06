@@ -9,6 +9,7 @@ import {
   buildActionRequired,
   businessDayKey,
   currentMonthRange,
+  previousComparableMonthRange,
   estimatedOperatingProfitCents,
   filterByDateRange,
   greetingFor,
@@ -46,6 +47,7 @@ import { resolveBusinessBranding } from "@/lib/business/business-profile";
 import { PilotEndedNotice } from "@/components/command/pilot-ended";
 import { RequestResponseAlert } from "@/components/command/request-response-alert";
 import { VehicleReadiness } from "@/components/command/vehicle-readiness";
+import { PerformanceTrend } from "@/components/command/performance-trend";
 
 /**
  * OBSIDIAN RIDES Command Center.
@@ -88,12 +90,15 @@ export default async function DashboardPage() {
     listCustomers(),
   ]);
   const now = new Date();
-  const { start, end } = currentMonthRange();
+  const { start, end } = currentMonthRange(now);
+  const previousRange = previousComparableMonthRange(now);
+  const previousMonthTrips = filterByDateRange(allTrips, "trip_date", previousRange.start, previousRange.end);
   const monthTrips = filterByDateRange(allTrips, "trip_date", start, end);
   const monthExpenses = filterByDateRange(allExpenses, "expense_date", start, end);
 
   const revenueCents = totalRevenueCents(monthTrips);
   const expensesCents = totalExpensesCents(monthExpenses);
+  const previousRevenueCents = totalRevenueCents(previousMonthTrips);
   const profitCents = estimatedOperatingProfitCents(monthTrips, monthExpenses);
   const completedRides = tripCount(monthTrips);
   const averageRideCents = averageTripValueCents(monthTrips);
@@ -205,6 +210,10 @@ export default async function DashboardPage() {
                 variant="command"
               />
             </SkylinePulseArea>
+              <PerformanceTrend
+                currentRevenueCents={revenueCents}
+                previousRevenueCents={previousRevenueCents}
+              />
           </SkylineCommandLayout>
         </main>
       </SkylineMain>

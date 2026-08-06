@@ -1,0 +1,4 @@
+.panel { display: flex; min-height: 100%; align-items: center; gap: 14px; border: 1px solid rgb(56 189 248 / 22%); border-radius: 18px; padding: 18px; background: linear-gradient(145deg, rgb(4 13 22 / 90%), rgb(2 8 14 / 88%)); }
+.icon { color: var(--workspace-secondary); font-size: 34px; text-shadow: 0 0 18px color-mix(in srgb, var(--workspace-secondary) 24%, transparent); }
+.panel h2 { color: rgb(231 233 238); font-size: 14px; }
+.panel p { margin-top: 6px; color: rgb(128 136 151); font-size: 10px; line-height: 1.4; }

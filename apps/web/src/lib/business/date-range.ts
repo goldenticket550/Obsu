@@ -62,3 +62,21 @@ export function todayInNewYork(now: Date = new Date()): string {
     day: "2-digit",
   }).format(now);
 }
+
+/** Previous month's span through the same New York calendar day. */
+export function previousComparableMonthRange(now: Date = new Date()): { start: string; end: string } {
+  const today = todayInNewYork(now);
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(5, 7));
+  const day = Number(today.slice(8, 10));
+  const previous = new Date(Date.UTC(year, month - 2, 1));
+  const previousYear = previous.getUTCFullYear();
+  const previousMonth = previous.getUTCMonth() + 1;
+  const previousLastDay = new Date(Date.UTC(previousYear, previousMonth, 0)).getUTCDate();
+  const comparableDay = Math.min(day, previousLastDay);
+  const mm = String(previousMonth).padStart(2, "0");
+  return {
+    start: `${previousYear}-${mm}-01`,
+    end: `${previousYear}-${mm}-${String(comparableDay).padStart(2, "0")}`,
+  };
+}

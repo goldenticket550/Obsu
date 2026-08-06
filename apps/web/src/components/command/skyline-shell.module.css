@@ -415,3 +415,15 @@
 @media (max-width: 560px) {
   .title { font-size: clamp(28px, 8.4vw, 38px); }
 }
+
+.areaPulse {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+  gap: 14px;
+}
+
+@media (max-width: 760px) {
+  .areaPulse {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

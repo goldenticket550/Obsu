@@ -44,3 +44,14 @@ export function readinessScore(checks: ReadinessChecks | null) {
     : [];
   return { completed: values.filter(Boolean).length, available: values.length };
 }
+
+export function performanceTrend(current: number, previous: number) {
+  if (current > previous) return { direction: "up" as const, label: "trending up" };
+  if (current < previous) return { direction: "down" as const, label: "trending down" };
+  return {
+    direction: "flat" as const,
+    label: current === 0
+      ? "has no comparable revenue yet"
+      : "is holding steady",
+  };
+}
