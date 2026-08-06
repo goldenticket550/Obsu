@@ -4,7 +4,7 @@ import "./globals.css";
 import { AppShell } from "@/components/app-shell";
 import type { OrganizationVertical } from "@/lib/vertical-routing";
 
-export const metadata: Metadata = { title: "OBSIDIAN", description: "Your Business. Our A.I. � a secure operating assistant for service businesses.", applicationName: "OBSIDIAN" };
+export const metadata: Metadata = { title: "OBSIDIAN", description: "Your Business. Our A.I. \u2014 a secure operating assistant for service businesses.", applicationName: "OBSIDIAN" };
 export const viewport: Viewport = { themeColor: "#08090b", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

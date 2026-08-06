@@ -1,0 +1,12 @@
+.scope {
+  min-height: 100%;
+  overflow-x: clip;
+  color-scheme: dark;
+  background:
+    radial-gradient(900px 520px at 50% -10%, rgb(214 173 96 / 13%), transparent 62%),
+    linear-gradient(180deg, #21140f 0%, #130d0a 54%, #090807 100%);
+}
+
+@media (max-width: 430px) {
+  .scope { min-height: 100dvh; }
+}

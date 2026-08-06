@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   CHROMELESS_ROUTES,
@@ -97,5 +99,34 @@ describe("Beauty navigation", () => {
   it("keeps the Beauty home item exact", () => {
     expect(isActiveDestination("/beauty", "/beauty")).toBe(true);
     expect(isActiveDestination("/beauty/appointments", "/beauty")).toBe(false);
+  });
+});
+
+describe("mobile navigation icons", () => {
+  const source = readFileSync(
+    join(process.cwd(), "src", "components", "mobile-navigation.tsx"),
+    "utf8",
+  );
+
+  it("uses code-native SVG paths for every Rides mobile destination", () => {
+    expect(source).toContain("function NavIcon");
+    expect(source).toContain("<svg");
+
+    for (const label of [
+      "Home",
+      "Trips",
+      "Clients",
+      "Feedback",
+      "Bookings",
+      "Services",
+      "Schedule",
+      "More",
+    ]) {
+      expect(source).toContain(`${label}: "M`);
+    }
+
+    expect(source).not.toContain("const glyphs");
+    expect(source).not.toMatch(/:\s*["'](?:\?|=)["']/);
+    expect(source).not.toContain("\uFFFD");
   });
 });

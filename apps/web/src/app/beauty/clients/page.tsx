@@ -2,10 +2,21 @@ import Link from "next/link";
 import { listAppointments, listBeautyClients, getBeautyProfile } from "@/lib/db/beauty";
 import { balanceDueCents, fillsDueClients, isMissingAddOn } from "@/lib/business/beauty/intel";
 import { formatUsd } from "@/lib/money";
-import { BeautyHeader, BeautyLink, BeautyPanel } from "@/components/beauty/beauty-ui";
+import {
+  BeautyHeader,
+  BeautyLink,
+  BeautyPanel,
+  beautyPage,
+  beautyPanelTitle,
+} from "@/components/beauty/beauty-ui";
 import { ReminderDrafts, type ReminderDraftRow } from "@/components/beauty/reminder-drafts";
+import styles from "./clients.module.css";
 
 export const dynamic = "force-dynamic";
+
+function initials(name: string): string {
+  return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "—";
+}
 
 export default async function ClientsPage() {
   const now = new Date();
@@ -15,31 +26,81 @@ export default async function ClientsPage() {
     const client = clients.find((candidate) => candidate.id === appointment.client_id);
     return client ? [{ id: `addon-${appointment.id}`, clientId: client.id, appointmentId: appointment.id, name: client.name, daysSince: 0, kind: "addon" }] : [];
   });
-  const drafts: ReminderDraftRow[] = [
-    ...due.map((item) => ({ id: `fill-${item.customer.id}`, clientId: item.customer.id, name: item.customer.name, daysSince: item.daysSince, kind: "fill" as const })),
-    ...addOnDrafts,
-  ];
   const businessName = profile.display_name?.trim() || "your beauty studio";
 
   return (
-    <main className="mx-auto max-w-4xl px-5 pb-20 pt-6">
+    <main className={`${beautyPage} mx-auto max-w-4xl px-5 pt-6`}>
       <BeautyHeader title="Clients" action={<BeautyLink href="/beauty/clients/new">Add client</BeautyLink>} />
-      {due.length > 0 ? (
-        <BeautyPanel className="mt-6">
-          <h2 className="text-lg font-semibold text-stone-100">Fills due</h2>
-          <ul className="mt-3 divide-y divide-[color:var(--beauty-border)]">
-            {due.map((item) => (
-              <li key={item.customer.id} className="py-3 text-sm text-stone-200">
-                <p className="font-semibold">{item.customer.name}</p>
-                <p className="mt-1 text-xs text-stone-400">{item.daysSince} days since last lash visit · Balance due {formatUsd(balanceDueCents(item.lastAppointment))}</p>
+
+      <section className={styles.lead} aria-labelledby="fills-due-heading">
+        <div className={styles.leadHeader}>
+          <h2 id="fills-due-heading" className={styles.leadTitle}>Fills Due</h2>
+          <p className={styles.leadMeta}>{due.length} due</p>
+        </div>
+        {due.length ? (
+          <ol className={styles.dueList}>
+            {due.map((item, index) => {
+              const balance = balanceDueCents(item.lastAppointment);
+              const missingAddOn = isMissingAddOn(item.lastAppointment);
+              const services = item.lastAppointment.appointment_services?.map((line) => line.name).join(" + ") || "Service unavailable";
+              const fillDraft: ReminderDraftRow = {
+                id: `fill-${item.customer.id}`,
+                clientId: item.customer.id,
+                name: item.customer.name,
+                daysSince: item.daysSince,
+                kind: "fill",
+              };
+              return (
+                <li key={item.customer.id} className={styles.dueCard}>
+                  <span className={styles.rank}>{index + 1}</span>
+                  <span className={styles.avatar} aria-hidden="true">{initials(item.customer.name)}</span>
+                  <div className={styles.dueBody}>
+                    <div className={styles.dueHeader}>
+                      <p className={styles.clientName}>{item.customer.name}</p>
+                      <span className={styles.daysBadge}>{item.daysSince} days</span>
+                    </div>
+                    <p className={styles.lastService}>Last service: {services}</p>
+                    {balance > 0 || missingAddOn ? (
+                      <div className={styles.pills}>
+                        {balance > 0 ? <span className={`${styles.pill} ${styles.pillAlert}`}>Balance due {formatUsd(balance)}</span> : null}
+                        {missingAddOn ? <span className={styles.pill}>Missing add-on</span> : null}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className={styles.draftArea}>
+                    <ReminderDrafts rows={[fillDraft]} businessName={businessName} />
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : <p className={styles.emptyDue}>No repeat lash clients are currently past the fill-due threshold.</p>}
+      </section>
+
+      {addOnDrafts.length > 0 ? (
+        <BeautyPanel className={styles.sectionPanel}>
+          <h2 className={beautyPanelTitle}>Possible missing add-ons</h2>
+          <ReminderDrafts rows={addOnDrafts} businessName={businessName} />
+        </BeautyPanel>
+      ) : null}
+
+      <BeautyPanel className={styles.directory}>
+        <h2 className={beautyPanelTitle}>All clients</h2>
+        {clients.length ? (
+          <ul className={styles.directoryList}>
+            {clients.map((client) => (
+              <li key={client.id} className={styles.directoryItem}>
+                <Link className={styles.directoryLink} href={`/beauty/clients/${client.id}`}>
+                  <span className={styles.directoryCopy}>
+                    <span className={styles.directoryName}>{client.name}</span>
+                    <span className={styles.directoryContact}>{[client.phone, client.email].filter(Boolean).join(" \u00b7 ") || "No contact details"}</span>
+                  </span>
+                  <span className={styles.open}>Open {"\u2192"}</span>
+                </Link>
               </li>
             ))}
           </ul>
-        </BeautyPanel>
-      ) : null}
-      {drafts.length > 0 ? <BeautyPanel className="mt-6"><h2 className="text-sm font-semibold text-stone-100">Draft reminders</h2><ReminderDrafts rows={drafts} businessName={businessName} /></BeautyPanel> : null}
-      <BeautyPanel className="mt-6 p-0">
-        {clients.length ? <ul className="divide-y divide-[color:var(--beauty-border)]">{clients.map((client) => <li key={client.id}><Link className="flex justify-between p-4 hover:bg-white/5" href={`/beauty/clients/${client.id}`}><div><p className="text-sm text-stone-100">{client.name}</p><p className="text-xs text-stone-500">{[client.phone, client.email].filter(Boolean).join(" · ") || "No contact details"}</p></div><span className="text-xs text-stone-100">Open ?</span></Link></li>)}</ul> : <p className="p-8 text-center text-stone-500">No clients yet.</p>}
+        ) : <p className={styles.emptyClients}>No clients yet.</p>}
       </BeautyPanel>
     </main>
   );

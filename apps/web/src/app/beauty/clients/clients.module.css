@@ -1,0 +1,53 @@
+.lead { margin-top: 1.5rem; }
+.leadHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+.leadTitle { color: #d6ad60; font-family: Georgia, "Times New Roman", serif; font-size: 1.45rem; font-weight: 700; }
+.leadMeta { color: #c9b79f; font-size: 0.72rem; }
+.dueList { display: grid; gap: 1rem; margin-top: 0.85rem; }
+
+.dueCard {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 2rem 2.8rem minmax(0, 1fr);
+  gap: 0.7rem;
+  border: 1px solid #decdbb;
+  border-radius: 1rem;
+  padding: 1rem;
+  background: #f7efe3;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 16%);
+  color: #24150f;
+}
+
+.rank { padding-top: 0.5rem; color: #a97833; font-family: Georgia, "Times New Roman", serif; font-size: 1.45rem; text-align: center; }
+.avatar { display: inline-flex; width: 2.8rem; height: 2.8rem; align-items: center; justify-content: center; border-radius: 999px; background: #c98773; color: #fffaf2; font-family: Georgia, "Times New Roman", serif; font-size: 0.85rem; font-weight: 700; }
+.dueBody { min-width: 0; }
+.dueHeader { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 0.65rem; }
+.clientName { min-width: 0; overflow-wrap: anywhere; font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; font-weight: 700; }
+.daysBadge { flex: 0 0 auto; border-radius: 999px; padding: 0.3rem 0.55rem; background: #efd4cc; color: #7c342d; font-size: 0.68rem; font-weight: 900; }
+.lastService { margin-top: 0.45rem; overflow-wrap: anywhere; color: #4b372c; font-size: 0.8rem; line-height: 1.4; }
+.pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+.pill { display: inline-flex; min-height: 28px; align-items: center; border-radius: 999px; padding-inline: 0.6rem; background: #eadfce; color: #563d2d; font-size: 0.67rem; font-weight: 800; }
+.pillAlert { background: #f0d3cf; color: #762f2f; }
+.draftArea { grid-column: 2 / -1; min-width: 0; }
+.emptyDue { margin-top: 0.85rem; border: 1px solid #decdbb; border-radius: 1rem; padding: 1.25rem; background: #f7efe3; color: #665347; font-size: 0.8125rem; }
+
+.sectionPanel { margin-top: 1.5rem; }
+.directory { margin-top: 1.5rem; }
+.directoryList { margin-top: 0.75rem; }
+.directoryItem { border-top: 1px solid #decdbb; }
+.directoryItem:first-child { border-top: 0; }
+.directoryLink { display: flex; min-height: 64px; min-width: 0; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 0.75rem; color: #24150f; }
+.directoryCopy { min-width: 0; }
+.directoryName { overflow-wrap: anywhere; font-size: 0.875rem; font-weight: 800; }
+.directoryContact { margin-top: 0.2rem; overflow-wrap: anywhere; color: #756155; font-size: 0.72rem; }
+.open { flex: 0 0 auto; color: #8c602a; font-size: 0.75rem; font-weight: 800; }
+.emptyClients { color: #665347; font-size: 0.8125rem; }
+
+@media (min-width: 760px) {
+  .dueList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 430px) {
+  .dueCard { grid-template-columns: 1.5rem 2.5rem minmax(0, 1fr); padding: 0.9rem; }
+  .avatar { width: 2.5rem; height: 2.5rem; }
+  .draftArea { grid-column: 1 / -1; }
+}

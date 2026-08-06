@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { safeWorkspaceColor } from "@/lib/business/business-profile";
 import { getBeautyProfile } from "@/lib/db/beauty";
+import styles from "./beauty-layout.module.css";
 
 export default async function BeautyLayout({ children }: { children: React.ReactNode }) {
   if (headers().get("x-obsidian-vertical") !== "beauty") redirect("/");
@@ -12,7 +13,7 @@ export default async function BeautyLayout({ children }: { children: React.React
   const style = {
     "--beauty-primary": primary,
     "--beauty-secondary": secondary,
-    "--beauty-border": `${primary}26`,
+    "--beauty-border": `${primary}42`,
   } as CSSProperties;
-  return <div style={style}>{children}</div>;
+  return <div className={styles.scope} style={style}>{children}</div>;
 }

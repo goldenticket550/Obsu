@@ -3,6 +3,7 @@
   --beauty-espresso: #24150f;
   --beauty-muted: #665347;
 }
+
 .greeting {
   margin-top: 1.5rem;
   color: #d6ad60;
@@ -10,12 +11,15 @@
   font-size: clamp(1.75rem, 6vw, 3rem);
   line-height: 1.08;
 }
+
 .metrics {
   display: grid;
   gap: 1rem;
   margin-top: 1.25rem;
 }
-.metricCard {
+
+.metricCard,
+.schedulePanel {
   min-width: 0;
   border: 1px solid #decdbb;
   border-radius: 1rem;
@@ -24,6 +28,7 @@
   box-shadow: 0 12px 30px rgb(0 0 0 / 16%);
   color: var(--beauty-espresso);
 }
+
 .metricLabel {
   color: #59473c;
   font-size: 0.75rem;
@@ -31,6 +36,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
 .metricValue {
   margin-top: 0.5rem;
   color: var(--beauty-espresso);
@@ -38,6 +44,7 @@
   font-size: 2rem;
   line-height: 1.1;
 }
+
 .nextClient {
   margin-top: 0.5rem;
   overflow-wrap: anywhere;
@@ -45,27 +52,76 @@
   font-size: 1.25rem;
   font-weight: 700;
 }
+
 .metricMeta {
   margin-top: 0.65rem;
   color: var(--beauty-muted);
   font-size: 0.75rem;
   line-height: 1.45;
 }
-.metricLink {
+
+.metricLink,
+.scheduleLink {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
-  margin-top: 0.35rem;
   color: #3f2c22;
   font-size: 0.8rem;
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+.metricLink { margin-top: 0.35rem; }
+
+.schedulePanel { margin-top: 1rem; }
+.sectionHeader { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.sectionTitle { color: #24150f; font-family: Georgia, "Times New Roman", serif; font-size: 1.35rem; font-weight: 700; }
+.scheduleList { margin-top: 0.75rem; }
+.scheduleItem { border-top: 1px solid #decdbb; }
+.scheduleItem:first-child { border-top: 0; }
+.scheduleAppointment {
+  display: grid;
+  min-height: 64px;
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.8rem;
+  color: #24150f;
+}
+.scheduleTime { color: #7c572d; font-size: 0.75rem; font-weight: 800; }
+.scheduleClient { overflow-wrap: anywhere; font-size: 0.875rem; font-weight: 800; }
+.scheduleService { margin-top: 0.2rem; overflow-wrap: anywhere; color: #665347; font-size: 0.75rem; line-height: 1.35; }
+.scheduleEmpty { padding-block: 1rem 0.25rem; color: #665347; font-size: 0.8125rem; line-height: 1.5; }
+
+.quickActions {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.quickAction {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d7ac62;
+  border-radius: 0.875rem;
+  padding: 0.75rem 1rem;
+  color: #f7efe3;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.quickActionPrimary { background: linear-gradient(145deg, #e1b764, #bd8740); color: #24150f; }
+.quickActionSecondary { background: rgb(247 239 227 / 7%); }
+.quickAction:focus-visible { outline: 3px solid #f7efe3; outline-offset: 3px; }
+
 .assistantPanel { background: linear-gradient(145deg, #1c1917, #09090b); }
 .assistantEyebrow { color: #d6d3d1; font-size: 0.75rem; letter-spacing: 0.25em; text-transform: uppercase; }
 .assistantHeading { margin-top: 0.5rem; color: #f5f5f4; font-family: Georgia, "Times New Roman", serif; font-size: 1.5rem; }
 .assistantBody { margin-top: 0.5rem; color: #d6d3d1; font-size: 0.875rem; }
+
 .overviewButton {
   min-height: 44px;
   margin-top: 0.625rem;
@@ -78,12 +134,29 @@
   font-weight: 700;
   transition: background 160ms ease, transform 160ms ease;
 }
+
 .overviewButton:hover:not(:disabled) { background: #fffaf2; transform: translateY(-1px); }
 .overviewButton:focus-visible { outline: 2px solid #f7efe3; outline-offset: 3px; }
 .overviewButton:disabled { cursor: not-allowed; opacity: 0.55; }
 .emptyState { margin-top: 1.25rem; color: #d6d3d1; text-align: center; font-size: 0.875rem; }
-@media (min-width: 700px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1024px) { .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+@media (min-width: 520px) {
+  .quickActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 700px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1024px) {
+  .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 430px) {
+  .metricCard, .schedulePanel { padding: 1rem; }
+  .scheduleAppointment { grid-template-columns: 4.25rem minmax(0, 1fr); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .overviewButton { transition: none; }
   .overviewButton:hover:not(:disabled) { transform: none; }
