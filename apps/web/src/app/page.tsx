@@ -45,6 +45,7 @@ import { formatUsdForSpeech } from "@/lib/money";
 import { resolveBusinessBranding } from "@/lib/business/business-profile";
 import { PilotEndedNotice } from "@/components/command/pilot-ended";
 import { RequestResponseAlert } from "@/components/command/request-response-alert";
+import { VehicleReadiness } from "@/components/command/vehicle-readiness";
 
 /**
  * OBSIDIAN RIDES Command Center.
@@ -162,6 +163,8 @@ export default async function DashboardPage() {
 
             <SkylineRideArea>
               <NextRide view={nextRide} now={now} variant="command" />
+              <VehicleReadiness vehicleDescription={branding.vehicleDescription} checks={null} />
+              <span className="sr-only">Readiness fields are not available in the current data model.</span>
             </SkylineRideArea>
 
             <SkylineIntelligenceArea>

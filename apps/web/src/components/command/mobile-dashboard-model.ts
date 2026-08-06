@@ -30,3 +30,17 @@ export function ridePrimaryLabel(view: RideView): string {
   if (view.kind === "needs_closing_out") return "Close out ride";
   return view.trip.confirmed_at ? "Complete ride" : "Confirm pickup";
 }
+
+export interface ReadinessChecks {
+  fuel: boolean | null;
+  clean: boolean | null;
+  route: boolean | null;
+  clientNotified: boolean | null;
+}
+
+export function readinessScore(checks: ReadinessChecks | null) {
+  const values = checks
+    ? Object.values(checks).filter((value): value is boolean => typeof value === "boolean")
+    : [];
+  return { completed: values.filter(Boolean).length, available: values.length };
+}
