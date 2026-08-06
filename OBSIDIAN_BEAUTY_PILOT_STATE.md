@@ -1,7 +1,7 @@
 # Obsidian Beauty — pilot state (Infinite Beauty Palace)
 
-**Status:** Built, reviewed, and deployed (pre-`0009` build live). Owner account linked.
-Pilot NOT yet activated. **As of:** 2026-08-06.
+**Status:** LIVE. `0008`+`0009` applied, isolation gate re-passed, production redeployed.
+Owner account linked. Pilot NOT yet activated. **As of:** 2026-08-06.
 **Repo:** github.com/goldenticket550/Obsu, branch `master`. **App:** `apps/web`.
 
 ## What this is
@@ -31,8 +31,8 @@ Brooklyn NY.
 ## Migrations
 - **`0008_beauty_core.sql` — APPLIED** to production (2026-08-06). Adds `vertical`, the two
   enums, and the six Beauty tables + RLS. Idempotent, ships with `_down`.
-- **`0009_beauty_atomic_writes.sql` — MUST BE APPLIED BY HAND before the Beauty write forms
-  are used.** Adds `appointment_services.category` (backfilled) and the
+- **`0009_beauty_atomic_writes.sql` — APPLIED** to production (2026-08-06). Adds
+  `appointment_services.category` (backfilled) and the
   `save_beauty_appointment` / `save_beauty_client` atomic RPCs (org derived server-side,
   `is_org_active` gate, advisory lock, server-side validation, category snapshots).
   Idempotent, ships with `_down`. The app shows a friendly "apply 0009" message if missing.
@@ -41,8 +41,9 @@ Brooklyn NY.
 `apps/web/scripts/rls-cross-tenant-proof.mjs` was extended to all six Beauty tables and
 passed live 2026-08-06: cross-tenant read/update/delete/spoofed-insert were all **REFUSED by
 Postgres**. The proof now also throws on query errors and handles `beauty_client_details`'s
-`customer_id` key. **Re-run it after applying 0009** (its header notes 0008+0009 as
-prerequisites) before onboarding/activation.
+`customer_id` key. Re-run after `0009` on 2026-08-06 — passed again with a full REFUSED
+matrix across all eleven org-scoped tables (the append-only `action_log` leaves inert,
+marked `ZZ-RLS-TEST` fixtures, which is expected and harmless).
 
 ## Customer / pilot
 - **Org:** "Infinite Beauty Palace", slug `infinite-beauty-palace`,
@@ -73,19 +74,22 @@ RPCs, and the hardened RLS proof.
 
 ## Deployment
 - Production: **https://obsidian-mvp.vercel.app** (Vercel project `obsidian-mvp`, aliased).
-  The Beauty vertical is deployed, but the currently-live build is **pre-`0009`** — login and
-  reads work; write forms need 0009 applied + a re-deploy.
+  The live build includes `0009`'s atomic write RPCs (redeployed 2026-08-06, Vercel `READY`) —
+  login, reads, and the booking/client write forms all work.
+- Backed up to GitHub: commit `ac9cc4967e4133de8cb7b72ed5dd054152905942` on `origin/master`.
 - Vercel is NOT git-connected: a git push does NOT deploy. Deploy manually with
   `cd apps/web` then `npx vercel --prod`.
 
-## Remaining steps (in order)
-1. Apply `0009_beauty_atomic_writes.sql` in the Supabase SQL Editor.
-2. Re-run `node scripts/rls-cross-tenant-proof.mjs` — must pass ("the DATABASE refused").
-3. Re-deploy: `cd apps/web; npx vercel --prod`.
-4. Owner logs in: production URL → Forgot password → `infinitebeautypalace@yahoo.com` → set
-   password → sign in.
-5. `select public.activate_pilot('2ef95ccb-7632-4fad-b1c4-eecdf5d5d538', 14);` when ready to
-   start the 14-day clock.
+## Done (2026-08-06)
+`0008` + `0009` applied; isolation gate re-passed (full REFUSED matrix); production
+redeployed to https://obsidian-mvp.vercel.app (Vercel `READY`); build pushed to GitHub
+(commit `ac9cc4967e4133de8cb7b72ed5dd054152905942`).
+
+## Remaining (owner)
+1. Owner logs in: https://obsidian-mvp.vercel.app → Forgot password →
+   `infinitebeautypalace@yahoo.com` → set password → sign in. Booking/client forms are live.
+2. `select public.activate_pilot('2ef95ccb-7632-4fad-b1c4-eecdf5d5d538', 14);` when ready to
+   start the 14-day clock (the workspace already works without it).
 
 ## Housekeeping (non-blocking)
 - Delete the placeholder auth account `her-real-email@example.com` (created during
