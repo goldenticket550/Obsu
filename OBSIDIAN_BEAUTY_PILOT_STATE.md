@@ -86,8 +86,10 @@ system shipped across all `/beauty` screens (cream cards, antique-gold, serif he
 day-timeline appointments, ranked Fills Due, category-filtered services, code-native nav
 icons, orb intact as `ObsidianIntelligence`); the corrupted Rides mobile nav icons were also
 fixed in the same pass (CCG benefits). Production deployed to https://obsidian-mvp.vercel.app
-(Vercel `READY`). Latest commit `de6bead716e3857f60bbdac02ed07f766ef8136e` on `origin/master`
-(prior milestones: `ac9cc496` build, `3f0dd37e` docs, `5a353736` assistant).
+(Vercel `READY`). A follow-up fixed the mobile assistant layout (orb ~360px→84px on Beauty
+mobile via an opt-in `presentation="beauty-compact"` prop; Rides/`/obsidian` unchanged).
+Latest commit `ffaace8699db4494038580e48323309e95a7ce01` on `origin/master` (prior milestones:
+`de6bead` mobile design, `9e1d7a8` docs, `5a353736` assistant, `ac9cc496` build).
 
 ## Remaining (owner)
 1. Owner logs in: https://obsidian-mvp.vercel.app → Forgot password →
