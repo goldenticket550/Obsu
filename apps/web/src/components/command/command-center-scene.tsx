@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import type { RouteVisualState } from "./route-line";
 import styles from "./command-center-scene.module.css";
 
@@ -84,11 +84,19 @@ export function CommandCenterScene({
   children,
   hasAttention,
   routeState,
+  primaryColor,
+  secondaryColor,
 }: {
   children: ReactNode;
   hasAttention: boolean;
   routeState: RouteVisualState;
+  primaryColor: string;
+  secondaryColor: string;
 }) {
+  const theme = {
+    "--workspace-primary": primaryColor,
+    "--workspace-secondary": secondaryColor,
+  } as CSSProperties;
   const sceneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -149,6 +157,7 @@ export function CommandCenterScene({
       className={styles.scene}
       data-has-attention={hasAttention ? "true" : "false"}
       data-route-state={routeState}
+      style={theme}
     >
       <AtmosphericBackdrop />
       <div className={styles.content}>{children}</div>

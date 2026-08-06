@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveBusinessBranding } from "./business-profile";
+import { resolveBusinessBranding, safeWorkspaceColor } from "./business-profile";
 
 describe("organization profile branding", () => {
   it("uses the complete business profile", () => {
@@ -36,3 +36,14 @@ describe("organization profile branding", () => {
     });
   });
 });
+
+  it("allows only six-digit hex workspace colors", () => {
+    expect(safeWorkspaceColor("#e8b04b", "#000000")).toBe("#E8B04B");
+    expect(safeWorkspaceColor("red; background:url(x)", "#37E8FF")).toBe("#37E8FF");
+    expect(safeWorkspaceColor("#fff", "#37E8FF")).toBe("#37E8FF");
+  });
+
+  it("uses safe defaults when profile colors are missing", () => {
+    const branding = resolveBusinessBranding("Midnight Rydes", null);
+    expect(branding).toMatchObject({ primaryColor: "#E8B04B", secondaryColor: "#37E8FF" });
+  });

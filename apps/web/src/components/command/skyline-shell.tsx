@@ -53,15 +53,19 @@ export function SkylineTopBar({
 
   return (
     <header className={styles.topbar}>
-      <div>
-        <p className={`${styles.eyebrow} text-content-muted`}>
-          <span className={styles.eyebrowDot} aria-hidden />
-          {workspaceLabel ? `${workspaceLabel} | ` : ""}
-          {businessName ?? ""}
+      {workspaceLabel ? (
+        <span className={styles.mobileWorkspaceChip} aria-label={`Workspace ${workspaceLabel}`}>
+          <span className={styles.workspaceGlyph} aria-hidden>+</span>
+          {workspaceLabel}
+        </span>
+      ) : null}
+      <div className={styles.identity}>
+        <p className={styles.eyebrow}>
+          OBSIDIAN <span>RIDES</span>
         </p>
-        <h1 className={`${styles.title} text-content-primary`}>Command Center</h1>
+        <h1 className={styles.title}>{businessName ?? ""}</h1>
         <p className={`${styles.subline} text-content-secondary`}>
-          {skylineSubline(now)}
+          Command Center &middot; {skylineSubline(now)}
         </p>
       </div>
 

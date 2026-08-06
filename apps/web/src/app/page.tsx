@@ -121,9 +121,11 @@ export default async function DashboardPage() {
     <CommandCenterScene
       hasAttention={actionItems.length > 0}
       routeState={routeState}
+      primaryColor={branding.primaryColor}
+      secondaryColor={branding.secondaryColor}
     >
       <SkylineMain>
-        <main className="mx-auto w-full max-w-[96rem] px-6 pb-10 pt-5">
+        <main className="mx-auto w-full max-w-[96rem] px-4 pb-10 pt-5 sm:px-6">
           <SkylineCommandLayout>
             <SkylineHeaderArea>
               <SkylineTopBar
