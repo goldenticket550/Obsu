@@ -17,7 +17,7 @@ export function ServiceForm({ service, error }: { service?: Service | null; erro
       <BeautyField label="Description"><textarea className={beautyInput} name="description" rows={3} defaultValue={service?.description ?? ""} /></BeautyField>
       <label className="flex items-center gap-2 text-sm text-stone-300"><input type="checkbox" name="active" defaultChecked={service?.active ?? true} /> Active and bookable</label>
       <BeautyError message={error} />
-      <button className="rounded-lg bg-[var(--beauty-primary)] px-4 py-3 font-semibold text-stone-950">Save service</button>
+      <button className="min-h-[44px] rounded-lg bg-[var(--beauty-primary)] px-4 py-3 font-semibold text-stone-950">Save service</button>
     </form>
   );
 }

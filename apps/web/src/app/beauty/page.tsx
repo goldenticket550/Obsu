@@ -1,28 +1,86 @@
+import Link from "next/link";
 import { ObsidianIntelligence } from "@/components/command/obsidian-intelligence";
 import { BeautyHeader, BeautyPanel } from "@/components/beauty/beauty-ui";
-import { beautyMonthRevenueCents, fillsDueClients, upcomingAppointments } from "@/lib/business/beauty/intel";
+import {
+  beautyDayRevenueCents,
+  beautyGreeting,
+  beautyPreviousDayRevenueCents,
+  fillsDueClients,
+  todaysRemainingAppointments,
+} from "@/lib/business/beauty/intel";
 import { getBeautyProfile, listAppointments, listBeautyClients } from "@/lib/db/beauty";
 import { formatUsd } from "@/lib/money";
-import Link from "next/link";
+import styles from "./beauty-home.module.css";
 
 export const dynamic = "force-dynamic";
 
 export default async function BeautyDashboard() {
   const now = new Date();
-  const [appointments, clients, profile] = await Promise.all([listAppointments(), listBeautyClients(), getBeautyProfile()]);
-  const revenue = beautyMonthRevenueCents(appointments, now, profile.timezone);
-  const upcoming = upcomingAppointments(appointments, now);
+  const [appointments, clients, profile] = await Promise.all([
+    listAppointments(),
+    listBeautyClients(),
+    getBeautyProfile(),
+  ]);
+  const todayRevenue = beautyDayRevenueCents(appointments, now, profile.timezone);
+  const yesterdayRevenue = beautyPreviousDayRevenueCents(appointments, now, profile.timezone);
+  const revenueDelta = todayRevenue - yesterdayRevenue;
+  const remaining = todaysRemainingAppointments(appointments, now, profile.timezone);
+  const nextAppointment = remaining[0] ?? null;
   const due = fillsDueClients(clients, appointments, now, 21, profile.timezone);
+  const timeFormatter = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: profile.timezone,
+  });
+  const deltaCopy = revenueDelta === 0
+    ? "Same as yesterday"
+    : `${formatUsd(Math.abs(revenueDelta))} ${revenueDelta > 0 ? "more" : "less"} than yesterday`;
+
   return (
-    <main className="mx-auto max-w-5xl px-5 pb-20 pt-6">
+    <main className={`${styles.home} mx-auto max-w-5xl px-5 pb-20 pt-6`}>
       <BeautyHeader title="Command Center" />
-      <section className="mt-6 grid gap-4 md:grid-cols-3">
-        <BeautyPanel><p className="text-xs uppercase tracking-widest text-stone-500">Month revenue</p><p className="mt-2 text-3xl text-[var(--beauty-primary)]">{formatUsd(revenue)}</p><p className="mt-2 text-xs text-stone-500">Completed appointments only · {profile.timezone}</p></BeautyPanel>
-        <BeautyPanel><p className="text-xs uppercase tracking-widest text-stone-500">Upcoming</p><p className="mt-2 text-3xl text-stone-100">{upcoming.length}</p><Link className="mt-2 block text-xs text-[var(--beauty-primary)]" href="/beauty/appointments">View appointments ?</Link></BeautyPanel>
-        <BeautyPanel><p className="text-xs uppercase tracking-widest text-stone-500">Fills due</p><p className="mt-2 text-3xl text-stone-100">{due.length}</p><Link className="mt-2 block text-xs text-[var(--beauty-primary)]" href="/beauty/clients">Review drafts ?</Link></BeautyPanel>
+      <p className={styles.greeting}>{beautyGreeting(profile.owner_name, now, profile.timezone)}</p>
+      <section className={styles.metrics} aria-label="Today's business overview">
+        <article className={styles.metricCard}>
+          <p className={styles.metricLabel}>Today&apos;s revenue</p>
+          <p className={styles.metricValue}>{formatUsd(todayRevenue)}</p>
+          <p className={styles.metricMeta}>{deltaCopy} · completed appointments only</p>
+        </article>
+        <article className={styles.metricCard}>
+          <p className={styles.metricLabel}>Remaining appointments</p>
+          <p className={styles.metricValue}>{remaining.length}</p>
+          <Link className={styles.metricLink} href="/beauty/appointments">View appointments</Link>
+        </article>
+        <article className={styles.metricCard}>
+          <p className={styles.metricLabel}>Next client</p>
+          <p className={styles.nextClient}>{nextAppointment?.client?.name ?? "No remaining clients"}</p>
+          <p className={styles.metricMeta}>
+            {nextAppointment ? timeFormatter.format(new Date(nextAppointment.starts_at)) : "No booked appointments remain today"}
+          </p>
+        </article>
+        <article className={styles.metricCard}>
+          <p className={styles.metricLabel}>Fills due</p>
+          <p className={styles.metricValue}>{due.length}</p>
+          <Link className={styles.metricLink} href="/beauty/clients">Review fill details</Link>
+        </article>
       </section>
-      <BeautyPanel className="mt-5 overflow-hidden"><div className="mb-5 text-center"><p className="text-xs uppercase tracking-[.25em] text-[var(--beauty-primary)]">Ask Obsidian</p><h2 className="mt-2 text-2xl text-stone-100">Your beauty back office, at a glance.</h2><p className="mt-2 text-sm text-stone-400">Tap the shared orb or type a question. Answers use only verified records in this workspace.</p></div><ObsidianIntelligence needsAttention={due.length > 0} actionCount={due.length} showTodayOverview speakTypedAnswers /></BeautyPanel>
-      {upcoming.length === 0 ? <BeautyPanel className="mt-5 text-center text-sm text-stone-500">No upcoming appointments yet. Your dashboard will stay honest until bookings are recorded.</BeautyPanel> : null}
+      <BeautyPanel className={`${styles.assistantPanel} mt-5 overflow-hidden`}>
+        <div className="mb-5 text-center">
+          <p className={styles.assistantEyebrow}>Ask Obsidian</p>
+          <h2 className={styles.assistantHeading}>Your beauty back office, at a glance.</h2>
+          <p className={styles.assistantBody}>Tap the shared orb or type a question. Answers use only verified records in this workspace.</p>
+        </div>
+        <ObsidianIntelligence
+          needsAttention={due.length > 0}
+          actionCount={due.length}
+          showTodayOverview
+          speakTypedAnswers
+          todayOverviewClassName={styles.overviewButton}
+        />
+      </BeautyPanel>
+      {appointments.length === 0 ? (
+        <p className={styles.emptyState}>No appointments yet. Metrics will update when real bookings are recorded.</p>
+      ) : null}
     </main>
   );
 }

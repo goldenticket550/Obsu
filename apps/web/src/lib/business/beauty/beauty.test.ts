@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Appointment, ServiceCategory } from "@/lib/types/beauty";
 import { checkAppointmentConflict } from "./conflicts";
-import { balanceDueCents, beautyMonthRevenueCents, fillsDueClients, isMissingAddOn } from "./intel";
+import { appointmentStatusLabel, balanceDueCents, beautyDayRevenueCents, beautyGreeting, beautyMonthRevenueCents, beautyPreviousDayRevenueCents, fillsDueClients, isMissingAddOn, todaysRemainingAppointments } from "./intel";
 import { formatDateTimeLocal, zonedDateTimeToUtc } from "./timezone";
 import { dollarsToCents, positiveInteger, requireEnum, SERVICE_CATEGORIES, uniqueIds, wallTime, weekday } from "./validation";
 
@@ -29,8 +29,29 @@ describe("Beauty intelligence", () => {
     const booked = appointment({ id: "booked", status: "booked" });
     expect(beautyMonthRevenueCents([localAugust, booked], new Date("2026-08-20T12:00:00Z"), "America/New_York")).toBe(11_500);
   });
-  it("derives balances without returning negative overpayments", () => {
-    expect(balanceDueCents(appointment({ price_cents: 10_000, late_fee_cents: 1_500, amount_paid_cents: 4_000 }))).toBe(7_500);
+  it("computes today, yesterday, and remaining bookings in the business timezone", () => {
+    const today = appointment({ id: "today", starts_at: "2026-08-04T16:00:00Z", status: "completed", price_cents: 10_000 });
+    const yesterday = appointment({ id: "yesterday", starts_at: "2026-08-03T16:00:00Z", status: "completed", price_cents: 4_000 });
+    const later = appointment({ id: "later", starts_at: "2026-08-04T20:00:00Z", ends_at: "2026-08-04T21:00:00Z", status: "booked" });
+    const tomorrow = appointment({ id: "tomorrow", starts_at: "2026-08-05T16:00:00Z", status: "booked" });
+    const now = new Date("2026-08-04T17:00:00Z");
+    expect(beautyDayRevenueCents([today, yesterday], now, "America/New_York")).toBe(10_000);
+    expect(beautyPreviousDayRevenueCents([today, yesterday], now, "America/New_York")).toBe(4_000);
+    expect(todaysRemainingAppointments([later, tomorrow], now, "America/New_York").map((row) => row.id)).toEqual(["later"]);
+  });
+  it("derives friendly status labels without adding stored enum values", () => {
+    const now = new Date("2026-08-04T16:30:00Z");
+    expect(appointmentStatusLabel(appointment({ status: "booked" }), now)).toBe("In progress");
+    expect(appointmentStatusLabel(appointment({ status: "completed" }), now)).toBe("Completed");
+    expect(appointmentStatusLabel(appointment({ status: "canceled" }), now)).toBe("Canceled");
+    expect(appointmentStatusLabel(appointment({ status: "no_show" }), now)).toBe("No-show");
+  });
+  it("uses the owner name when present and an honest time-based fallback otherwise", () => {
+    const morning = new Date("2026-08-04T13:00:00Z");
+    expect(beautyGreeting("Morgan", morning, "America/New_York")).toBe("Good morning, Morgan");
+    expect(beautyGreeting(null, morning, "America/New_York")).toBe("Good morning");
+  });  it("derives balances without returning negative overpayments", () => {
+    expect(balanceDueCents(appointment({ price_cents: 10_000, late_fee_cents: 1_500, amount_paid_cents: 4_000 }))).toBe(6_000);
     expect(balanceDueCents(appointment({ price_cents: 10_000, amount_paid_cents: 20_000 }))).toBe(0);
   });
   it("requires repeat lash visits and more than 21 local calendar days", () => {

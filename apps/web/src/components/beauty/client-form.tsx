@@ -20,7 +20,7 @@ export function ClientForm({ client, details, error }: { client?: Customer; deta
       </div>
       <BeautyField label="Natural lash notes"><textarea name="natural_lash_notes" rows={2} className={beautyInput} defaultValue={details?.natural_lash_notes ?? ""} /></BeautyField>
       <BeautyError message={error} />
-      <button className="rounded-lg bg-[var(--beauty-primary)] px-4 py-3 font-semibold text-stone-950">Save client</button>
+      <button className="min-h-[44px] rounded-lg bg-[var(--beauty-primary)] px-4 py-3 font-semibold text-stone-950">Save client</button>
     </form>
   );
 }

@@ -34,7 +34,7 @@ export function AppointmentForm({ appointment, services, clients, timeZone, erro
       <BeautyField label="Notes"><textarea className={beautyInput} name="notes" rows={3} defaultValue={appointment?.notes ?? ""} /></BeautyField>
       <BeautyError message={error} />
       <p className="text-xs text-stone-500">Duration and total are calculated from immutable service snapshots. Conflicting and out-of-hours times are refused.</p>
-      <button className="rounded-lg bg-[var(--beauty-primary)] px-4 py-3 font-semibold text-stone-950">Save appointment</button>
+      <button className="min-h-[44px] rounded-lg bg-[var(--beauty-primary)] px-4 py-3 font-semibold text-stone-950">Save appointment</button>
     </form>
   );
 }

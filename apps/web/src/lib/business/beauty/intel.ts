@@ -13,12 +13,46 @@ export function beautyMonthRevenueCents(appointments: Appointment[], asOfDate: D
   }).reduce((sum, appointment) => sum + appointment.price_cents, 0);
 }
 
+export function beautyDayRevenueCents(appointments: Appointment[], day: Date, timeZone = "America/New_York"): number {
+  const dayKey = localDateKey(day, timeZone);
+  return appointments
+    .filter((appointment) => completed(appointment) && localDateKey(new Date(appointment.starts_at), timeZone) === dayKey)
+    .reduce((sum, appointment) => sum + appointment.price_cents, 0);
+}
+
+export function beautyPreviousDayRevenueCents(appointments: Appointment[], asOfDate: Date, timeZone = "America/New_York"): number {
+  const local = localDateTimeParts(asOfDate, timeZone);
+  const previousKey = new Date(Date.UTC(local.year, local.month - 1, local.day - 1)).toISOString().slice(0, 10);
+  return appointments
+    .filter((appointment) => completed(appointment) && localDateKey(new Date(appointment.starts_at), timeZone) === previousKey)
+    .reduce((sum, appointment) => sum + appointment.price_cents, 0);
+}
+
 export function upcomingAppointments(appointments: Appointment[], asOfDate: Date): Appointment[] {
   return appointments.filter((appointment) => appointment.status === "booked" && new Date(appointment.starts_at) >= asOfDate).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 }
 
+export function todaysRemainingAppointments(appointments: Appointment[], now: Date, timeZone = "America/New_York"): Appointment[] {
+  const today = localDateKey(now, timeZone);
+  return appointments
+    .filter((appointment) => appointment.status === "booked" && new Date(appointment.starts_at) >= now && localDateKey(new Date(appointment.starts_at), timeZone) === today)
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+}
+
+export function appointmentStatusLabel(appointment: Appointment, now: Date): string {
+  if (appointment.status === "booked" && new Date(appointment.starts_at) <= now && now < new Date(appointment.ends_at)) return "In progress";
+  return { booked: "Booked", completed: "Completed", canceled: "Canceled", no_show: "No-show" }[appointment.status];
+}
+
+export function beautyGreeting(ownerName: string | null | undefined, now: Date, timeZone = "America/New_York"): string {
+  const hour = localDateTimeParts(now, timeZone).hour;
+  const salutation = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const name = ownerName?.trim();
+  return name ? `${salutation}, ${name}` : salutation;
+}
+
 export function balanceDueCents(appointment: Appointment): number {
-  return Math.max(0, appointment.price_cents + (appointment.late_fee_cents ?? 0) - (appointment.amount_paid_cents ?? 0));
+  return Math.max(0, appointment.price_cents - (appointment.amount_paid_cents ?? 0));
 }
 
 export function isMissingAddOn(appointment: Appointment): boolean {
@@ -28,7 +62,7 @@ export function isMissingAddOn(appointment: Appointment): boolean {
   return isBestieDeal && !lines.some((line) => line.category === "bottom_lash");
 }
 
-export interface FillDueClient { customer: Customer; lastServiceAt: string; daysSince: number; }
+export interface FillDueClient { customer: Customer; lastServiceAt: string; daysSince: number; lastAppointment: Appointment; }
 function calendarDaysBetween(later: string, earlier: string): number {
   return Math.floor((new Date(`${later}T00:00:00Z`).getTime() - new Date(`${earlier}T00:00:00Z`).getTime()) / 86_400_000);
 }
@@ -47,6 +81,6 @@ export function fillsDueClients(customers: Customer[], appointments: Appointment
     if (visits.length < 2) return [];
     const last = visits.sort((a, b) => b.starts_at.localeCompare(a.starts_at))[0]!;
     const daysSince = calendarDaysBetween(asOfKey, localDateKey(new Date(last.starts_at), timeZone));
-    return daysSince > thresholdDays ? [{ customer, lastServiceAt: last.starts_at, daysSince }] : [];
+    return daysSince > thresholdDays ? [{ customer, lastServiceAt: last.starts_at, daysSince, lastAppointment: last }] : [];
   }).sort((a, b) => b.daysSince - a.daysSince);
 }

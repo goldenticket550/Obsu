@@ -9,6 +9,7 @@ const db = () => createSupabaseServerClient();
 
 export interface BeautyProfile {
   display_name?: string | null;
+  owner_name?: string | null;
   timezone: string;
   primary_color?: string | null;
   secondary_color?: string | null;
@@ -42,7 +43,7 @@ export const listTimeOff = () => rows<TimeOff>("time_off", "starts_at", true);
 
 export async function getBeautyProfile(): Promise<BeautyProfile> {
   const organizationId = await getCurrentOrgId();
-  const { data, error } = await db().from("business_profile").select("display_name,timezone,primary_color,secondary_color,settings").eq("organization_id", organizationId).maybeSingle();
+  const { data, error } = await db().from("business_profile").select("display_name,owner_name,timezone,primary_color,secondary_color,settings").eq("organization_id", organizationId).maybeSingle();
   if (error) throw error;
   return { ...(data as BeautyProfile | null), timezone: (data as BeautyProfile | null)?.timezone || "America/New_York" };
 }

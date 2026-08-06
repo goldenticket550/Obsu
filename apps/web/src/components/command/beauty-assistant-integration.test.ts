@@ -1,11 +1,12 @@
-﻿import { readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const SRC = join(process.cwd(), "src");
 const controller = readFileSync(join(SRC, "components", "command", "obsidian-intelligence.tsx"), "utf8");
 const beautyHome = readFileSync(join(SRC, "app", "beauty", "page.tsx"), "utf8");
-const styles = readFileSync(join(SRC, "components", "command", "obsidian-intelligence.module.css"), "utf8");
+const sharedStyles = readFileSync(join(SRC, "components", "command", "obsidian-intelligence.module.css"), "utf8");
+const beautyStyles = readFileSync(join(SRC, "app", "beauty", "beauty-home.module.css"), "utf8");
 
 describe("Beauty Home assistant integration", () => {
   it("mounts the shared controller, never the bare canvas", () => {
@@ -35,8 +36,9 @@ describe("Beauty Home assistant integration", () => {
   });
 
   it("keeps the overview control calm in reduced-motion mode", () => {
-    expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(styles).toContain(".todayOverview { transition: none; }");
-    expect(styles).toContain(".todayOverview:hover:not(:disabled) { transform: none; }");
+    expect(beautyStyles).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(beautyStyles).toContain(".overviewButton { transition: none; }");
+    expect(beautyStyles).toContain(".overviewButton:hover:not(:disabled) { transform: none; }");
+    expect(sharedStyles).not.toContain("todayOverview");
   });
 });

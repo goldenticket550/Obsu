@@ -321,23 +321,3 @@
   }
   .commandDock input::placeholder { color: transparent; }
 }
-
-.todayOverview {
-  min-height: 44px;
-  margin-top: 10px;
-  border: 1px solid rgb(216 180 254 / 46%);
-  border-radius: 999px;
-  padding-inline: 20px;
-  background: rgb(88 28 135 / 18%);
-  color: rgb(243 232 255);
-  font-size: 13px;
-  font-weight: 650;
-  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
-}
-.todayOverview:hover:not(:disabled) { border-color: rgb(216 180 254 / 78%); background: rgb(88 28 135 / 30%); transform: translateY(-1px); }
-.todayOverview:focus-visible { outline: 2px solid rgb(216 180 254); outline-offset: 3px; }
-.todayOverview:disabled { cursor: not-allowed; opacity: 0.5; }
-@media (prefers-reduced-motion: reduce) {
-  .todayOverview { transition: none; }
-  .todayOverview:hover:not(:disabled) { transform: none; }
-}

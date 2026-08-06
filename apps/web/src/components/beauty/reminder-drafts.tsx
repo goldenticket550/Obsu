@@ -36,7 +36,7 @@ export function ReminderDrafts({ rows, businessName }: { rows: ReminderDraftRow[
 
   return (
     <>
-      {logWarning ? <p role="status" className="mt-3 text-xs text-[var(--beauty-primary)]">{logWarning}</p> : null}
+      {logWarning ? <p role="status" className="mt-3 text-xs text-stone-100">{logWarning}</p> : null}
       <ul className="divide-y divide-[color:var(--beauty-border)]">
         {rows.map((row) => (
           <li key={row.id} className="py-4">
@@ -44,7 +44,7 @@ export function ReminderDrafts({ rows, businessName }: { rows: ReminderDraftRow[
             <textarea className="w-full rounded-lg border border-[color:var(--beauty-border)] bg-black/30 p-3 text-sm text-stone-200" rows={3} value={text(row)} onChange={(event) => setDrafts((current) => ({ ...current, [row.id]: event.target.value }))} />
             <div className="mt-2 flex items-center justify-between">
               <span className="text-xs text-stone-500">Draft only. Obsidian never sends this message.</span>
-              <button type="button" className="rounded-lg bg-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-950" onClick={() => void copy(row)}>{copied === row.id ? "Copied" : "Copy"}</button>
+              <button type="button" className="min-h-[44px] rounded-lg bg-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-950" onClick={() => void copy(row)}>{copied === row.id ? "Copied" : "Copy"}</button>
             </div>
           </li>
         ))}

@@ -87,6 +87,7 @@ export function ObsidianIntelligence({
   shortGreeting = "",
   showTodayOverview = false,
   speakTypedAnswers = false,
+  todayOverviewClassName = "",
 }: {
   /**
    * Gate 1: the ONLY real-data input to the orb's amber treatment. Passed from
@@ -104,6 +105,8 @@ export function ObsidianIntelligence({
   showTodayOverview?: boolean;
   /** Beauty speaks typed and shortcut answers; Rides keeps its existing default. */
   speakTypedAnswers?: boolean;
+  /** Lets a vertical own presentation without leaking styles into this shared controller. */
+  todayOverviewClassName?: string;
 }) {
   const [state, setState] = useState<OrbState>({ kind: "idle" });
   const [history, setHistory] = useState<ConversationTurn[]>([]);
@@ -624,7 +627,7 @@ export function ObsidianIntelligence({
       {showTodayOverview ? (
         <button
           type="button"
-          className={ui.todayOverview}
+          className={todayOverviewClassName}
           onClick={() => void run(BEAUTY_TODAY_OVERVIEW_REQUEST)}
           disabled={busy || !resting}
           aria-label="Today's overview: appointments, revenue, and fills due"
