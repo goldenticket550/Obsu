@@ -1,0 +1,74 @@
+.page {
+  margin: 0 auto;
+  max-width: 1480px;
+  padding: 32px 24px 72px;
+}
+
+.header h1,
+.orb h2,
+.panelHeader h2 {
+  color: var(--workspace-primary);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.header h1 { margin-top: 4px; font-size: clamp(30px, 5vw, 52px); }
+.header > p:last-child, .orb p, .empty { @apply text-content-secondary; }
+.eyebrow, .kicker { color: var(--workspace-secondary); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
+
+.orb {
+  display: flex;
+  min-height: 280px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  margin: 30px 0;
+  padding: 24px clamp(20px, 5vw, 64px);
+  @apply border border-line bg-surface-base/70;
+  border-radius: 24px;
+  background: rgb(8 9 11 / 68%);
+  box-shadow: 0 0 60px color-mix(in srgb, var(--workspace-primary) 8%, transparent);
+}
+
+.orb h2 { margin: 4px 0 8px; font-size: 28px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr); gap: 20px; }
+.portfolioPanel, .feedbackPanel, .activityPanel { padding: 22px; }
+.portfolioPanel { grid-column: 1 / -1; }
+.panelHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+.panelHeader h2 { margin-top: 4px; font-size: 20px; }
+.panelHeader > span { @apply text-content-secondary; font-size: 12px; }
+.divisions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.division { @apply border border-line bg-surface-raised/70; padding: 16px; border-radius: 16px; }
+.division h3 { @apply text-content-primary; font-size: 14px; }
+.division ul, .feedbackList, .counts, .notable { margin-top: 12px; list-style: none; }
+.division li { @apply border-line; display: flex; justify-content: space-between; gap: 14px; padding: 12px 0; border-top-width: 1px; }
+.division li strong, .division li span { display: block; }
+.division li span, .status small { @apply text-content-muted; font-size: 11px; text-transform: capitalize; }
+.status { @apply text-state-warning; font-size: 12px; text-align: right; }
+.status[data-active="true"] { @apply text-state-positive; }
+.notReporting { @apply text-content-muted; margin-top: 12px; font-size: 13px; line-height: 1.6; }
+.feedbackList li { @apply border-line; padding: 15px 0; border-top-width: 1px; }
+.feedbackList h3 { @apply text-content-primary; margin-top: 9px; font-size: 15px; }
+.feedbackList p { @apply text-content-secondary; margin-top: 5px; font-size: 13px; line-height: 1.55; }
+.feedbackList small { @apply text-content-muted; display: block; margin-top: 8px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tags span { @apply border border-line; padding: 3px 7px; border-radius: 999px; color: var(--workspace-secondary); font-size: 9px; text-transform: capitalize; }
+.pagination { @apply text-content-secondary; display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; font-size: 12px; }
+.pagination a { color: var(--workspace-secondary); text-decoration: underline; text-underline-offset: 3px; }
+.counts li { @apply border-line; display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-top-width: 1px; }
+.counts strong, .counts span { display: block; }
+.counts strong { @apply text-content-primary; font-size: 13px; }
+.counts span { @apply text-content-muted; font-size: 11px; text-transform: capitalize; }
+.counts b { color: var(--workspace-primary); font-size: 22px; font-weight: 500; }
+.recentHeading { @apply text-content-primary; margin-top: 24px; font-size: 14px; }
+.notable li { @apply border-line; display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; padding: 10px 0; border-top-width: 1px; font-size: 11px; }
+.notable span { color: var(--workspace-secondary); text-transform: capitalize; }
+.notable strong { @apply text-content-primary; font-weight: 500; }
+.notable small { @apply text-content-muted; }
+
+@media (max-width: 900px) {
+  .page { padding: 22px 16px 56px; }
+  .orb { flex-direction: column; align-items: flex-start; }
+  .grid, .divisions { grid-template-columns: 1fr; }
+  .portfolioPanel { grid-column: auto; }
+}

@@ -1,8 +1,8 @@
-# OBSIDIAN — Production Migration Ledger
+# OBSIDIAN â€” Production Migration Ledger
 
-Last verified: 2026-08-06
+Last verified: 2026-08-07
 
-Status values in this provisional object inventory: `objects present`, `end state present`.
+Status values in this provisional object inventory: `objects present`, `end state present`, `applied`.
 
 Applied-status confirmed by production schema END STATE via PostgREST on 2026-08-06. Execution history, RLS policies, constraints, triggers, grants, and function bodies are NOT yet verified (requires SQL access). No CONFIRM rows remain for object existence.
 
@@ -19,6 +19,7 @@ These statuses describe only the observed production schema end state. They do n
 | `0007_pilot_feedback_events.sql` | Tenant-scoped pilot feedback and append-only activity events | objects present | unknown | PostgREST exposes `pilot_feedback` and `activity_event`; append-only enforcement details are not yet verified. |
 | `0008_beauty_core.sql` | Beauty vertical discriminator, services, client details, appointments, scheduling tables, and RLS | objects present | unknown | PostgREST exposes `vertical`, `services`, `beauty_client_details`, `appointments`, `appointment_services`, `working_hours`, and `time_off`. |
 | `0009_beauty_atomic_writes.sql` | Stable appointment service-category snapshots and atomic appointment/client write RPCs | objects present | unknown | PostgREST exposes `save_beauty_appointment` and `save_beauty_client`; function bodies and enforcement details are not yet verified. |
+| `0010_core_read_layer.sql` | Empty platform-admin boundary and narrowly scoped, read-only cross-organization Core RPCs | applied | 2026-08-07 | Applied through the production SQL editor after confirming the referenced live columns and `is_org_active(uuid)` signature. SQL checks confirmed `platform_admins`, `is_platform_admin(uuid)`, and all four `core_*` RPCs exist; exactly one dedicated zero-membership owner account was seeded without exposing its UUID. Owner calls succeeded, while authenticated tenant and anon calls to the predicate and every Core RPC raised `42501`. |
 
 The 16 confirmed public tables are: `action_log`, `activity_event`, `appointment_services`, `appointments`, `beauty_client_details`, `business_profile`, `customers`, `expenses`, `memberships`, `organizations`, `pilot_feedback`, `services`, `time_off`, `trips`, `vehicles`, and `working_hours`.
 

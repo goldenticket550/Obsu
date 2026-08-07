@@ -34,6 +34,7 @@ export async function updateSession(request: NextRequest) {
     },
   });
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user && request.nextUrl.pathname === "/core") return supabaseResponse;
   if (!user && !isPublicAuthRoute(request.nextUrl.pathname)) return redirectWithCookies(request, supabaseResponse, "/login");
   if (!user) return supabaseResponse;
 
