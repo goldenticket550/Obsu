@@ -71,7 +71,7 @@ const REQUIRED = [
 const missing = REQUIRED.filter(([, v]) => !v).map(([n]) => n);
 if (missing.length > 0) {
   console.log("");
-  console.log("SKIPPED — the live cross-tenant RLS proof did not run.");
+  console.error("ERROR — the live cross-tenant RLS proof did not run.");
   console.log("");
   console.log("Missing required environment variable(s):");
   for (const name of missing) console.log(`  - ${name}`);
@@ -86,7 +86,7 @@ if (missing.length > 0) {
   console.log("  SUPABASE_SERVICE_ROLE_KEY=... node scripts/rls-cross-tenant-proof.mjs");
   console.log("");
   console.log("Nothing was created and nothing was changed.");
-  process.exit(0);
+  process.exit(1);
 }
 
 /* ------------------------------------------------------------------ */

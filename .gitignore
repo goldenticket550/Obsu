@@ -4,9 +4,10 @@ node_modules/
 .pnp.js
 
 # Env & secrets — NEVER commit
-.env
-.env.local
-.env.*.local
+*.local
+.env*
+!.env.example
+!**/.env.local.example
 *.pem
 *.key
 
